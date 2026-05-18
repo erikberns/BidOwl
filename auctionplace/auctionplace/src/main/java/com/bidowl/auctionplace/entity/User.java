@@ -4,9 +4,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
+// Removed Spring Security imports to avoid unresolved dependency in classpath
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
