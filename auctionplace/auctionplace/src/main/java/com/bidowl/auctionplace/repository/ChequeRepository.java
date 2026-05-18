@@ -5,10 +5,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import java.util.List;
-import com.bidowl.auctionplace.entity.Tarjeta;
+import com.bidowl.auctionplace.entity.Cheque;
 
 @Repository
-public interface TarjetaRepository extends JpaRepository<Tarjeta, UUID> {
-    @Query ("SELECT t FROM Tarjeta t WHERE t.usuario.id = :usuarioId")
-    List<Tarjeta> findByUsuarioId(UUID usuarioId);
+public interface ChequeRepository extends JpaRepository<Cheque, UUID> {
+
+    @Query ("SELECT c FROM Cheque c WHERE c.usuario.id = :usuarioId")
+    List<Cheque> findByUsuarioId(UUID usuarioId);
+    
 }
