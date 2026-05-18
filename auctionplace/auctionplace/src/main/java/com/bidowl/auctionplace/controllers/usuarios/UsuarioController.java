@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bidowl.auctionplace.controllers.metodosPago.MetodoPagoResponse;
-import com.bidowl.auctionplace.controllers.tarjeta.TarjetaRequest;
+import com.bidowl.auctionplace.controllers.tarjetas.TarjetaRequest;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

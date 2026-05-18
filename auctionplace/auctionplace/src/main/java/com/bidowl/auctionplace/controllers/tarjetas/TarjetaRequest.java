@@ -1,4 +1,4 @@
-package com.bidowl.auctionplace.controllers.tarjeta;
+package com.bidowl.auctionplace.controllers.tarjetas;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;

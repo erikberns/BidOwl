@@ -5,11 +5,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bidowl.auctionplace.controllers.metodosPago.MetodoPagoResponse;
-import com.bidowl.auctionplace.controllers.tarjeta.TarjetaRepository;
-import com.bidowl.auctionplace.controllers.tarjeta.TarjetaRequest;
+import com.bidowl.auctionplace.controllers.tarjetas.TarjetaRequest;
 import com.bidowl.auctionplace.entity.Tarjeta;
 import com.bidowl.auctionplace.entity.TipoMetodoPago;
 import com.bidowl.auctionplace.entity.User;
+import com.bidowl.auctionplace.repository.TarjetaRepository;
 
 import lombok.RequiredArgsConstructor;
 
