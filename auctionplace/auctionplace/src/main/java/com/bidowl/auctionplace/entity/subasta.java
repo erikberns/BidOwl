@@ -27,7 +27,7 @@ public class Subasta {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "estado", length = 10)
-    private EstadoSubasta estado;
+    private Estado estado;
 
     @ManyToOne
     @JoinColumn(name = "subastador", referencedColumnName = "identificador")
@@ -49,5 +49,5 @@ public class Subasta {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "categoria", length = 10)
-    private CategoriaSubasta categoria;
+    private categoria categoria;
 }
