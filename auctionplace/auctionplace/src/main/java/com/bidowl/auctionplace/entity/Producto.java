@@ -21,8 +21,7 @@ public class Producto {
     @Column(name = "fecha")
     private LocalDate fecha;
 
-    @Column(length = 2)
-    @Check(constraints = "disponible IN ('si','no')")
+    @Column(length = 2, nullable = false)
     private String disponible;
 
     @Column(name = "descripcionCatalogo", length = 500)
