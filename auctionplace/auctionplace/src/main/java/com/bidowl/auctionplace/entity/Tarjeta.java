@@ -24,16 +24,16 @@ public class Tarjeta extends MetodoPago {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
     
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true, name = "numero_tarjeta")
     private String numeroTarjeta;
     
-    @Column(nullable = false)
+    @Column(nullable = false, name = "titular_tarjeta")
     private String titularTarjeta;
     
-    @Column(nullable = false)
+    @Column(nullable = false, name = "fecha_vencimiento")
     private String fechaVencimiento;
     
-    @Column(nullable = false)
+    @Column(nullable = false, name = "cvv")
     private String cvv;
     
     @ManyToOne

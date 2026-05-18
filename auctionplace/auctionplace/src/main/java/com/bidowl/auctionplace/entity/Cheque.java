@@ -25,25 +25,25 @@ public class Cheque extends MetodoPago{
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
     
-    @Column(nullable = false)
+    @Column(nullable = false, name = "titular")
     private String titular;
 
-    @Column(nullable = false)
+    @Column(nullable = false, name = "banco_emisor")
     private String bancoEmisor;
     
-    @Column(nullable = false)
+    @Column(nullable = false, name = "numero_cheque")
     private String numeroCheque;
     
-    @Column(nullable = false)
+    @Column(nullable = false, name = "monto")
     private float monto;
     
-    @Column(nullable = false)
+    @Column(nullable = false, name = "pais")
     private int pais;
 
-    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
     private Moneda moneda;
 
-    @Column(nullable = false)
+    @Column(nullable = false, name = "comprobante")
     private String comprobante;
 
     @ManyToOne

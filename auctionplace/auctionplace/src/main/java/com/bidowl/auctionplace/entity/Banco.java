@@ -24,22 +24,22 @@ public class Banco extends MetodoPago{
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
     
-    @Column(nullable = false)
+    @Column(nullable = false, name = "titular_cuenta")
     private String titularCuenta;
 
-    @Column(nullable = false)
+    @Column(nullable = false, name = "nombre_banco")
     private String nombreBanco;
     
-    @Column(nullable = false)
+    @Column(nullable = false, name = "id_pais")
     private int idPais;
     
-    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
     private Moneda moneda;
     
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true, name = "cbu_iban")
     private String cbuIban;
 
-    @Column(nullable = false)
+    @Column(nullable = false, name = "comprobante")
     private String comprobante;
 
     @ManyToOne
