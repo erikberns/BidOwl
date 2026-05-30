@@ -32,6 +32,6 @@ build/
 ### VS Code ###
 .vscode/
 
-
-### application.properties ###
-src/main/resources/application.properties
+# Application properties from backend
+auctionplace/auctionplace/src/main/resources/application.properties
+auctionplace/auctionplace/src/main/resources/application.yml
