@@ -6,24 +6,34 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppTabs from '@/components/app-tabs';
 import { Onboarding } from '@/components/Onboarding';
+import { AuthScreen } from '@/components/AuthScreen';
+import { RegisterScreen } from '@/components/RegisterScreen';
+import { EmailConfirmationScreen } from '@/components/EmailConfirmationScreen';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
+  const [hasSeenAuth, setHasSeenAuth] = useState<boolean | null>(null);
+  const [isRegistering, setIsRegistering] = useState<boolean>(false);
+  const [isConfirmingEmail, setIsConfirmingEmail] = useState<boolean>(false);
 
   useEffect(() => {
-    async function checkOnboarding() {
+    async function checkState() {
       try {
-        const hasSeen = await AsyncStorage.getItem('hasSeenOnboarding');
-        setIsFirstLaunch(hasSeen === null);
+        const hasSeenOnboardingStr = await AsyncStorage.getItem('hasSeenOnboarding');
+        setIsFirstLaunch(hasSeenOnboardingStr === null);
+
+        const hasSeenAuthStr = await AsyncStorage.getItem('hasSeenAuth');
+        setHasSeenAuth(hasSeenAuthStr === 'true');
       } catch (error) {
         setIsFirstLaunch(false); // Fallback if error
+        setHasSeenAuth(true);
       }
     }
-    checkOnboarding();
+    checkState();
   }, []);
 
-  if (isFirstLaunch === null) {
+  if (isFirstLaunch === null || hasSeenAuth === null) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" />
@@ -33,6 +43,35 @@ export default function TabLayout() {
 
   if (isFirstLaunch) {
     return <Onboarding onComplete={() => setIsFirstLaunch(false)} />;
+  }
+
+  if (!hasSeenAuth) {
+    if (isConfirmingEmail) {
+      return (
+        <EmailConfirmationScreen 
+          onBack={() => {
+            setIsConfirmingEmail(false);
+            setIsRegistering(true);
+          }}
+          onComplete={async () => {
+            await AsyncStorage.setItem('hasSeenAuth', 'true');
+            setHasSeenAuth(true);
+          }}
+        />
+      );
+    }
+    if (isRegistering) {
+      return (
+        <RegisterScreen 
+          onBack={() => setIsRegistering(false)} 
+          onComplete={() => {
+            setIsRegistering(false);
+            setIsConfirmingEmail(true);
+          }} 
+        />
+      );
+    }
+    return <AuthScreen onComplete={() => setHasSeenAuth(true)} onRegister={() => setIsRegistering(true)} />;
   }
 
   return (
