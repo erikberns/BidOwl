@@ -6,35 +6,12 @@ import { router, Stack, Tabs } from 'expo-router';
 
 import { AuctionCard } from '@/components/AuctionCard';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { MOCK_AUCTIONS } from '@/constants/mockData';
 
 export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = React.useState('');
 
-  // Static mock data for visual demonstration
-  const mockAuctions = [
-    {
-      id: '1',
-      title: 'Subasta de Colección Original Rolling Stone',
-      image: require('@/assets/images/rolling_stone_auction.png'),
-      category: 'COMÚN',
-      itemCount: 5,
-      location: 'Pilar',
-      date: '15 / 4 / 2026',
-      time: '18:30 UDT-3',
-    },
-    {
-      id: '2',
-      title: 'Colección Vintage Guitarras Gibson & Fender',
-      image: require('@/assets/images/rolling_stone_auction.png'), // re-use the beautiful generated image
-      category: 'COMÚN',
-      itemCount: 8,
-      location: 'San Isidro',
-      date: '18 / 4 / 2026',
-      time: '20:00 UDT-3',
-    },
-  ];
-
-  const filteredAuctions = mockAuctions.filter(item => {
+  const filteredAuctions = MOCK_AUCTIONS.filter(item => {
     const query = searchQuery.toLowerCase();
     return (
       item.title.toLowerCase().includes(query) ||

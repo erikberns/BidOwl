@@ -5,72 +5,14 @@ import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs } from 'expo-router';
 
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
+import { MOCK_AUCTION_ITEMS } from '@/constants/mockData';
 
 export default function BidsHistoryScreen() {
   const { id, itemIndex } = useLocalSearchParams();
   const selectedIndex = itemIndex ? parseInt(itemIndex as string, 10) : 0;
 
-  // Mock items list matching the bidding room data structure
-  const mockItems = [
-    { 
-      index: 1, 
-      title: 'Guitarra de Keith Richards', 
-      basePrice: '1.000.000 AR$', 
-      bids: [
-        { name: 'Erik Bernz', time: 'Hace 4 minutos', amount: '1.155.000 AR$', isLead: true },
-        { name: 'Erik Bernz', time: 'Hace 4 minutos', amount: '1.155.000 AR$', isLead: false },
-        { name: 'Erik Bernz', time: 'Hace 4 minutos', amount: '1.155.000 AR$', isLead: false },
-        { name: 'Erik Bernz', time: 'Hace 6 minutos', amount: '1.100.000 AR$', isLead: false },
-        { name: 'Juan Perez', time: 'Hace 8 minutos', amount: '1.080.000 AR$', isLead: false },
-        { name: 'Erik Bernz', time: 'Hace 10 minutos', amount: '1.050.000 AR$', isLead: false },
-        { name: 'Claudio Gomez', time: 'Hace 12 minutos', amount: '1.020.000 AR$', isLead: false },
-        { name: 'Juan Perez', time: 'Hace 15 minutos', amount: '1.000.000 AR$', isLead: false },
-      ]
-    },
-    { 
-      index: 2, 
-      title: 'Bajo Original de Bill Wyman', 
-      basePrice: '850.000 AR$', 
-      bids: [
-        { name: 'Juan Perez', time: 'Hace 2 minutos', amount: '920.000 AR$', isLead: true },
-        { name: 'Claudio Gomez', time: 'Hace 5 minutos', amount: '890.000 AR$', isLead: false },
-        { name: 'Juan Perez', time: 'Hace 8 minutos', amount: '870.000 AR$', isLead: false },
-        { name: 'Maria Lopez', time: 'Hace 10 minutos', amount: '850.000 AR$', isLead: false },
-      ]
-    },
-    { 
-      index: 3, 
-      title: 'Disco de Platino Firmado 1978', 
-      basePrice: '500.000 AR$', 
-      bids: [
-        { name: 'Maria Lopez', time: 'Hace 10 minutos', amount: '580.000 AR$', isLead: true },
-        { name: 'Erik Bernz', time: 'Hace 12 minutos', amount: '550.000 AR$', isLead: false },
-        { name: 'Juan Perez', time: 'Hace 15 minutos', amount: '520.000 AR$', isLead: false },
-        { name: 'Maria Lopez', time: 'Hace 18 minutos', amount: '500.000 AR$', isLead: false },
-      ]
-    },
-    { 
-      index: 4, 
-      title: 'Baquetas Usadas de Charlie Watts', 
-      basePrice: '300.000 AR$', 
-      bids: [
-        { name: 'Claudio Gomez', time: 'Hace 1 minuto', amount: '350.000 AR$', isLead: true },
-        { name: 'Maria Lopez', time: 'Hace 3 minutos', amount: '320.000 AR$', isLead: false },
-        { name: 'Juan Perez', time: 'Hace 5 minutos', amount: '300.000 AR$', isLead: false },
-      ]
-    },
-    { 
-      index: 5, 
-      title: 'Póster de Gira de 1975 Enmarcado', 
-      basePrice: '150.000 AR$', 
-      bids: [
-        { name: 'Erik Bernz', time: 'Hace 30 segundos', amount: '185.000 AR$', isLead: true },
-        { name: 'Juan Perez', time: 'Hace 5 minutos', amount: '170.000 AR$', isLead: false },
-        { name: 'Claudio Gomez', time: 'Hace 8 minutos', amount: '160.000 AR$', isLead: false },
-        { name: 'Erik Bernz', time: 'Hace 10 minutos', amount: '150.000 AR$', isLead: false },
-      ]
-    },
-  ];
+  const auctionIdStr = Array.isArray(id) ? id[0] : id || '1';
+  const mockItems = MOCK_AUCTION_ITEMS[auctionIdStr] || MOCK_AUCTION_ITEMS['1'];
 
   const currentItem = mockItems[selectedIndex] || mockItems[0];
   const leadBid = currentItem.bids.find(b => b.isLead);
@@ -82,7 +24,7 @@ export default function BidsHistoryScreen() {
       <Tabs.Screen options={{ headerShown: false }} />
       {/* Header Bar */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.push(`/auction/${id}/bidding` as any)}>
           <SymbolView
             tintColor="#051C2C"
             // @ts-ignore
@@ -131,7 +73,7 @@ export default function BidsHistoryScreen() {
 
       {/* Bottom Bidding Bar */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.bottomBackButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.bottomBackButton} onPress={() => router.push(`/auction/${id}/bidding` as any)}>
           <SymbolView
             tintColor="#fff"
             // @ts-ignore

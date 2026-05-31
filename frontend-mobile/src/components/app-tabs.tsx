@@ -1,8 +1,9 @@
-import { Tabs } from 'expo-router';
+import { Tabs, router } from 'expo-router';
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import JoinAuctionBar from './JoinAuctionBar';
 
 export default function AppTabs() {
   return (
@@ -39,6 +40,24 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
   const inactiveColor = isDark ? '#8A9EAD' : '#7A7A7A';
   const backgroundColor = isDark ? '#0F212E' : '#FFFFFF';
   const borderColor = isDark ? '#1C3141' : '#ECECEC';
+
+  const activeRoute = state.routes[state.index];
+  const isAuctionDetail = activeRoute && activeRoute.name === 'auction/[id]';
+
+  if (isAuctionDetail) {
+    const auctionId = activeRoute.params?.id || '1';
+    return (
+      <JoinAuctionBar
+        auctionId={auctionId}
+        onBack={() => router.back()}
+      />
+    );
+  }
+
+  // Hide the bottom tab bar completely for all other auction screens (catalog, bidding, history)
+  if (activeRoute && activeRoute.name.startsWith('auction')) {
+    return null;
+  }
 
   return (
     <View style={[

@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 
 @Entity
 @Table(name = "personas")
+@Inheritance(strategy = InheritanceType.JOINED)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -26,8 +27,9 @@ public class Persona {
     @Column(name = "apellido", length = 150)
     private String apellido;
 
-    @Column(name = "numeroPais")
-    private Integer numeroPais;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "numeroPais")
+    private Pais pais;
 
     @Column(name = "email", length = 250, nullable = false, unique = true)
     private String email;

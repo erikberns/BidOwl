@@ -5,76 +5,16 @@ import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs } from 'expo-router';
 
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
+import { MOCK_AUCTION_ITEMS } from '@/constants/mockData';
 
 export default function BiddingScreen() {
   const { id } = useLocalSearchParams();
   
+  const auctionIdStr = Array.isArray(id) ? id[0] : id || '1';
+  const initialItems = MOCK_AUCTION_ITEMS[auctionIdStr] || MOCK_AUCTION_ITEMS['1'];
+
   // List of items in the collection that the user can cycle through (now inside state)
-  const [items, setItems] = useState([
-    { 
-      index: 1, 
-      title: 'Guitarra de Keith Richards', 
-      basePrice: '1.000.000 AR$', 
-      image: require('@/assets/images/rolling_stone_auction.png'),
-      owner: 'Agustin Blanco Vocos',
-      details: 'Presentamos una oportunidad excepcional para acceder a una cuidada selección de ejemplares originales de una de las revistas más influyentes en la historia de la música, el entretenimiento y la cultura contemporánea. Esta colección reúne ediciones emblemáticas que capturan momentos ú...',
-      bids: [
-        { name: 'Erik Bernz', time: 'Hace 4 minutos', amount: '1.155.000 AR$', isLead: true },
-        { name: 'Erik Bernz', time: 'Hace 4 minutos', amount: '1.155.000 AR$', isLead: false },
-        { name: 'Erik Bernz', time: 'Hace 4 minutos', amount: '1.155.000 AR$', isLead: false },
-      ]
-    },
-    { 
-      index: 2, 
-      title: 'Bajo Original de Bill Wyman', 
-      basePrice: '850.000 AR$', 
-      image: require('@/assets/images/rolling_stone_auction.png'),
-      owner: 'Agustin Blanco Vocos',
-      details: 'Un bajo eléctrico histórico utilizado en giras mundiales. Conservado en perfectas condiciones y certificado por la banda. Una pieza de colección indispensable para cualquier amante del rock clásico.',
-      bids: [
-        { name: 'Juan Perez', time: 'Hace 2 minutos', amount: '920.000 AR$', isLead: true },
-        { name: 'Claudio Gomez', time: 'Hace 5 minutos', amount: '890.000 AR$', isLead: false },
-      ]
-    },
-    { 
-      index: 3, 
-      title: 'Disco de Platino Firmado 1978', 
-      basePrice: '500.000 AR$', 
-      image: require('@/assets/images/rolling_stone_auction.png'),
-      owner: 'Agustin Blanco Vocos',
-      details: 'Premio oficial de disco de platino otorgado por ventas récord en 1978. Autografiado individualmente por Mick Jagger, Keith Richards, y Ron Wood.',
-      bids: [
-        { name: 'Maria Lopez', time: 'Hace 10 minutos', amount: '580.000 AR$', isLead: true },
-        { name: 'Erik Bernz', time: 'Hace 12 minutos', amount: '550.000 AR$', isLead: false },
-        { name: 'Juan Perez', time: 'Hace 15 minutes', amount: '520.000 AR$', isLead: false },
-      ]
-    },
-    { 
-      index: 4, 
-      title: 'Baquetas Usadas de Charlie Watts', 
-      basePrice: '300.000 AR$', 
-      image: require('@/assets/images/rolling_stone_auction.png'),
-      owner: 'Agustin Blanco Vocos',
-      details: 'Un par de baquetas originales de madera usadas en concierto por Charlie Watts durante los años 80, firmadas por el difunto baterista legendario.',
-      bids: [
-        { name: 'Claudio Gomez', time: 'Hace 1 minuto', amount: '350.000 AR$', isLead: true },
-        { name: 'Maria Lopez', time: 'Hace 3 minutos', amount: '320.000 AR$', isLead: false },
-      ]
-    },
-    { 
-      index: 5, 
-      title: 'Póster de Gira de 1975 Enmarcado', 
-      basePrice: '150.000 AR$', 
-      image: require('@/assets/images/rolling_stone_auction.png'),
-      owner: 'Agustin Blanco Vocos',
-      details: 'Póster promocional original de la legendaria gira norteamericana de la banda en 1975, enmarcado con cristal protector UV.',
-      bids: [
-        { name: 'Erik Bernz', time: 'Hace 30 segundos', amount: '185.000 AR$', isLead: true },
-        { name: 'Juan Perez', time: 'Hace 5 minutos', amount: '170.000 AR$', isLead: false },
-        { name: 'Claudio Gomez', time: 'Hace 8 minutos', amount: '160.000 AR$', isLead: false },
-      ]
-    },
-  ]);
+  const [items, setItems] = useState(initialItems);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const currentItem = items[currentIndex];
@@ -266,7 +206,7 @@ export default function BiddingScreen() {
 
       {/* Bottom Bidding Bar */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.push(`/auction/${id}` as any)}>
           <SymbolView
             tintColor="#fff"
             // @ts-ignore

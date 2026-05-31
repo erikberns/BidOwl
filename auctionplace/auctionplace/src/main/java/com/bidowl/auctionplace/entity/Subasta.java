@@ -1,0 +1,49 @@
+package com.bidowl.auctionplace.entity;
+
+import jakarta.persistence.*;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import java.time.LocalDate;
+import java.time.LocalTime;
+
+@Entity
+@Table(name = "subastas")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Subasta {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "identificador")
+    private Integer identificador;
+
+    @Column(name = "fecha")
+    private LocalDate fecha;
+
+    @Column(name = "hora", nullable = false)
+    private LocalTime hora;
+
+    @Column(name = "estado", length = 10)
+    private String estado = "cerrada"; // "abierta", "cerrada"
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "subastador")
+    private Subastador subastador;
+
+    @Column(name = "ubicacion", length = 350)
+    private String ubicacion;
+
+    @Column(name = "capacidadAsistentes")
+    private Integer capacidadAsistentes;
+
+    @Column(name = "tieneDeposito", length = 2)
+    private String tieneDeposito = "no"; // "si", "no"
+
+    @Column(name = "seguridadPropia", length = 2)
+    private String seguridadPropia = "no"; // "si", "no"
+
+    @Column(name = "categoria", length = 10)
+    private String categoria = "comun"; // "comun", "especial", "plata", "oro", "platino"
+}

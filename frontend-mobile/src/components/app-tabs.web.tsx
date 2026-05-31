@@ -1,8 +1,9 @@
-import { Tabs } from 'expo-router';
+import { Tabs, router } from 'expo-router';
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import JoinAuctionBar from './JoinAuctionBar';
 
 export default function AppTabs() {
   return (
@@ -21,7 +22,7 @@ export default function AppTabs() {
   );
 }
 
-// Fallback Unicode icons for Web & Android where SF Symbols are not natively available
+// Fallback Unicode icons for Android/Web where SF Symbols are not natively available
 const WEB_ICONS: Record<string, string> = {
   index: '🏠',
   explore: '🧭',
@@ -40,6 +41,24 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
   const backgroundColor = isDark ? '#0F212E' : '#FFFFFF';
   const borderColor = isDark ? '#1C3141' : '#ECECEC';
 
+  const activeRoute = state.routes[state.index];
+  const isAuctionDetail = activeRoute && activeRoute.name === 'auction/[id]';
+
+  if (isAuctionDetail) {
+    const auctionId = activeRoute.params?.id || '1';
+    return (
+      <JoinAuctionBar
+        auctionId={auctionId}
+        onBack={() => router.back()}
+      />
+    );
+  }
+
+  // Hide the bottom tab bar completely for all other auction screens (catalog, bidding, history)
+  if (activeRoute && activeRoute.name.startsWith('auction')) {
+    return null;
+  }
+
   return (
     <View style={[
       styles.container, 
@@ -53,7 +72,6 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
         const { options } = descriptors[route.key];
         const label = options.title !== undefined ? options.title : route.name;
 
-        // Skip non-tab routing files (like details or layouts)
         if (route.name.startsWith('auction') || ['_layout', '+not-found'].includes(route.name)) {
           return null;
         }

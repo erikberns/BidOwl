@@ -5,23 +5,24 @@ import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs } from 'expo-router';
 
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
+import { MOCK_AUCTIONS, MOCK_AUCTION_ITEMS } from '@/constants/mockData';
 
 const { width } = Dimensions.get('window');
 
 export default function AuctionDetailScreen() {
   const { id } = useLocalSearchParams();
 
-  // We can fetch/filter data by id, but for now we use the static model data
-  const isSecondAuction = id === '2';
-  const auctionTitle = isSecondAuction 
-    ? 'Colección Vintage Guitarras Gibson & Fender' 
-    : 'Subasta de Colección Original "Rolling Stone"';
+  const auctionIdStr = Array.isArray(id) ? id[0] : id || '1';
+  const auction = MOCK_AUCTIONS.find(a => a.id === auctionIdStr) || MOCK_AUCTIONS[0];
+  const items = MOCK_AUCTION_ITEMS[auctionIdStr] || MOCK_AUCTION_ITEMS['1'];
 
-  const mockItems = [
-    { id: 'item-1', number: '1º', title: 'Guitarra de Keith Richards', price: '1.000.000 ARS' },
-    { id: 'item-2', number: '2º', title: 'Bajo Original de Bill Wyman', price: '850.000 ARS' },
-    { id: 'item-3', number: '3º', title: 'Disco de Platino Firmado 1978', price: '500.000 ARS' },
-  ];
+  // Slice first 3 items for the teaser
+  const mockItems = items.slice(0, 3).map(item => ({
+    id: item.id,
+    number: `${item.index}º`,
+    title: item.title,
+    price: item.basePrice,
+  }));
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -58,19 +59,19 @@ export default function AuctionDetailScreen() {
 
         {/* Title Block */}
         <View style={styles.titleSection}>
-          <Text style={styles.mainTitle}>{auctionTitle}</Text>
+          <Text style={styles.mainTitle}>{auction.title}</Text>
           
           <View style={styles.badgeRow}>
             <View style={styles.categoryBadge}>
-              <Text style={styles.categoryBadgeText}>COMÚN</Text>
+              <Text style={styles.categoryBadgeText}>{auction.category.split(' · ')[1] || 'COMÚN'}</Text>
             </View>
             <TouchableOpacity>
-              <Text style={styles.articlesLink}>5 Artículos Totales</Text>
+              <Text style={styles.articlesLink}>{auction.itemCount} Artículos Totales</Text>
             </TouchableOpacity>
           </View>
 
           <Text style={styles.locationDateTime}>
-            Pilar · <Text style={styles.boldText}>15 / 4 / 2026</Text> · <Text style={styles.boldText}>18:30 UDT-3</Text>
+            {auction.location} · <Text style={styles.boldText}>{auction.date}</Text> · <Text style={styles.boldText}>{auction.time}</Text>
           </Text>
         </View>
 
@@ -112,10 +113,10 @@ export default function AuctionDetailScreen() {
         <View style={styles.auctioneerSection}>
           <View style={styles.auctioneerTextContainer}>
             <Text style={styles.sectionHeading}>Esta subasta sera rematada por</Text>
-            <Text style={styles.auctioneerName}>Agustin Blanco Vocos</Text>
+            <Text style={styles.auctioneerName}>{auction.auctioneer}</Text>
           </View>
           <Image 
-            source={require('@/assets/images/auctioneer_avatar.png')} 
+            source={auction.auctioneerAvatar} 
             style={styles.avatarImage} 
           />
         </View>
@@ -126,7 +127,7 @@ export default function AuctionDetailScreen() {
         <View style={styles.detailsSection}>
           <Text style={styles.sectionHeading}>Detalles de la Subasta</Text>
           <Text style={styles.detailsText}>
-            Presentamos una oportunidad excepcional para acceder a una cuidada selección de ejemplares originales de una de las revistas más influyentes en la historia de la música, el entretenimiento y la cultura contemporánea. Esta colección reúne ediciones emblemáticas que capturan momentos ú...
+            {auction.description}
           </Text>
           <TouchableOpacity style={styles.showMoreButton}>
             <Text style={styles.showMoreText}>Mostrar Más {'>'}</Text>
@@ -147,7 +148,7 @@ export default function AuctionDetailScreen() {
         {/* Catalog Section */}
         <View style={styles.catalogSection}>
           <Text style={styles.sectionHeading}>Catalogo de Artículos</Text>
-          <Text style={styles.catalogSubheading}>Está conformado por 5 artículos en total.</Text>
+          <Text style={styles.catalogSubheading}>Está conformado por {auction.itemCount} artículos en total.</Text>
 
           {/* Catalog Items */}
           <View style={styles.catalogItemsList}>
