@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface Props {
   onStart: () => void;
@@ -7,26 +8,87 @@ interface Props {
 
 export const WelcomeScreen: React.FC<Props> = ({ onStart }) => {
   return (
-    <View style={styles.container}>
-      <Image source={require('../assets/expo.icon/Assets/logo.png')} style={styles.logo} />
-      <Text style={styles.title}>Oficialmente eres parte de la comunidad de BidOwl.</Text>
-      <Text style={styles.subtitle}>
-        Entrás a un espacio donde cada oferta tiene peso, donde podés descubrir oportunidades únicas, competir en tiempo real y
-        transformar lo que tenés en valor. Tu experiencia en subastas empieza ahora.
-      </Text>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.content}>
+        <Image 
+          source={require('../../assets/images/SplashBidOwl.png')} 
+          style={styles.logo} 
+        />
+        
+        <Text style={styles.title}>
+          Oficialmente eres parte de la comunidad de{" "}
+          <Text style={styles.brandTextPrimary}>Bid</Text>
+          <Text style={styles.brandTextSecondary}>Owl</Text>.
+        </Text>
 
-      <TouchableOpacity style={styles.startButton} onPress={onStart}>
-        <Text style={styles.startButtonText}>¡Empezar!</Text>
-      </TouchableOpacity>
-    </View>
+        <Text style={styles.subtitle}>
+          Entrás a un espacio donde cada oferta tiene peso, donde podés descubrir oportunidades únicas, competir en tiempo real y transformar lo que tenés en valor.
+          {"\n\n"}
+          Tu experiencia en subastas empieza ahora.
+        </Text>
+      </View>
+
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.startButton} onPress={onStart}>
+          <Text style={styles.startButtonText}>¡Empezar!</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 80, paddingHorizontal: 24, backgroundColor: '#fff', alignItems: 'center' },
-  logo: { width: 80, height: 80, marginBottom: 20, resizeMode: 'contain' },
-  title: { fontSize: 24, fontWeight: '800', color: '#001b2a', textAlign: 'center', marginBottom: 12 },
-  subtitle: { color: '#8A8A8A', textAlign: 'center', lineHeight: 20, marginBottom: 30 },
-  startButton: { backgroundColor: '#bcf259', padding: 16, borderRadius: 10, width: '100%', alignItems: 'center', marginTop: 'auto', marginBottom: 30 },
-  startButtonText: { color: '#001b2a', fontWeight: '800', fontSize: 16 },
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 40,
+    alignItems: 'flex-start',
+  },
+  logo: {
+    width: 80,
+    height: 80,
+    marginBottom: 32,
+    resizeMode: 'contain',
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#051C2C',
+    textAlign: 'left',
+    lineHeight: 40,
+    marginBottom: 24,
+  },
+  brandTextPrimary: {
+    color: '#BEE757',
+  },
+  brandTextSecondary: {
+    color: '#2E9F64',
+  },
+  subtitle: {
+    color: '#666',
+    fontSize: 15,
+    lineHeight: 24,
+    textAlign: 'left',
+  },
+  footer: {
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+  },
+  startButton: {
+    backgroundColor: '#BEE757',
+    paddingVertical: 16,
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+  },
+  startButtonText: {
+    color: '#051C2C',
+    fontWeight: '800',
+    fontSize: 16,
+  },
 });
+

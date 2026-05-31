@@ -1,116 +1,225 @@
-import {
-  Tabs,
-  TabList,
-  TabTrigger,
-  TabSlot,
-  TabTriggerSlotProps,
-  TabListProps,
-} from 'expo-router/ui';
+import { Tabs } from 'expo-router';
+import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import React from 'react';
-import { Pressable, useColorScheme, View, StyleSheet } from 'react-native';
-
-import { ExternalLink } from './external-link';
-import { ThemedText } from './themed-text';
-import { ThemedView } from './themed-view';
-
-import { Colors, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AppTabs() {
   return (
-    <Tabs>
-      <TabSlot style={{ height: '100%' }} />
-      <TabList asChild>
-        <CustomTabList>
-          <TabTrigger name="home" href="/" asChild>
-            <TabButton>Home</TabButton>
-          </TabTrigger>
-          <TabTrigger name="explore" href="/explore" asChild>
-            <TabButton>Explore</TabButton>
-          </TabTrigger>
-        </CustomTabList>
-      </TabList>
+    <Tabs
+      tabBar={(props) => <CustomTabBar {...props} />}
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Tabs.Screen name="index" options={{ title: 'Home' }} />
+      <Tabs.Screen name="explore" options={{ title: 'Descubrir' }} />
+      <Tabs.Screen name="publish" options={{ title: 'Publicar' }} />
+      <Tabs.Screen name="inbox" options={{ title: 'Inbox' }} />
+      <Tabs.Screen name="profile" options={{ title: 'Perfil' }} />
     </Tabs>
   );
 }
 
-export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
-  return (
-    <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
-      <ThemedView
-        type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
-        style={styles.tabButtonView}>
-        <ThemedText type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
-          {children}
-        </ThemedText>
-      </ThemedView>
-    </Pressable>
-  );
-}
+// Fallback Unicode icons for Web & Android where SF Symbols are not natively available
+const WEB_ICONS: Record<string, string> = {
+  index: '🏠',
+  explore: '🧭',
+  publish: '＋',
+  inbox: '✉️',
+  profile: '👤',
+};
 
-export function CustomTabList(props: TabListProps) {
+function CustomTabBar({ state, descriptors, navigation }: any) {
   const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const isDark = scheme === 'dark';
+  const insets = useSafeAreaInsets();
+
+  const activeColor = isDark ? '#FFFFFF' : '#051C2C';
+  const inactiveColor = isDark ? '#8A9EAD' : '#7A7A7A';
+  const backgroundColor = isDark ? '#0F212E' : '#FFFFFF';
+  const borderColor = isDark ? '#1C3141' : '#ECECEC';
 
   return (
-    <View {...props} style={styles.tabListContainer}>
-      <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        <ThemedText type="smallBold" style={styles.brandText}>
-          BidOwl
-        </ThemedText>
+    <View style={[
+      styles.container, 
+      { 
+        backgroundColor, 
+        borderTopColor: borderColor,
+        paddingBottom: Math.max(insets.bottom, 8) 
+      }
+    ]}>
+      {state.routes.map((route: any, index: number) => {
+        const { options } = descriptors[route.key];
+        const label = options.title !== undefined ? options.title : route.name;
 
-        {props.children}
+        // Skip non-tab routing files (like details or layouts)
+        if (route.name.startsWith('auction') || ['_layout', '+not-found'].includes(route.name)) {
+          return null;
+        }
 
-        <ExternalLink href="https://docs.expo.dev" asChild>
-          <Pressable style={styles.externalPressable}>
-            <ThemedText type="link">Docs</ThemedText>
-            <SymbolView
-              tintColor={colors.text}
-              name={{ ios: 'arrow.up.right.square', web: 'link' }}
-              size={12}
-            />
-          </Pressable>
-        </ExternalLink>
-      </ThemedView>
+        const isFocused = state.index === index;
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name, route.params);
+          }
+        };
+
+        const onLongPress = () => {
+          navigation.emit({
+            type: 'tabLongPress',
+            target: route.key,
+          });
+        };
+
+        // Determine symbol name based on route and focus state
+        let symbolOptions = { ios: 'questionmark', android: 'help' };
+        if (route.name === 'index') {
+          symbolOptions = { ios: isFocused ? 'house.fill' : 'house', android: 'home' };
+        } else if (route.name === 'explore') {
+          symbolOptions = { ios: isFocused ? 'safari.fill' : 'safari', android: 'explore' };
+        } else if (route.name === 'publish') {
+          symbolOptions = { ios: 'plus', android: 'add' };
+        } else if (route.name === 'inbox') {
+          symbolOptions = { ios: isFocused ? 'envelope.fill' : 'envelope', android: 'mail' };
+        } else if (route.name === 'profile') {
+          symbolOptions = { ios: isFocused ? 'person.fill' : 'person', android: 'person' };
+        }
+
+        const fallbackChar = WEB_ICONS[route.name] || '?';
+
+        if (route.name === 'publish') {
+          return (
+            <TouchableOpacity
+              key={route.key}
+              accessibilityRole="button"
+              accessibilityState={isFocused ? { selected: true } : {}}
+              accessibilityLabel={options.tabBarAccessibilityLabel}
+              testID={options.tabBarTestID}
+              onPress={onPress}
+              onLongPress={onLongPress}
+              style={styles.publishButtonOuter}
+              activeOpacity={0.8}
+            >
+              <View style={styles.publishCircle}>
+                <SymbolView
+                  // @ts-ignore
+                  name={symbolOptions}
+                  tintColor="#FFFFFF"
+                  size={24}
+                  fallback={
+                    <Text style={{ color: '#FFFFFF', fontSize: 20, fontWeight: 'bold' }}>{fallbackChar}</Text>
+                  }
+                />
+              </View>
+              <Text style={[styles.labelText, { color: inactiveColor }]}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        }
+
+        return (
+          <TouchableOpacity
+            key={route.key}
+            accessibilityRole="button"
+            accessibilityState={isFocused ? { selected: true } : {}}
+            accessibilityLabel={options.tabBarAccessibilityLabel}
+            testID={options.tabBarTestID}
+            onPress={onPress}
+            onLongPress={onLongPress}
+            style={styles.tabItem}
+            activeOpacity={0.7}
+          >
+            <View style={styles.iconContainer}>
+              <SymbolView
+                // @ts-ignore
+                name={symbolOptions}
+                tintColor={isFocused ? activeColor : inactiveColor}
+                size={22}
+                fallback={
+                  <Text style={{ 
+                    fontSize: 18, 
+                    color: isFocused ? activeColor : inactiveColor 
+                  }}>
+                    {fallbackChar}
+                  </Text>
+                }
+              />
+            </View>
+            <Text style={[
+              styles.labelText, 
+              { 
+                color: isFocused ? activeColor : inactiveColor,
+                fontWeight: isFocused ? '600' : '400'
+              }
+            ]}>
+              {label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  tabListContainer: {
-    position: 'absolute',
-    width: '100%',
-    padding: Spacing.three,
+  container: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+    paddingTop: 8,
+    alignItems: 'flex-end',
+    justifyContent: 'space-around',
+    elevation: 8,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+  },
+  tabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    paddingBottom: 8,
+  },
+  iconContainer: {
+    height: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    flexDirection: 'row',
+    marginBottom: 4,
   },
-  innerContainer: {
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.five,
-    borderRadius: Spacing.five,
-    flexDirection: 'row',
+  labelText: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  publishButtonOuter: {
     alignItems: 'center',
-    flexGrow: 1,
-    gap: Spacing.two,
-    maxWidth: MaxContentWidth,
+    justifyContent: 'center',
+    flex: 1,
+    marginTop: -24,
+    paddingBottom: 8,
   },
-  brandText: {
-    marginRight: 'auto',
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  tabButtonView: {
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
-  },
-  externalPressable: {
-    flexDirection: 'row',
+  publishCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#B5F639',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: Spacing.one,
-    marginLeft: Spacing.three,
-  },
+    shadowColor: '#B5F639',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
+    marginBottom: 4,
+  }
 });
