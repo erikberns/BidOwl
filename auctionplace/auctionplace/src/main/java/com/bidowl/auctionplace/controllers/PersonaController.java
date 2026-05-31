@@ -21,12 +21,11 @@ public class PersonaController {
     @Autowired
     private PersonaServiceInterface personaService;
 
-    @PostMapping(value = "/registro/paso1", consumes = {"multipart/form-data"})
+    @PostMapping(value = "/registro/paso1", consumes = { "multipart/form-data" })
     public ResponseEntity<?> registrarPaso1(
             @ModelAttribute RegistroPaso1Request request,
             @RequestParam(value = "fotoFrente", required = false) MultipartFile fotoFrente,
-            @RequestParam(value = "fotoDorso", required = false) MultipartFile fotoDorso
-    ) {
+            @RequestParam(value = "fotoDorso", required = false) MultipartFile fotoDorso) {
         Map<String, Object> response = new HashMap<>();
         try {
             Persona guardada = personaService.registrarPaso1(request, fotoFrente, fotoDorso);
@@ -47,8 +46,7 @@ public class PersonaController {
                     request.getIdentificador(),
                     request.getDocumento(),
                     request.getEmail(),
-                    request.getContrasena()
-            );
+                    request.getContrasena());
             response.put("mensaje", "Registro completado con éxito y cuenta activada.");
             response.put("persona", persona);
             return ResponseEntity.ok(response);
@@ -93,8 +91,7 @@ public class PersonaController {
                     request.getNumeroTarjeta(),
                     request.getTitularTarjeta(),
                     request.getFechaVencimiento(),
-                    request.getCvv()
-            );
+                    request.getCvv());
             response.put("mensaje", "Tarjeta de crédito registrada con éxito.");
             response.put("metodoPago", mp);
             return ResponseEntity.ok(response);
@@ -114,8 +111,7 @@ public class PersonaController {
                     request.getNombreBanco(),
                     request.getPaisId(),
                     request.getCbuIban(),
-                    request.getMoneda()
-            );
+                    request.getMoneda());
             response.put("mensaje", "Cuenta bancaria registrada con éxito.");
             response.put("metodoPago", mp);
             return ResponseEntity.ok(response);
@@ -136,8 +132,7 @@ public class PersonaController {
                     request.getNumeroCheque(),
                     request.getMonto(),
                     request.getPaisId(),
-                    request.getMoneda()
-            );
+                    request.getMoneda());
             response.put("mensaje", "Cheque certificado registrado con éxito.");
             response.put("metodoPago", mp);
             return ResponseEntity.ok(response);
@@ -154,24 +149,58 @@ public class PersonaController {
         private String email;
         private String contrasena;
 
-        public Integer getIdentificador() { return identificador; }
-        public void setIdentificador(Integer identificador) { this.identificador = identificador; }
-        public String getDocumento() { return documento; }
-        public void setDocumento(String documento) { this.documento = documento; }
-        public String getEmail() { return email; }
-        public void setEmail(String email) { this.email = email; }
-        public String getContrasena() { return contrasena; }
-        public void setContrasena(String contrasena) { this.contrasena = contrasena; }
+        public Integer getIdentificador() {
+            return identificador;
+        }
+
+        public void setIdentificador(Integer identificador) {
+            this.identificador = identificador;
+        }
+
+        public String getDocumento() {
+            return documento;
+        }
+
+        public void setDocumento(String documento) {
+            this.documento = documento;
+        }
+
+        public String getEmail() {
+            return email;
+        }
+
+        public void setEmail(String email) {
+            this.email = email;
+        }
+
+        public String getContrasena() {
+            return contrasena;
+        }
+
+        public void setContrasena(String contrasena) {
+            this.contrasena = contrasena;
+        }
     }
 
     public static class LoginRequest {
         private String email;
         private String contrasena;
 
-        public String getEmail() { return email; }
-        public void setEmail(String email) { this.email = email; }
-        public String getContrasena() { return contrasena; }
-        public void setContrasena(String contrasena) { this.contrasena = contrasena; }
+        public String getEmail() {
+            return email;
+        }
+
+        public void setEmail(String email) {
+            this.email = email;
+        }
+
+        public String getContrasena() {
+            return contrasena;
+        }
+
+        public void setContrasena(String contrasena) {
+            this.contrasena = contrasena;
+        }
     }
 
     public static class TarjetaRequest {
@@ -180,14 +209,37 @@ public class PersonaController {
         private String fechaVencimiento;
         private Integer cvv;
 
-        public String getNumeroTarjeta() { return numeroTarjeta; }
-        public void setNumeroTarjeta(String numeroTarjeta) { this.numeroTarjeta = numeroTarjeta; }
-        public String getTitularTarjeta() { return titularTarjeta; }
-        public void setTitularTarjeta(String titularTarjeta) { this.titularTarjeta = titularTarjeta; }
-        public String getFechaVencimiento() { return fechaVencimiento; }
-        public void setFechaVencimiento(String fechaVencimiento) { this.fechaVencimiento = fechaVencimiento; }
-        public Integer getCvv() { return cvv; }
-        public void setCvv(Integer cvv) { this.cvv = cvv; }
+        public String getNumeroTarjeta() {
+            return numeroTarjeta;
+        }
+
+        public void setNumeroTarjeta(String numeroTarjeta) {
+            this.numeroTarjeta = numeroTarjeta;
+        }
+
+        public String getTitularTarjeta() {
+            return titularTarjeta;
+        }
+
+        public void setTitularTarjeta(String titularTarjeta) {
+            this.titularTarjeta = titularTarjeta;
+        }
+
+        public String getFechaVencimiento() {
+            return fechaVencimiento;
+        }
+
+        public void setFechaVencimiento(String fechaVencimiento) {
+            this.fechaVencimiento = fechaVencimiento;
+        }
+
+        public Integer getCvv() {
+            return cvv;
+        }
+
+        public void setCvv(Integer cvv) {
+            this.cvv = cvv;
+        }
     }
 
     public static class CuentaRequest {
@@ -197,16 +249,45 @@ public class PersonaController {
         private String cbuIban;
         private String moneda;
 
-        public String getTitularCuenta() { return titularCuenta; }
-        public void setTitularCuenta(String titularCuenta) { this.titularCuenta = titularCuenta; }
-        public String getNombreBanco() { return nombreBanco; }
-        public void setNombreBanco(String nombreBanco) { this.nombreBanco = nombreBanco; }
-        public Integer getPaisId() { return paisId; }
-        public void setPaisId(Integer paisId) { this.paisId = paisId; }
-        public String getCbuIban() { return cbuIban; }
-        public void setCbuIban(String cbuIban) { this.cbuIban = cbuIban; }
-        public String getMoneda() { return moneda; }
-        public void setMoneda(String moneda) { this.moneda = moneda; }
+        public String getTitularCuenta() {
+            return titularCuenta;
+        }
+
+        public void setTitularCuenta(String titularCuenta) {
+            this.titularCuenta = titularCuenta;
+        }
+
+        public String getNombreBanco() {
+            return nombreBanco;
+        }
+
+        public void setNombreBanco(String nombreBanco) {
+            this.nombreBanco = nombreBanco;
+        }
+
+        public Integer getPaisId() {
+            return paisId;
+        }
+
+        public void setPaisId(Integer paisId) {
+            this.paisId = paisId;
+        }
+
+        public String getCbuIban() {
+            return cbuIban;
+        }
+
+        public void setCbuIban(String cbuIban) {
+            this.cbuIban = cbuIban;
+        }
+
+        public String getMoneda() {
+            return moneda;
+        }
+
+        public void setMoneda(String moneda) {
+            this.moneda = moneda;
+        }
     }
 
     public static class ChequeRequest {
@@ -217,17 +298,52 @@ public class PersonaController {
         private Integer paisId;
         private String moneda;
 
-        public String getTitular() { return titular; }
-        public void setTitular(String titular) { this.titular = titular; }
-        public String getBancoEmisor() { return bancoEmisor; }
-        public void setBancoEmisor(String bancoEmisor) { this.bancoEmisor = bancoEmisor; }
-        public String getNumeroCheque() { return numeroCheque; }
-        public void setNumeroCheque(String numeroCheque) { this.numeroCheque = numeroCheque; }
-        public BigDecimal getMonto() { return monto; }
-        public void setMonto(BigDecimal monto) { this.monto = monto; }
-        public Integer getPaisId() { return paisId; }
-        public void setPaisId(Integer paisId) { this.paisId = paisId; }
-        public String getMoneda() { return moneda; }
-        public void setMoneda(String moneda) { this.moneda = moneda; }
+        public String getTitular() {
+            return titular;
+        }
+
+        public void setTitular(String titular) {
+            this.titular = titular;
+        }
+
+        public String getBancoEmisor() {
+            return bancoEmisor;
+        }
+
+        public void setBancoEmisor(String bancoEmisor) {
+            this.bancoEmisor = bancoEmisor;
+        }
+
+        public String getNumeroCheque() {
+            return numeroCheque;
+        }
+
+        public void setNumeroCheque(String numeroCheque) {
+            this.numeroCheque = numeroCheque;
+        }
+
+        public BigDecimal getMonto() {
+            return monto;
+        }
+
+        public void setMonto(BigDecimal monto) {
+            this.monto = monto;
+        }
+
+        public Integer getPaisId() {
+            return paisId;
+        }
+
+        public void setPaisId(Integer paisId) {
+            this.paisId = paisId;
+        }
+
+        public String getMoneda() {
+            return moneda;
+        }
+
+        public void setMoneda(String moneda) {
+            this.moneda = moneda;
+        }
     }
 }

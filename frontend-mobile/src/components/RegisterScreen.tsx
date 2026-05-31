@@ -10,6 +10,7 @@ export function RegisterScreen({ onBack, onComplete }: Props) {
   const [nombre, setNombre] = useState('Jose');
   const [apellido, setApellido] = useState('Godio Claudio');
   const [pais, setPais] = useState('Argentina');
+  const [dni, setDni] = useState('32145678');
   const [domicilio, setDomicilio] = useState('Lima 757');
 
   return (
@@ -57,6 +58,17 @@ export function RegisterScreen({ onBack, onComplete }: Props) {
               value={pais}
               onChangeText={setPais}
               placeholderTextColor="#999"
+            />
+          </View>
+
+          <View style={styles.inputWrapper}>
+            <Text style={styles.inputLabel}>DNI</Text>
+            <TextInput
+              style={styles.input}
+              value={dni}
+              onChangeText={setDni}
+              placeholderTextColor="#999"
+              keyboardType="numeric"
             />
           </View>
 
