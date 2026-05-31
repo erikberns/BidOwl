@@ -35,3 +35,8 @@ build/
 # Application properties from backend
 auctionplace/auctionplace/src/main/resources/application.properties
 auctionplace/auctionplace/src/main/resources/application.yml
+
+# application properties from frontend
+auctionplace/auctionplace/src/main/resources/static/application.properties
+auctionplace/auctionplace/src/main/resources/static/application.yml
+S:\UADE\2026\Desarrollo de Aplicaciones I\BidOwl\BidOwl\auctionplace\auctionplace\src\main\java\com\bidowl\auctionplace\AuctionplaceApplication.java
