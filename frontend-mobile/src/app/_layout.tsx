@@ -7,7 +7,7 @@ import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppTabs from '@/components/app-tabs';
 import { Onboarding } from '@/components/Onboarding';
 import { AuthScreen } from '@/components/AuthScreen';
-import { RegisterScreen } from '@/components/RegisterScreen';
+import { RegisterScreen, RegisterData } from '@/components/RegisterScreen';
 import { EmailConfirmationScreen } from '@/components/EmailConfirmationScreen';
 import { PasswordScreen } from '@/components/PasswordScreen';
 import { PaymentMethodsScreen } from '@/components/PaymentMethodsScreen';
@@ -24,6 +24,7 @@ export default function TabLayout() {
   const [isSettingPaymentMethods, setIsSettingPaymentMethods] = useState<boolean>(false);
   const [isCategoryGranted, setIsCategoryGranted] = useState<boolean>(false);
   const [isShowingWelcome, setIsShowingWelcome] = useState<boolean>(false);
+  const [registerData, setRegisterData] = useState<RegisterData | null>(null);
 
   useEffect(() => {
     async function checkState() {
@@ -107,13 +108,14 @@ export default function TabLayout() {
     if (isConfirmingEmail) {
       return (
         <EmailConfirmationScreen 
+          registerData={registerData}
           onBack={() => {
             setIsConfirmingEmail(false);
             setIsRegistering(true);
           }}
           onComplete={() => {
             setIsConfirmingEmail(false);
-            setIsSettingPassword(true);
+            setIsSettingPaymentMethods(true);
           }}
         />
       );
@@ -122,7 +124,8 @@ export default function TabLayout() {
       return (
         <RegisterScreen 
           onBack={() => setIsRegistering(false)} 
-          onComplete={() => {
+          onComplete={(data) => {
+            setRegisterData(data);
             setIsRegistering(false);
             setIsConfirmingEmail(true);
           }} 

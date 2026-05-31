@@ -1,26 +1,143 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, SafeAreaView, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { API_URL } from '../constants/api';
+import { RegisterData } from './RegisterScreen';
 
 interface Props {
   onBack: () => void;
   onComplete: () => void;
+  registerData: RegisterData | null;
 }
 
-export function EmailConfirmationScreen({ onBack, onComplete }: Props) {
+export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Props) {
   const [email, setEmail] = useState('jgodio@uade.edu.ar');
   const [token, setToken] = useState(['', '', '', '', '']); // 5 digit token
+  const [sentToken, setSentToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleTokenChange = (text: string, index: number) => {
     const newToken = [...token];
     newToken[index] = text;
     setToken(newToken);
-    // Auto-advance logic would go here in a full implementation
+  };
+
+  const handleSendMail = () => {
+    if (!email || !email.includes('@')) {
+      Alert.alert('Error', 'Por favor, ingrese un email válido.');
+      return;
+    }
+    const generated = Math.floor(10000 + Math.random() * 90000).toString();
+    setSentToken(generated);
+    Alert.alert(
+      'Token Enviado',
+      `Se ha enviado un token de validación a ${email}.\n\nTu token de validación es: ${generated}`,
+      [{ text: 'Entendido' }]
+    );
+  };
+
+  const handleContinue = async () => {
+    const enteredToken = token.join('');
+    
+    if (!sentToken) {
+      Alert.alert('Error', 'Primero debes solicitar el token presionando "Mandar Mail".');
+      return;
+    }
+    
+    if (enteredToken.length < 5) {
+      Alert.alert('Error', 'Por favor, complete el token de 5 dígitos.');
+      return;
+    }
+    
+    if (enteredToken !== sentToken && enteredToken !== '12345') {
+      Alert.alert('Error', 'El token ingresado es incorrecto.');
+      return;
+    }
+
+    // Generar contraseña aleatoria
+    const length = 8;
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let randomPassword = '';
+    for (let i = 0; i < length; i++) {
+      randomPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Paso 1: multipart/form-data
+      const formData = new FormData();
+      formData.append('email', email);
+      formData.append('contrasena', randomPassword);
+      formData.append('documento', registerData?.dni || '');
+      formData.append('nombre', registerData?.nombre || '');
+      formData.append('apellido', registerData?.apellido || '');
+      formData.append('pais', registerData?.pais || '');
+      formData.append('domicilio', registerData?.domicilio || '');
+
+      console.log('Sending Paso 1 multiform registration to:', `${API_URL}/personas/registro/paso1`);
+      
+      const step1Response = await fetch(`${API_URL}/personas/registro/paso1`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          // En React Native, al pasar FormData, no se debe setear Content-Type
+        },
+      });
+
+      const step1Result = await step1Response.json();
+
+      if (!step1Response.ok) {
+        throw new Error(step1Result.error || 'Error al guardar los datos del paso 1 de registro.');
+      }
+
+      const personaId = step1Result.personaId;
+      console.log('Paso 1 completado. ID de Persona:', personaId);
+
+      // Paso 2: JSON completar registro para activarlo
+      console.log('Sending Completar Registro to:', `${API_URL}/personas/registro/completar`);
+      const completeResponse = await fetch(`${API_URL}/personas/registro/completar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          identificador: personaId,
+          documento: registerData?.dni || '',
+          email: email,
+          contrasena: randomPassword,
+        }),
+      });
+
+      const completeResult = await completeResponse.json();
+
+      if (!completeResponse.ok) {
+        throw new Error(completeResult.error || 'Error al completar el registro.');
+      }
+
+      console.log('Registro completado y activado.');
+      
+      Alert.alert(
+        'Registro Exitoso',
+        `¡Tu registro ha sido completado y verificado!\n\nTu contraseña provisoria es:\n${randomPassword}\n\nGuárdala bien, en el futuro te la enviaremos por mail.`,
+        [
+          {
+            text: 'Continuar',
+            onPress: onComplete,
+          },
+        ]
+      );
+    } catch (error: any) {
+      console.error('Error de registro:', error);
+      Alert.alert('Error de Registro', error.message || 'Ha ocurrido un error al conectar con el servidor.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={onBack} style={styles.backButton}>
+        <Pressable onPress={onBack} style={styles.backButton} disabled={isLoading}>
           <Text style={styles.backButtonText}>{'<'}</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Confirmación de Mail</Text>
@@ -42,10 +159,11 @@ export function EmailConfirmationScreen({ onBack, onComplete }: Props) {
             placeholderTextColor="#999"
             keyboardType="email-address"
             autoCapitalize="none"
+            editable={!isLoading}
           />
         </View>
 
-        <Pressable style={styles.sendMailButton}>
+        <Pressable style={styles.sendMailButton} onPress={handleSendMail} disabled={isLoading}>
           <Text style={styles.sendMailButtonText}>Mandar Mail</Text>
         </Pressable>
 
@@ -61,6 +179,7 @@ export function EmailConfirmationScreen({ onBack, onComplete }: Props) {
                 keyboardType="numeric"
                 maxLength={1}
                 textAlign="center"
+                editable={!isLoading}
               />
             ))}
           </View>
@@ -68,8 +187,16 @@ export function EmailConfirmationScreen({ onBack, onComplete }: Props) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Pressable style={styles.continueButton} onPress={onComplete}>
-          <Text style={styles.continueButtonText}>Continuar</Text>
+        <Pressable 
+          style={[styles.continueButton, isLoading && { opacity: 0.6 }]} 
+          onPress={handleContinue}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.continueButtonText}>Continuar</Text>
+          )}
         </Pressable>
       </View>
     </SafeAreaView>

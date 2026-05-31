@@ -1,9 +1,17 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, SafeAreaView, Image } from 'react-native';
 
+export interface RegisterData {
+  nombre: string;
+  apellido: string;
+  pais: string;
+  dni: string;
+  domicilio: string;
+}
+
 interface Props {
   onBack: () => void;
-  onComplete: () => void;
+  onComplete: (data: RegisterData) => void;
 }
 
 export function RegisterScreen({ onBack, onComplete }: Props) {
@@ -108,7 +116,7 @@ export function RegisterScreen({ onBack, onComplete }: Props) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Pressable style={styles.continueButton} onPress={onComplete}>
+        <Pressable style={styles.continueButton} onPress={() => onComplete({ nombre, apellido, pais, dni, domicilio })}>
           <Text style={styles.continueButtonText}>Continuar</Text>
         </Pressable>
       </View>
