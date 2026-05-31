@@ -9,7 +9,6 @@ interface PaymentMethod {
   type: 'visa' | 'bank' | 'check';
   label: string;
   details: string;
-  isSelected: boolean;
 }
 
 interface PaymentMethodsModalProps {
@@ -24,30 +23,23 @@ export default function PaymentMethodsModal({ visible, onClose }: PaymentMethods
       type: 'visa',
       label: 'VISA',
       details: '**** **** **** 2345',
-      isSelected: true,
     },
     {
       id: '2',
       type: 'bank',
       label: 'Cuenta Bancaria Cólosa',
       details: 'Cuentas Corrientes',
-      isSelected: true,
     },
     {
       id: '3',
       type: 'check',
       label: 'Cheque Certificado',
       details: '00045801',
-      isSelected: true,
     },
   ]);
 
-  const togglePaymentMethod = (id: string) => {
-    setPaymentMethods(
-      paymentMethods.map((method) =>
-        method.id === id ? { ...method, isSelected: !method.isSelected } : method
-      )
-    );
+  const removePaymentMethod = (id: string) => {
+    setPaymentMethods(paymentMethods.filter((method) => method.id !== id));
   };
 
   const getIconName = (type: string) => {
@@ -107,17 +99,15 @@ export default function PaymentMethodsModal({ visible, onClose }: PaymentMethods
                   </View>
                 </View>
                 <Pressable
-                  onPress={() => togglePaymentMethod(method.id)}
-                  style={[styles.checkbox, method.isSelected && styles.checkboxChecked]}
+                  onPress={() => removePaymentMethod(method.id)}
+                  style={styles.deleteButton}
                 >
-                  {method.isSelected && (
-                    <SymbolView
-                      tintColor="#fff"
-                      // @ts-ignore
-                      name={{ ios: 'checkmark', android: 'check', web: 'check' }}
-                      size={16}
-                    />
-                  )}
+                  <SymbolView
+                    tintColor="#E74C3C"
+                    // @ts-ignore
+                    name={{ ios: 'trash.fill', android: 'delete', web: 'delete' }}
+                    size={20}
+                  />
                 </Pressable>
               </View>
             ))}
@@ -211,18 +201,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#8A8A8A',
   },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#8A8A8A',
+  deleteButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFE5E5',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: '#2C6E3F',
-    borderColor: '#2C6E3F',
   },
   addButton: {
     marginHorizontal: 24,
