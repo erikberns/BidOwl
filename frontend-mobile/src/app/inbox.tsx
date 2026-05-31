@@ -12,7 +12,7 @@ export default function InboxScreen() {
   const [activeTab, setActiveTab] = React.useState<Tab>('activos');
 
   // Mock data for active bids
-  const activeBids = [
+  const allActiveBids = [
     {
       id: '1',
       subastaTitle: 'Subasta de Colección Original Rolling Stone',
@@ -36,6 +36,26 @@ export default function InboxScreen() {
       estado: 'Ganando',
     },
   ];
+
+  // Filter to show only one bid per auction (the winning one, or the most recent)
+  const activeBids = React.useMemo(() => {
+    const bidsByAuction = new Map<string, typeof allActiveBids[0]>();
+    
+    allActiveBids.forEach((bid) => {
+      const existing = bidsByAuction.get(bid.subastaTitle);
+      
+      if (!existing) {
+        bidsByAuction.set(bid.subastaTitle, bid);
+      } else {
+        // Prefer winning bid, otherwise keep the most recent
+        if (bid.estado === 'Ganando' && existing.estado !== 'Ganando') {
+          bidsByAuction.set(bid.subastaTitle, bid);
+        }
+      }
+    });
+    
+    return Array.from(bidsByAuction.values());
+  }, []);
 
   // Mock data for active auctions (user's own auctions)
   const activeAuctions = [
