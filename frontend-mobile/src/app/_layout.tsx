@@ -9,6 +9,10 @@ import { Onboarding } from '@/components/Onboarding';
 import { AuthScreen } from '@/components/AuthScreen';
 import { RegisterScreen } from '@/components/RegisterScreen';
 import { EmailConfirmationScreen } from '@/components/EmailConfirmationScreen';
+import { PasswordScreen } from '@/components/PasswordScreen';
+import { PaymentMethodsScreen } from '@/components/PaymentMethodsScreen';
+import { CategoryGrantedScreen } from '@/components/CategoryGrantedScreen';
+import { WelcomeScreen } from '@/components/WelcomeScreen';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -16,6 +20,10 @@ export default function TabLayout() {
   const [hasSeenAuth, setHasSeenAuth] = useState<boolean | null>(null);
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
   const [isConfirmingEmail, setIsConfirmingEmail] = useState<boolean>(false);
+  const [isSettingPassword, setIsSettingPassword] = useState<boolean>(false);
+  const [isSettingPaymentMethods, setIsSettingPaymentMethods] = useState<boolean>(false);
+  const [isCategoryGranted, setIsCategoryGranted] = useState<boolean>(false);
+  const [isShowingWelcome, setIsShowingWelcome] = useState<boolean>(false);
 
   useEffect(() => {
     async function checkState() {
@@ -46,6 +54,56 @@ export default function TabLayout() {
   }
 
   if (!hasSeenAuth) {
+    if (isSettingPaymentMethods) {
+      return (
+        <PaymentMethodsScreen 
+          onBack={() => {
+            setIsSettingPaymentMethods(false);
+            setIsSettingPassword(true);
+          }}
+          onComplete={() => {
+            setIsSettingPaymentMethods(false);
+            setIsCategoryGranted(true);
+          }}
+        />
+      );
+    }
+
+    if (isCategoryGranted) {
+      return (
+        <CategoryGrantedScreen
+          onContinue={() => {
+            setIsCategoryGranted(false);
+            setIsShowingWelcome(true);
+          }}
+        />
+      );
+    }
+
+    if (isShowingWelcome) {
+      return (
+        <WelcomeScreen
+          onStart={async () => {
+            await AsyncStorage.setItem('hasSeenAuth', 'true');
+            setHasSeenAuth(true);
+          }}
+        />
+      );
+    }
+    if (isSettingPassword) {
+      return (
+        <PasswordScreen 
+          onBack={() => {
+            setIsSettingPassword(false);
+            setIsConfirmingEmail(true);
+          }}
+          onComplete={() => {
+            setIsSettingPassword(false);
+            setIsSettingPaymentMethods(true);
+          }}
+        />
+      );
+    }
     if (isConfirmingEmail) {
       return (
         <EmailConfirmationScreen 
@@ -53,9 +111,9 @@ export default function TabLayout() {
             setIsConfirmingEmail(false);
             setIsRegistering(true);
           }}
-          onComplete={async () => {
-            await AsyncStorage.setItem('hasSeenAuth', 'true');
-            setHasSeenAuth(true);
+          onComplete={() => {
+            setIsConfirmingEmail(false);
+            setIsSettingPassword(true);
           }}
         />
       );
