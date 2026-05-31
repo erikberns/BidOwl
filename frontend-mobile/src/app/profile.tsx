@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, Pressable, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
-import { Stack, Tabs } from 'expo-router';
+import { Stack, Tabs, useRouter } from 'expo-router';
 
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
+import PaymentMethodsModal from '@/components/PaymentMethodsModal';
 
 export default function ProfileScreen() {
+  const router = useRouter();
+  const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
+  
   const handleLogout = () => {
     Alert.alert(
       'Cerrar Sesión',
@@ -136,7 +140,10 @@ export default function ProfileScreen() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.optionItem}>
+          <TouchableOpacity 
+            style={styles.optionItem}
+            onPress={() => setIsPaymentModalVisible(true)}
+          >
             <View style={styles.optionLeft}>
               <SymbolView
                 tintColor="#8A8A8A"
@@ -181,6 +188,11 @@ export default function ProfileScreen() {
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <PaymentMethodsModal 
+        visible={isPaymentModalVisible}
+        onClose={() => setIsPaymentModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }
