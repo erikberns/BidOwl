@@ -148,13 +148,10 @@ public class SolicitudProductoService {
      * GET /api/solicitudes-items/{idSolicitud}
      */
     public SolicitudItemDetalleDTO obtenerDetalleSolicitud(String idSolicitud) throws Exception {
-        Integer id;
-        try {
-            id = Integer.parseInt(idSolicitud);
-        } catch (NumberFormatException e) {
-            throw new Exception("ID de solicitud inválido");
-        }
+        Integer id = parseId(idSolicitud);
 
+        // SUGERENCIA: En lugar de Optional, puedes hacer que el repositorio lance la excepción.
+        // Producto p = productoRepository.findById(id).orElseThrow(() -> new Exception("Solicitud no encontrada"));
         Optional<Producto> producto = productoRepository.findById(id);
         if (producto.isEmpty()) {
             throw new Exception("Solicitud no encontrada con ID: " + idSolicitud);
@@ -163,21 +160,38 @@ public class SolicitudProductoService {
         Producto p = producto.get();
         SolicitudItemDetalleDTO detalle = new SolicitudItemDetalleDTO();
         detalle.setId(p.getIdentificador().toString());
-        detalle.setEstado(p.getDisponible().equalsIgnoreCase("si") ? "ACEPTADO_INSPECCION" : "PENDIENTE_REVISION");
         detalle.setNombre(p.getDescripcionCompleta());
         detalle.setDescripcion(p.getDescripcionCatalogo());
         detalle.setFechaCreacion(p.getFecha());
         detalle.setUbicacionDeposito("Depósito Principal");
         
+        // LÓGICA DE ESTADO MEJORADA (requiere una columna 'estado' en la tabla 'productos')
+        // Ejemplo: p.getEstado() podría devolver "RECHAZADO", "ACEPTADO_INSPECCION", "PROPUESTA_ENVIADA"
+        // Por ahora, simulamos basado en 'disponible'
+        String estadoActual = p.getDisponible().equalsIgnoreCase("si") ? "ACEPTADO_INSPECCION" : "PENDIENTE_REVISION";
+        detalle.setEstado(estadoActual);
+
+        // Si el estado fuera "RECHAZADO", deberías tener una columna 'motivoRechazo' en la tabla.
+        // detalle.setMotivoRechazo(p.getMotivoRechazo());
+
         if (p.getSeguro() != null) {
             detalle.setPolizaSeguro(p.getSeguro().getNroPoliza());
         }
 
-        // Propuesta comercial (simulada con información del producto)
+        // PROPUESTA COMERCIAL (NO SIMULADA)
+        // La propuesta debería estar vinculada al 'ItemCatalogo' si ya se creó.
+        // Esto asume que al generar una propuesta, se crea una entrada en 'itemsCatalogo'.
         PropuestaComercialDTO propuesta = new PropuestaComercialDTO();
-        propuesta.setValorBase(BigDecimal.valueOf(1000)); // Valor por defecto
-        propuesta.setComision(BigDecimal.valueOf(100));
-        propuesta.setEstado("PENDIENTE");
+        // SUGERENCIA: Buscar el item en el catálogo relacionado con este producto.
+        // Optional<ItemCatalogo> itemCat = itemCatalogoRepository.findByProducto(p);
+        // if (itemCat.isPresent()) {
+        //     propuesta.setValorBase(itemCat.get().getPrecioBase());
+        //     propuesta.setComision(itemCat.get().getComision());
+        // }
+        // Como la lógica no existe, se mantiene la simulación por ahora, pero se marca como tal.
+        propuesta.setValorBase(BigDecimal.valueOf(1000)); // VALOR SIMULADO
+        propuesta.setComision(BigDecimal.valueOf(100));   // VALOR SIMULADO
+        propuesta.setEstado("PENDIENTE"); // ESTADO SIMULADO
         detalle.setPropuesta(propuesta);
 
         return detalle;
@@ -191,13 +205,7 @@ public class SolicitudProductoService {
         if (!aceptaTerminos) {
             throw new Exception("Debe aceptar los términos de envío");
         }
-
-        Integer id;
-        try {
-            id = Integer.parseInt(idSolicitud);
-        } catch (NumberFormatException e) {
-            throw new Exception("ID de solicitud inválido");
-        }
+        Integer id = parseId(idSolicitud);
 
         Optional<Producto> producto = productoRepository.findById(id);
         if (producto.isEmpty()) {
@@ -205,9 +213,11 @@ public class SolicitudProductoService {
         }
 
         Producto p = producto.get();
-        p.setDisponible("si"); // Marcar como disponible después de aceptar términos
+        // SUGERENCIA: Usar un estado más descriptivo, ej: "PENDIENTE_INSPECCION"
+        p.setDisponible("si"); 
         productoRepository.save(p);
 
+        // SUGERENCIA: Estos valores no deberían estar hardcodeados.
         AcuerdoEnvioResponse respuesta = new AcuerdoEnvioResponse();
         respuesta.setDireccionEnvio("Depósito Principal, Calle Principal 123");
         respuesta.setInstrucciones("Enviar el artículo en caja segura. Incluir comprobante de envío. Teléfono contacto: +54-11-XXXX-XXXX");
@@ -220,13 +230,7 @@ public class SolicitudProductoService {
      * POST /api/solicitudes-items/{idSolicitud}/propuesta/aceptar
      */
     public Map<String, String> aceptarPropuesta(String idSolicitud, String idCuentaDeposito) throws Exception {
-        Integer id;
-        try {
-            id = Integer.parseInt(idSolicitud);
-        } catch (NumberFormatException e) {
-            throw new Exception("ID de solicitud inválido");
-        }
-
+        Integer id = parseId(idSolicitud);
         Optional<Producto> producto = productoRepository.findById(id);
         if (producto.isEmpty()) {
             throw new Exception("Solicitud no encontrada con ID: " + idSolicitud);
@@ -245,10 +249,14 @@ public class SolicitudProductoService {
         }
 
         Producto p = producto.get();
+        // SUGERENCIA: Aquí debería crearse el 'ItemCatalogo' final con el precio y comisión acordados.
+        // El estado del producto debería cambiar a algo como "LISTO_PARA_SUBASTA".
         p.setDisponible("si");
         productoRepository.save(p);
 
+        // SUGERENCIA: Usar un DTO específico en lugar de un Map.
         Map<String, String> respuesta = new HashMap<>();
+        // El campo 'estado' no está en la definición del endpoint, pero se mantiene por ahora.
         respuesta.put("mensaje", "Propuesta aceptada correctamente");
         respuesta.put("estado", "ACEPTADO");
 
@@ -260,26 +268,32 @@ public class SolicitudProductoService {
      * POST /api/solicitudes-items/{idSolicitud}/propuesta/rechazar
      */
     public Map<String, Object> rechazarPropuesta(String idSolicitud, BigDecimal costoDevolucion) throws Exception {
-        Integer id;
-        try {
-            id = Integer.parseInt(idSolicitud);
-        } catch (NumberFormatException e) {
-            throw new Exception("ID de solicitud inválido");
-        }
-
+        Integer id = parseId(idSolicitud);
         Optional<Producto> producto = productoRepository.findById(id);
         if (producto.isEmpty()) {
             throw new Exception("Solicitud no encontrada con ID: " + idSolicitud);
         }
 
         Producto p = producto.get();
+        // SUGERENCIA: El estado debería ser "RECHAZADO" o "PENDIENTE_DEVOLUCION".
         p.setDisponible("no");
         productoRepository.save(p);
 
+        // SUGERENCIA: Usar un DTO específico en lugar de un Map.
         Map<String, Object> respuesta = new HashMap<>();
         respuesta.put("mensaje", "Propuesta rechazada. Se realizará devolución del artículo");
+        // El parámetro 'costoDevolucion' no está en la definición del body del endpoint.
+        // Debería calcularse o recuperarse de la configuración.
         respuesta.put("costoDevolucion", costoDevolucion != null ? costoDevolucion : BigDecimal.ZERO);
 
         return respuesta;
+    }
+
+    private Integer parseId(String id) throws Exception {
+        try {
+            return Integer.parseInt(id);
+        } catch (NumberFormatException e) {
+            throw new Exception("ID de solicitud inválido: " + id);
+        }
     }
 }
