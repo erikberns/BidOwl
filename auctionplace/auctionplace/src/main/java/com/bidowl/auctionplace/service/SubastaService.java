@@ -97,6 +97,9 @@ public class SubastaService {
             case "plata": return 3;
             case "oro": return 4;
             case "platino": return 5;
+            default: return 0;
+        }
+    }
 
     /**
      * GET - Obtener estado actual de un item en subasta
@@ -327,14 +330,14 @@ public class SubastaService {
                 .map(s -> {
                     SubastaPublicaDTO dto = new SubastaPublicaDTO();
                     dto.setId(s.getIdentificador().toString());
-                    dto.setTitulo(s.getTitulo());
+                    dto.setTitulo("Subasta " + s.getIdentificador());
                     dto.setFecha(s.getFecha() != null ? s.getFecha().toString() : "");
                     dto.setCategoria(s.getCategoria());
                     
                     // Contar items
                     List<ItemCatalogo> items = itemCatalogoRepository.findByCatalogoSubastaIdentificador(s.getIdentificador());
                     dto.setCantidaditems(items.size());
-                    dto.setImagenPortada("https://via.placeholder.com/400x300?text=" + s.getTitulo());
+                    dto.setImagenPortada("https://via.placeholder.com/400x300?text=Subasta" + s.getIdentificador());
                     
                     return dto;
                 })
@@ -354,8 +357,8 @@ public class SubastaService {
         Subasta s = subasta.get();
         SubastaDetalleDTO dto = new SubastaDetalleDTO();
         dto.setId(s.getIdentificador().toString());
-        dto.setTitulo(s.getTitulo());
-        dto.setRematador(s.getRematador() != null ? s.getRematador() : "Rematador Desconocido");
+        dto.setTitulo("Subasta " + s.getIdentificador());
+        dto.setRematador(s.getSubastador() != null ? s.getSubastador().getNombre() : "Rematador Desconocido");
         dto.setUbicacion(s.getUbicacion() != null ? s.getUbicacion() : "Por definir");
         dto.setFecha(s.getFecha() != null ? s.getFecha().toString() : "");
 
@@ -369,9 +372,10 @@ public class SubastaService {
                 .map(item -> {
                     ItemPreviewDTO preview = new ItemPreviewDTO();
                     preview.setIditem(item.getIdentificador().toString());
-                    preview.setNombre(item.getNombre());
+                    String nombreProducto = item.getProducto() != null ? item.getProducto().getDescripcionCatalogo() : "Item" + item.getIdentificador();
+                    preview.setNombre(nombreProducto);
                     preview.setValorBase(item.getPrecioBase());
-                    preview.setImagen("https://via.placeholder.com/200x150?text=" + item.getNombre());
+                    preview.setImagen("https://via.placeholder.com/200x150?text=" + nombreProducto);
                     return preview;
                 })
                 .collect(Collectors.toList());
@@ -397,9 +401,10 @@ public class SubastaService {
                 .map(item -> {
                     ItemCatalogoDTO dto = new ItemCatalogoDTO();
                     dto.setIditem(item.getIdentificador().toString());
-                    dto.setNombre(item.getNombre());
+                    String nombreProducto = item.getProducto() != null ? item.getProducto().getDescripcionCatalogo() : "Item" + item.getIdentificador();
+                    dto.setNombre(nombreProducto);
                     dto.setValorBase(item.getPrecioBase());
-                    dto.setImagen("https://via.placeholder.com/200x150?text=" + item.getNombre());
+                    dto.setImagen("https://via.placeholder.com/200x150?text=" + nombreProducto);
                     return dto;
                 })
                 .collect(Collectors.toList());
