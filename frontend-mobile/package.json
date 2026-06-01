@@ -4,6 +4,9 @@
   "version": "1.0.0",
   "scripts": {
     "start": "npx expo start",
+    "start:tunnel": "npx expo start --tunnel",
+    "start:clear": "npx expo start -c",
+    "start:tunnel-clear": "npx expo start --tunnel -c",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "npx expo start --android",
     "ios": "npx expo start --ios",
