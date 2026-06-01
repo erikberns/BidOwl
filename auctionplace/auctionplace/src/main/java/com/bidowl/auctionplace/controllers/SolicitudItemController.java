@@ -13,7 +13,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/solicitudes-items")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class SolicitudItemController {
 
@@ -40,7 +40,7 @@ public class SolicitudItemController {
      * Response: 201 Created
      * {"idSolicitud": "uuid", "estado": "PENDIENTE_REVISION"}
      */
-    @PostMapping("/solicitudes-items")
+    @PostMapping
     public ResponseEntity<?> crearSolicitudItem(
             @RequestHeader("Autorizacion") String autorizacion,
             @RequestParam("nombre") String nombre,
@@ -53,7 +53,29 @@ public class SolicitudItemController {
             @RequestParam("imagenes") List<MultipartFile> imagenes) {
 
         try {
-            // Aquí iría validación de autenticación
+            // Validar parámetros de entrada
+            if (nombre == null || nombre.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(crearErrorMap("El nombre es requerido", null));
+            }
+            if (descripcion == null || descripcion.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(crearErrorMap("La descripción es requerida", null));
+            }
+            if (nombreCreador == null || nombreCreador.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(crearErrorMap("El nombre del creador es requerido", null));
+            }
+            if (esArteODisenador == null || declaracionPropiedad == null) {
+                return ResponseEntity.badRequest()
+                        .body(crearErrorMap("Los campos booleanos son requeridos", null));
+            }
+            if (imagenes == null || imagenes.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(crearErrorMap("Se requiere al menos una imagen", null));
+            }
+
+            // Extraer ID del token
             Integer creadorId = extraerIdDelToken(autorizacion);
 
             LocalDate fechaCreacion = null;
@@ -82,8 +104,12 @@ public class SolicitudItemController {
             return ResponseEntity.status(HttpStatus.CREATED).body(resultado);
 
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(crearErrorMap(e.getMessage(), null));
+            if (e.getMessage().contains("Token") || e.getMessage().contains("no proporcionado")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(crearErrorMap(e.getMessage(), null));
+            }
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(crearErrorMap("Error interno del servidor: " + e.getMessage(), null));
         }
     }
 
@@ -108,13 +134,18 @@ public class SolicitudItemController {
             @RequestHeader("Autorizacion") String autorizacion) {
 
         try {
+            extraerIdDelToken(autorizacion);
             Integer creadorId = extraerIdDelToken(autorizacion);
             List<ItemActivoDTO> items = solicitudProductoService.obtenerItemsActivosPorCreador(creadorId);
             return ResponseEntity.ok(items);
 
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(crearErrorMap(e.getMessage(), null));
+            if (e.getMessage().contains("Token") || e.getMessage().contains("no proporcionado")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(crearErrorMap(e.getMessage(), null));
+            }
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(crearErrorMap("Error interno del servidor: " + e.getMessage(), null));
         }
     }
 
@@ -132,23 +163,31 @@ public class SolicitudItemController {
      *   "propuesta": {"valorBase": 0.0, "comision": 0.0}
      * }
      */
-    @GetMapping("/solicitudes-items/{idSolicitud}")
+    @GetMapping("/{idSolicitud}")
     public ResponseEntity<?> obtenerDetalleSolicitud(
             @PathVariable String idSolicitud,
             @RequestHeader("Autorizacion") String autorizacion) {
 
         try {
+            if (idSolicitud == null || idSolicitud.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(crearErrorMap("El ID de solicitud es requerido", null));
+            }
+
             extraerIdDelToken(autorizacion);
             SolicitudItemDetalleDTO detalle = solicitudProductoService.obtenerDetalleSolicitud(idSolicitud);
             return ResponseEntity.ok(detalle);
 
         } catch (Exception e) {
-            if (e.getMessage().contains("no encontrada")) {
+            if (e.getMessage().contains("Token") || e.getMessage().contains("no proporcionado")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(crearErrorMap(e.getMessage(), null));
+            } else if (e.getMessage().contains("no encontrada")) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(crearErrorMap(e.getMessage(), null));
             }
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(crearErrorMap(e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(crearErrorMap("Error interno del servidor: " + e.getMessage(), null));
         }
     }
 
@@ -167,13 +206,18 @@ public class SolicitudItemController {
      *   "instrucciones": "string"
      * }
      */
-    @PostMapping("/solicitudes-items/{idSolicitud}/acuerdo-envio")
+    @PostMapping("/{idSolicitud}/acuerdo-envio")
     public ResponseEntity<?> aceptarAcuerdoEnvio(
             @PathVariable String idSolicitud,
             @RequestHeader("Autorizacion") String autorizacion,
             @RequestBody AcuerdoEnvioRequest request) {
 
         try {
+            if (idSolicitud == null || idSolicitud.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(crearErrorMap("El ID de solicitud es requerido", null));
+            }
+
             extraerIdDelToken(autorizacion);
             
             if (request.getAceptaTerminos() == null || !request.getAceptaTerminos()) {
@@ -189,12 +233,15 @@ public class SolicitudItemController {
             return ResponseEntity.ok(respuesta);
 
         } catch (Exception e) {
-            if (e.getMessage().contains("no encontrada")) {
+            if (e.getMessage().contains("Token") || e.getMessage().contains("no proporcionado")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(crearErrorMap(e.getMessage(), null));
+            } else if (e.getMessage().contains("no encontrada")) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(crearErrorMap(e.getMessage(), null));
             }
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(crearErrorMap(e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(crearErrorMap("Error interno del servidor: " + e.getMessage(), null));
         }
     }
 
@@ -210,14 +257,24 @@ public class SolicitudItemController {
      * Response: 200 OK
      * {"mensaje": "string"}
      */
-    @PostMapping("/solicitudes-items/{idSolicitud}/propuesta/aceptar")
+    @PostMapping("/{idSolicitud}/propuesta/aceptar")
     public ResponseEntity<?> aceptarPropuesta(
             @PathVariable String idSolicitud,
             @RequestHeader("Autorizacion") String autorizacion,
             @RequestBody PropuestaAceptarRequest request) {
 
         try {
+            if (idSolicitud == null || idSolicitud.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(crearErrorMap("El ID de solicitud es requerido", null));
+            }
+
             extraerIdDelToken(autorizacion);
+            
+            if (request.getIdCuentaDeposito() == null || request.getIdCuentaDeposito().trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(crearErrorMap("El ID de cuenta de depósito es requerido", null));
+            }
             
             Map<String, String> respuesta = solicitudProductoService.aceptarPropuesta(
                     idSolicitud,
@@ -227,12 +284,15 @@ public class SolicitudItemController {
             return ResponseEntity.ok(respuesta);
 
         } catch (Exception e) {
-            if (e.getMessage().contains("no encontrada")) {
+            if (e.getMessage().contains("Token") || e.getMessage().contains("no proporcionado")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(crearErrorMap(e.getMessage(), null));
+            } else if (e.getMessage().contains("no encontrada")) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(crearErrorMap(e.getMessage(), null));
             }
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(crearErrorMap(e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(crearErrorMap("Error interno del servidor: " + e.getMessage(), null));
         }
     }
 
@@ -251,18 +311,23 @@ public class SolicitudItemController {
      *   "costoDevolucion": 0.0
      * }
      */
-    @PostMapping("/solicitudes-items/{idSolicitud}/propuesta/rechazar")
+    @PostMapping("/{idSolicitud}/propuesta/rechazar")
     public ResponseEntity<?> rechazarPropuesta(
             @PathVariable String idSolicitud,
             @RequestHeader("Autorizacion") String autorizacion,
-            @RequestBody(required = false) Map<String, Object> body) {
+            @RequestBody(required = false) PropuestaRechazarRequest request) {
 
         try {
+            if (idSolicitud == null || idSolicitud.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(crearErrorMap("El ID de solicitud es requerido", null));
+            }
+
             extraerIdDelToken(autorizacion);
             
             BigDecimal costoDevolucion = BigDecimal.ZERO;
-            if (body != null && body.containsKey("costoDevolucion")) {
-                costoDevolucion = new BigDecimal(body.get("costoDevolucion").toString());
+            if (request != null && request.getCostoDevolucion() != null) {
+                costoDevolucion = request.getCostoDevolucion();
             }
 
             Map<String, Object> respuesta = solicitudProductoService.rechazarPropuesta(
@@ -273,12 +338,15 @@ public class SolicitudItemController {
             return ResponseEntity.ok(respuesta);
 
         } catch (Exception e) {
-            if (e.getMessage().contains("no encontrada")) {
+            if (e.getMessage().contains("Token") || e.getMessage().contains("no proporcionado")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(crearErrorMap(e.getMessage(), null));
+            } else if (e.getMessage().contains("no encontrada")) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(crearErrorMap(e.getMessage(), null));
             }
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(crearErrorMap(e.getMessage(), null));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(crearErrorMap("Error interno del servidor: " + e.getMessage(), null));
         }
     }
 
