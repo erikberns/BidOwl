@@ -150,6 +150,34 @@ public class SolicitudItemController {
     }
 
     /**
+     * GET - Obtener subastas en las que participa el usuario
+     * GET /api/personas/yo/subastas
+     * 
+     * Header: Autorizacion
+     * Response: 200 OK
+     * [ ... lista de subastas ... ]
+     */
+    @GetMapping("/personas/yo/subastas")
+    public ResponseEntity<?> obtenerMisSubastas(
+            @RequestHeader("Autorizacion") String autorizacion) {
+        
+        try {
+            Integer clienteId = extraerIdDelToken(autorizacion);
+            
+            // NOTA: Necesitarías un método en tu SubastaService para esto.
+            // List<SubastaDTO> misSubastas = subastaService.obtenerSubastasPorParticipante(clienteId);
+            
+            // Por ahora, devolvemos una respuesta simulada.
+            return ResponseEntity.ok(Collections.singletonList("Subasta 1 en la que participo"));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(crearErrorMap("Token inválido o no proporcionado", null));
+        }
+    }
+
+
+    /**
      * GET - Obtener detalle de solicitud
      * GET /api/solicitudes-items/{idSolicitud}
      * 
