@@ -110,12 +110,8 @@ public class SubastaService {
      */
     public EstadoItemSubastaDTO obtenerEstadoItem(Integer idSubasta, Integer iditem) {
         // Validar que el item existe y pertenece a la subasta en una sola consulta
-        ItemCatalogo itemCatalogo = itemCatalogoRepository.findByIdAndCatalogoSubastaIdentificador(iditem, idSubasta)
-                .orElseThrow(() -> new RuntimeException("Item con ID " + iditem + " no encontrado en la subasta " + idSubasta)); // ResourceNotFoundException
-
-        // NOTA: Para que lo anterior funcione, se debe agregar el siguiente método en ItemCatalogoRepository:
-        // Optional<ItemCatalogo> findByIdAndCatalogoSubastaIdentificador(Integer id, Integer subastaId);
-        // Spring Data JPA generará la consulta compleja automáticamente.
+        ItemCatalogo itemCatalogo = itemCatalogoRepository.findByIdentificadorAndCatalogo_Subasta_Identificador(iditem, idSubasta)
+                .orElseThrow(() -> new RuntimeException("Item con ID " + iditem + " no encontrado en la subasta " + idSubasta)); // TODO: Cambiar a ResourceNotFoundException
         
         // Obtener la puja líder (mayor monto)
         Optional<Pujo> pujaLider = pujoRepository.findFirstByItemIdentificadorOrderByImporteDesc(iditem);
@@ -141,8 +137,8 @@ public class SubastaService {
      */
     public List<HistorialPujaDTO> obtenerHistorialPujas(Integer idSubasta, Integer iditem) {
         // Validar que el item pertenece a la subasta
-        if (!itemCatalogoRepository.existsByIdAndCatalogoSubastaIdentificador(iditem, idSubasta)) {
-             throw new RuntimeException("Item con ID " + iditem + " no encontrado en la subasta " + idSubasta); // ResourceNotFoundException
+        if (!itemCatalogoRepository.existsByIdentificadorAndCatalogo_Subasta_Identificador(iditem, idSubasta)) {
+             throw new RuntimeException("Item con ID " + iditem + " no encontrado en la subasta " + idSubasta); // TODO: Cambiar a ResourceNotFoundException
         }
         // Obtener todas las pujas ordenadas por monto descendente
         List<Pujo> pujas = pujoRepository.findPujasByItem(iditem);
@@ -167,8 +163,8 @@ public class SubastaService {
      */
     public LimitesPujaDTO obtenerLimitesPuja(Integer idSubasta, Integer iditem) {
         // Validar que el item existe y pertenece a la subasta
-        ItemCatalogo itemCatalogo = itemCatalogoRepository.findByIdAndCatalogoSubastaIdentificador(iditem, idSubasta)
-                .orElseThrow(() -> new RuntimeException("Item con ID " + iditem + " no encontrado en la subasta " + idSubasta)); // ResourceNotFoundException
+        ItemCatalogo itemCatalogo = itemCatalogoRepository.findByIdentificadorAndCatalogo_Subasta_Identificador(iditem, idSubasta)
+                .orElseThrow(() -> new RuntimeException("Item con ID " + iditem + " no encontrado en la subasta " + idSubasta)); // TODO: Cambiar a ResourceNotFoundException
         
         // Calcular límites basados en el precio base
         BigDecimal precioBase = itemCatalogo.getPrecioBase();
@@ -197,38 +193,38 @@ public class SubastaService {
                                        String idMetodoPago, Integer clienteId) {
         
         // Validar que el item existe y pertenece a la subasta
-        ItemCatalogo itemCatalogo = itemCatalogoRepository.findByIdAndCatalogoSubastaIdentificador(iditem, idSubasta)
-                .orElseThrow(() -> new RuntimeException("Item con ID " + iditem + " no encontrado en la subasta " + idSubasta)); // ResourceNotFoundException
+        ItemCatalogo itemCatalogo = itemCatalogoRepository.findByIdentificadorAndCatalogo_Subasta_Identificador(iditem, idSubasta)
+                .orElseThrow(() -> new RuntimeException("Item con ID " + iditem + " no encontrado en la subasta " + idSubasta)); // TODO: Cambiar a ResourceNotFoundException
 
         // Validar que la subasta existe y está abierta
         Optional<Subasta> subasta = subastaRepository.findById(idSubasta);
         if (subasta.isEmpty() || !"abierta".equalsIgnoreCase(subasta.get().getEstado())) {
-            throw new RuntimeException("La subasta no existe o no está abierta"); // BusinessLogicException
+            throw new RuntimeException("La subasta no existe o no está abierta"); // TODO: Cambiar a BusinessLogicException
         }
 
         // Validar método de pago
         if (idMetodoPago == null || idMetodoPago.isEmpty()) {
-            throw new RuntimeException("Debe proporcionar un método de pago"); // BusinessLogicException
+            throw new RuntimeException("Debe proporcionar un método de pago"); // TODO: Cambiar a BusinessLogicException
         }
 
         Integer metodoPagoId;
         try {
             metodoPagoId = Integer.parseInt(idMetodoPago);
         } catch (NumberFormatException e) {
-            throw new RuntimeException("ID de método de pago inválido"); // BusinessLogicException
+            throw new RuntimeException("ID de método de pago inválido"); // TODO: Cambiar a BusinessLogicException
         }
 
         if (!metodoPagoRepository.existsById(metodoPagoId)) {
-            throw new RuntimeException("Método de pago no encontrado"); // ResourceNotFoundException
+            throw new RuntimeException("Método de pago no encontrado"); // TODO: Cambiar a ResourceNotFoundException
         }
 
         // Validar montos contra límites
         LimitesPujaDTO limites = obtenerLimitesPuja(idSubasta, iditem);
         if (monto.compareTo(limites.getPujaMinima()) < 0) {
-            throw new RuntimeException("La puja es menor al mínimo permitido: " + limites.getPujaMinima()); // BusinessLogicException
+            throw new RuntimeException("La puja es menor al mínimo permitido: " + limites.getPujaMinima()); // TODO: Cambiar a BusinessLogicException
         }
         if (monto.compareTo(limites.getPujaMaxima()) > 0) {
-            throw new RuntimeException("La puja excede el máximo permitido: " + limites.getPujaMaxima()); // BusinessLogicException
+            throw new RuntimeException("La puja excede el máximo permitido: " + limites.getPujaMaxima()); // TODO: Cambiar a BusinessLogicException
         }
 
         // Obtener o crear asistente (lógica centralizada y corregida)
