@@ -1,33 +1,139 @@
-import React, { useState } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, Pressable, Alert, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Image, ScrollView, StyleSheet, Pressable, Alert, TouchableOpacity, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { Stack, Tabs, useRouter } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import PaymentMethodsModal from '@/components/PaymentMethodsModal';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const isFocused = useIsFocused();
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
-  
-  const handleLogout = () => {
-    Alert.alert(
-      'Cerrar Sesión',
-      '¿Está seguro de que desea cerrar sesión?',
-      [
-        { text: 'Cancelar', onPress: () => {} },
-        {
-          text: 'Cerrar Sesión',
-          onPress: () => {
-            Alert.alert('Sesión cerrada', 'Se ha cerrado la sesión correctamente');
+  const [isGuest, setIsGuest] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+
+  useEffect(() => {
+    if (isFocused) {
+      async function loadProfileState() {
+        try {
+          const isGuestStr = await AsyncStorage.getItem('isGuest');
+          const userStr = await AsyncStorage.getItem('user');
+          if (isGuestStr === 'true' || !userStr) {
+            setIsGuest(true);
+            setCurrentUser(null);
+          } else {
+            setIsGuest(false);
+            setCurrentUser(JSON.parse(userStr));
+          }
+        } catch (e) {
+          setIsGuest(true);
+        }
+      }
+      loadProfileState();
+    }
+  }, [isFocused]);
+
+  const handleLogout = async () => {
+    const performLogout = async () => {
+      try {
+        await AsyncStorage.removeItem('user');
+        await AsyncStorage.removeItem('isGuest');
+        await AsyncStorage.setItem('hasSeenAuth', 'false');
+        if (Platform.OS === 'web') {
+          alert('Se ha cerrado la sesión correctamente');
+        } else {
+          Alert.alert('Sesión cerrada', 'Se ha cerrado la sesión correctamente');
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      const confirmLogout = window.confirm('¿Está seguro de que desea cerrar sesión?');
+      if (confirmLogout) {
+        await performLogout();
+      }
+    } else {
+      Alert.alert(
+        'Cerrar Sesión',
+        '¿Está seguro de que desea cerrar sesión?',
+        [
+          { text: 'Cancelar', onPress: () => {} },
+          {
+            text: 'Cerrar Sesión',
+            onPress: async () => {
+              await performLogout();
+            },
+            style: 'destructive',
           },
-          style: 'destructive',
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
+  const handleGuestRedirect = async (target: 'register' | 'login') => {
+    try {
+      await AsyncStorage.setItem('authRedirect', target);
+      await AsyncStorage.setItem('hasSeenAuth', 'false');
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  if (isGuest) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <Tabs.Screen options={{ headerShown: false }} />
+        
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Perfil</Text>
+          <Image 
+            source={require('@/assets/images/SplashBidOwl.png')} 
+            style={styles.logo} 
+          />
+        </View>
+
+        {/* Guest Content */}
+        <ScrollView contentContainerStyle={styles.guestContainer} showsVerticalScrollIndicator={false}>
+          <View style={styles.guestContentBox}>
+            <Text style={styles.guestMainTitle}>
+              Completá tu acceso{'\n'}a <Text style={styles.brandTextPrimary}>Bid</Text><Text style={styles.brandTextSecondary}>Owl</Text>
+            </Text>
+            
+            <Text style={styles.guestSubtitle}>
+              Para acceder a tu perfil y seguir usando la app como usuario, creá tu cuenta o iniciá sesión.
+            </Text>
+
+            <View style={styles.guestButtonGroup}>
+              <TouchableOpacity 
+                style={styles.guestCreateButton}
+                onPress={() => handleGuestRedirect('register')}
+              >
+                <Text style={styles.guestCreateButtonText}>Crear Cuenta</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.guestLoginButton}
+                onPress={() => handleGuestRedirect('login')}
+              >
+                <Text style={styles.guestLoginButtonText}>Iniciar Sesión</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  // Normal logged in profile screen
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -52,11 +158,15 @@ export default function ProfileScreen() {
           <View style={styles.avatar} />
 
           {/* User Info */}
-          <Text style={styles.userName}>Jose Claudio Godio</Text>
+          <Text style={styles.userName}>
+            {currentUser?.nombre} {currentUser?.apellido || ''}
+          </Text>
 
           {/* Category Badge */}
           <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>COMUN</Text>
+            <Text style={styles.categoryText}>
+              {(currentUser?.categoria || 'comun').toUpperCase()}
+            </Text>
           </View>
 
           {/* Description */}
@@ -79,7 +189,9 @@ export default function ProfileScreen() {
                 name={{ ios: 'hand.raised.fill', android: 'pan_tool', web: 'pan_tool' }}
                 size={28}
               />
-              <Text style={styles.statValue}>55</Text>
+              <Text style={styles.statValue}>
+                {currentUser?.rematesGanados !== undefined ? currentUser.rematesGanados : 0}
+              </Text>
               <Text style={styles.statLabel}>Subastas Ganadas</Text>
             </View>
 
@@ -90,8 +202,10 @@ export default function ProfileScreen() {
                 name={{ ios: 'trophy.fill', android: 'emoji_events', web: 'emoji_events' }}
                 size={28}
               />
-              <Text style={styles.statValue}>10</Text>
-              <Text style={styles.statLabel}>Mejor Ganador</Text>
+              <Text style={styles.statValue}>
+                {currentUser?.rematesAsistidos !== undefined ? currentUser.rematesAsistidos : 0}
+              </Text>
+              <Text style={styles.statLabel}>Subastas Asistidas</Text>
             </View>
 
             <View style={styles.statCard}>
@@ -101,7 +215,9 @@ export default function ProfileScreen() {
                 name={{ ios: 'paperclip', android: 'attach_file', web: 'attach_file' }}
                 size={28}
               />
-              <Text style={styles.statValue}>23</Text>
+              <Text style={styles.statValue}>
+                {currentUser?.articulosPublicados !== undefined ? currentUser.articulosPublicados : 0}
+              </Text>
               <Text style={styles.statLabel}>Artículos Publicados</Text>
             </View>
 
@@ -112,8 +228,10 @@ export default function ProfileScreen() {
                 name={{ ios: 'star.fill', android: 'star', web: 'star' }}
                 size={28}
               />
-              <Text style={styles.statValue}>102</Text>
-              <Text style={styles.statLabel}>Nivel Realizador</Text>
+              <Text style={styles.statValue}>
+                {currentUser?.pujasRealizadas !== undefined ? currentUser.pujasRealizadas : 0}
+              </Text>
+              <Text style={styles.statLabel}>Pujas Realizadas</Text>
             </View>
           </View>
         </View>
@@ -218,6 +336,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 16,
     paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
   headerTitle: {
     fontSize: 26,
@@ -236,6 +356,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9F9F9',
     marginHorizontal: 24,
     borderRadius: 12,
+    marginTop: 24,
     marginBottom: 28,
   },
   avatar: {
@@ -274,7 +395,7 @@ const styles = StyleSheet.create({
   learnMore: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#BEE757',
+    color: '#2E9F64',
     textDecorationLine: 'underline',
   },
   statsSection: {
@@ -352,5 +473,75 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  // Guest Screen Styles
+  guestContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 80,
+  },
+  guestContentBox: {
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  guestMainTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#051C2C',
+    textAlign: 'center',
+    lineHeight: 40,
+    marginBottom: 16,
+  },
+  brandTextPrimary: {
+    color: '#BEE757', // Light green / yellow
+  },
+  brandTextSecondary: {
+    color: '#2E9F64', // Dark green
+  },
+  guestSubtitle: {
+    fontSize: 15,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 40,
+    paddingHorizontal: 16,
+  },
+  guestButtonGroup: {
+    width: '100%',
+    gap: 16,
+  },
+  guestCreateButton: {
+    backgroundColor: '#BEE757', // Bright lime yellow-green matching screenshot
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  guestCreateButtonText: {
+    color: '#051C2C',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  guestLoginButton: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    width: '100%',
+    borderWidth: 1.5,
+    borderColor: '#E5E5E5',
+  },
+  guestLoginButtonText: {
+    color: '#051C2C',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

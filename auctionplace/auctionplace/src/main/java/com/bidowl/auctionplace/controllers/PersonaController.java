@@ -3,6 +3,7 @@ package com.bidowl.auctionplace.controllers;
 import com.bidowl.auctionplace.dto.RegistroPaso1Request;
 import com.bidowl.auctionplace.entity.Persona;
 import com.bidowl.auctionplace.entity.MetodoPago;
+import com.bidowl.auctionplace.entity.RegistroPendiente;
 import com.bidowl.auctionplace.service.PersonaServiceInterface;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import java.math.BigDecimal;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -56,6 +58,35 @@ public class PersonaController {
         }
     }
 
+    @PostMapping("/registro/{id}/aprobar")
+    public ResponseEntity<?> aprobarRegistro(
+            @PathVariable Integer id,
+            @RequestHeader(value = "Autorizacion", required = false) String autorizacion) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            String contrasenaGenerada = personaService.aprobarRegistro(id);
+            response.put("mensaje", "Registro aprobado exitosamente.");
+            response.put("contrasenaGenerada", contrasenaGenerada);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("error", e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @GetMapping("/registro/pendientes")
+    public ResponseEntity<?> obtenerPendientes(
+            @RequestHeader(value = "Autorizacion", required = false) String autorizacion) {
+        try {
+            List<RegistroPendiente> pendientes = personaService.obtenerRegistrosPendientes();
+            return ResponseEntity.ok(pendientes);
+        } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("error", e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
+    }
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         Map<String, Object> response = new HashMap<>();
@@ -63,10 +94,38 @@ public class PersonaController {
             Persona persona = personaService.login(request.getEmail(), request.getContrasena());
             response.put("mensaje", "Ingreso exitoso.");
             response.put("persona", persona);
+            
+            boolean requiereConfiguracion = personaService.requiereConfiguracion(persona.getIdentificador());
+            response.put("requiereConfiguracion", requiereConfiguracion);
+            
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("error", e.getMessage());
             return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+        }
+    }
+
+    @PostMapping("/{id}/cambiar-contrasena")
+    public ResponseEntity<?> cambiarContrasena(@PathVariable Integer id, @RequestBody CambiarContrasenaRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            personaService.cambiarContrasena(id, request.getContrasenaNueva());
+            response.put("mensaje", "Contraseña cambiada exitosamente.");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("error", e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @GetMapping("/paises")
+    public ResponseEntity<?> obtenerPaises() {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            return ResponseEntity.ok(personaService.obtenerPaises());
+        } catch (Exception e) {
+            response.put("error", e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -344,6 +403,18 @@ public class PersonaController {
 
         public void setMoneda(String moneda) {
             this.moneda = moneda;
+        }
+    }
+
+    public static class CambiarContrasenaRequest {
+        private String contrasenaNueva;
+
+        public String getContrasenaNueva() {
+            return contrasenaNueva;
+        }
+
+        public void setContrasenaNueva(String contrasenaNueva) {
+            this.contrasenaNueva = contrasenaNueva;
         }
     }
 }

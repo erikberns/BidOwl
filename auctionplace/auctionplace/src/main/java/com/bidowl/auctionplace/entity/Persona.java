@@ -7,6 +7,11 @@ import lombok.AllArgsConstructor;
 
 @Entity
 @Table(name = "personas")
+@SecondaryTables({
+    @SecondaryTable(name = "personas_datos_adicionales", pkJoinColumns = @PrimaryKeyJoinColumn(name = "identificador")),
+    @SecondaryTable(name = "personas_documentos_fotos", pkJoinColumns = @PrimaryKeyJoinColumn(name = "identificador")),
+    @SecondaryTable(name = "personas_estadisticas", pkJoinColumns = @PrimaryKeyJoinColumn(name = "identificador"))
+})
 @Inheritance(strategy = InheritanceType.JOINED)
 @Data
 @NoArgsConstructor
@@ -24,18 +29,21 @@ public class Persona {
     @Column(name = "nombre", length = 150, nullable = false)
     private String nombre;
 
-    @Column(name = "apellido", length = 150)
+    @Column(table = "personas_datos_adicionales", name = "apellido", length = 150)
     private String apellido;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "numeroPais")
+    @JoinColumn(table = "personas_datos_adicionales", name = "numeroPais")
     private Pais pais;
 
-    @Column(name = "email", length = 250, nullable = false, unique = true)
+    @Column(table = "personas_datos_adicionales", name = "email", length = 250, nullable = false, unique = true)
     private String email;
 
-    @Column(name = "contrasena", length = 255, nullable = false)
+    @Column(table = "personas_datos_adicionales", name = "contrasena", length = 255, nullable = false)
     private String contrasena;
+
+    @Column(table = "personas_datos_adicionales", name = "contrasena_cambiada", nullable = false)
+    private Boolean contrasenaCambiada = false;
 
     @Column(name = "direccion", length = 250)
     private String direccion;
@@ -45,25 +53,30 @@ public class Persona {
     private String estado;
 
     // "comun", "plata", "oro", "platino", "especial"
-    @Column(name = "categoria", length = 10)
+    @Column(table = "personas_datos_adicionales", name = "categoria", length = 10)
     private String categoria;
 
     @Lob
     @Column(name = "foto", columnDefinition="LONGBLOB")
     private byte[] foto;
 
-    @Column(name = "metodoPago")
-    private Integer metodoPago;
+    @Lob
+    @Column(table = "personas_documentos_fotos", name = "foto_frente", columnDefinition="LONGBLOB")
+    private byte[] fotoFrente;
 
-    @Column(name = "rematesAsistidos", nullable = false)
+    @Lob
+    @Column(table = "personas_documentos_fotos", name = "foto_dorso", columnDefinition="LONGBLOB")
+    private byte[] fotoDorso;
+
+    @Column(table = "personas_estadisticas", name = "rematesAsistidos", nullable = false)
     private Integer rematesAsistidos = 0;
 
-    @Column(name = "rematesGanados", nullable = false)
+    @Column(table = "personas_estadisticas", name = "rematesGanados", nullable = false)
     private Integer rematesGanados = 0;
 
-    @Column(name = "articulosPublicados", nullable = false)
+    @Column(table = "personas_estadisticas", name = "articulosPublicados", nullable = false)
     private Integer articulosPublicados = 0;
 
-    @Column(name = "pujasRealizadas", nullable = false)
+    @Column(table = "personas_estadisticas", name = "pujasRealizadas", nullable = false)
     private Integer pujasRealizadas = 0;
 }

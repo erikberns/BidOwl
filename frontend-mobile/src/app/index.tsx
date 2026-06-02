@@ -3,6 +3,8 @@ import { View, Text, Image, ScrollView, StyleSheet, TextInput } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, Stack, Tabs } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useIsFocused } from '@react-navigation/native';
 
 import { AuctionCard } from '@/components/AuctionCard';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -10,6 +12,32 @@ import { MOCK_AUCTIONS } from '@/constants/mockData';
 
 export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = React.useState('');
+  const isFocused = useIsFocused();
+  const [isGuest, setIsGuest] = React.useState(true);
+  const [username, setUsername] = React.useState('Invitado');
+
+  React.useEffect(() => {
+    if (isFocused) {
+      async function loadUser() {
+        try {
+          const isGuestStr = await AsyncStorage.getItem('isGuest');
+          const userStr = await AsyncStorage.getItem('user');
+          if (isGuestStr === 'true' || !userStr) {
+            setIsGuest(true);
+            setUsername('Invitado');
+          } else {
+            setIsGuest(false);
+            const user = JSON.parse(userStr);
+            setUsername(user.nombre || 'Usuario');
+          }
+        } catch (e) {
+          setIsGuest(true);
+          setUsername('Invitado');
+        }
+      }
+      loadUser();
+    }
+  }, [isFocused]);
 
   const filteredAuctions = MOCK_AUCTIONS.filter(item => {
     const query = searchQuery.toLowerCase();
@@ -32,7 +60,7 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.welcomeText}>
-            Bienvenido, <Text style={styles.username}>Claudio</Text>!
+            Bienvenido, <Text style={styles.username}>{username}</Text>!
           </Text>
           <Image 
             source={require('@/assets/images/SplashBidOwl.png')} 

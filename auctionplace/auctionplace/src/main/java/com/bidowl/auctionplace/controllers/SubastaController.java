@@ -23,8 +23,26 @@ public class SubastaController {
     private SubastaService subastaService;
 
     @GetMapping
-    public ResponseEntity<List<Subasta>> obtenerTodas() {
-        return ResponseEntity.ok(subastaService.obtenerTodas());
+    public ResponseEntity<?> obtenerTodasOCatalogo(
+            @RequestParam(required = false) String estado,
+            @RequestParam(required = false) String categoria,
+            @RequestParam(required = false) Integer pagina,
+            @RequestParam(required = false) Integer limite,
+            @RequestHeader(value = "Autorizacion", required = false) String autorizacion) {
+        try {
+            if (estado == null && categoria == null && pagina == null && limite == null) {
+                return ResponseEntity.ok(subastaService.obtenerTodas());
+            } else {
+                int p = (pagina != null) ? pagina : 1;
+                int l = (limite != null) ? limite : 10;
+                List<SubastaPublicaDTO> catalogo = subastaService.obtenerCatalogoPublico(estado, categoria, p, l);
+                return ResponseEntity.ok(catalogo);
+            }
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
     }
 
     @GetMapping("/estado/{estado}")
@@ -33,12 +51,20 @@ public class SubastaController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> obtenerPorId(@PathVariable Integer id) {
-        Map<String, Object> response = new HashMap<>();
+    public ResponseEntity<?> obtenerPorIdODetalle(
+            @PathVariable Integer id,
+            @RequestParam(required = false, defaultValue = "false") boolean detalle,
+            @RequestHeader(value = "Autorizacion", required = false) String autorizacion) {
         try {
-            Subasta subasta = subastaService.obtenerPorId(id);
-            return ResponseEntity.ok(subasta);
+            if (detalle || (autorizacion != null && !autorizacion.isEmpty())) {
+                SubastaDetalleDTO detalleDto = subastaService.obtenerDetalleSubasta(id);
+                return ResponseEntity.ok(detalleDto);
+            } else {
+                Subasta subasta = subastaService.obtenerPorId(id);
+                return ResponseEntity.ok(subasta);
+            }
         } catch (Exception e) {
+            Map<String, Object> response = new HashMap<>();
             response.put("error", e.getMessage());
             return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
         }
@@ -50,20 +76,38 @@ public class SubastaController {
     }
 
     @PostMapping("/{id}/unirse")
-    public ResponseEntity<?> unirse(@PathVariable Integer id, @RequestBody Map<String, Integer> requestBody) {
+    public ResponseEntity<?> unirse(
+            @PathVariable Integer id,
+            @RequestBody(required = false) Map<String, Integer> requestBody,
+            @RequestHeader(value = "Autorizacion", required = false) String autorizacion) {
         Map<String, Object> response = new HashMap<>();
         try {
-            Integer clienteId = requestBody.get("clienteId");
-            if (clienteId == null) {
-                throw new Exception("El campo 'clienteId' es requerido.");
+            if (autorizacion != null && !autorizacion.isEmpty()) {
+                Integer clienteId = extraerIdDelToken(autorizacion);
+                UnirseResponse respuesta = subastaService.unirseAlStreaming(clienteId, id);
+                return ResponseEntity.ok(respuesta);
             }
-            Asistente asistente = subastaService.unirseASubasta(clienteId, id);
-            response.put("mensaje", "Te has unido a la subasta con éxito.");
-            response.put("asistente", asistente);
-            return ResponseEntity.ok(response);
+            if (requestBody != null && requestBody.containsKey("clienteId")) {
+                Integer clienteId = requestBody.get("clienteId");
+                if (clienteId == null) {
+                    throw new Exception("El campo 'clienteId' es requerido.");
+                }
+                Asistente asistente = subastaService.unirseASubasta(clienteId, id);
+                response.put("mensaje", "Te has unido a la subasta con éxito.");
+                response.put("asistente", asistente);
+                return ResponseEntity.ok(response);
+            }
+            throw new Exception("Debe proporcionar un token de Autorizacion o un request body con clienteId.");
         } catch (Exception e) {
-            response.put("error", e.getMessage());
-            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            if (e.getMessage().contains("no encontrado")) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            } else if (e.getMessage().contains("categoría") || e.getMessage().contains("método de pago")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+            } else {
+                return ResponseEntity.badRequest().body(error);
+            }
         }
     }
 
@@ -138,7 +182,6 @@ public class SubastaController {
             @RequestHeader("Autorizacion") String autorizacion,
             @RequestBody CrearPujaRequest request) {
         try {
-            // Extraer clienteId del token (simulado)
             Integer clienteId = extraerIdDelToken(autorizacion);
             
             if (request.getMonto() == null || request.getMonto().compareTo(BigDecimal.ZERO) <= 0) {
@@ -184,45 +227,6 @@ public class SubastaController {
     }
 
     /**
-     * GET - Obtener catálogo público de subastas
-     * GET /api/subastas?estado=activa&categoria=oro&pagina=1&limite=10
-     */
-    @GetMapping
-    public ResponseEntity<?> obtenerCatalogo(
-            @RequestParam(required = false) String estado,
-            @RequestParam(required = false) String categoria,
-            @RequestParam(defaultValue = "1") int pagina,
-            @RequestParam(defaultValue = "10") int limite,
-            @RequestHeader(value = "Autorizacion", required = false) String autorizacion) {
-        try {
-            List<SubastaPublicaDTO> catalogo = subastaService.obtenerCatalogoPublico(estado, categoria, pagina, limite);
-            return ResponseEntity.ok(catalogo);
-        } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.badRequest().body(error);
-        }
-    }
-
-    /**
-     * GET - Obtener detalle de una subasta
-     * GET /api/subastas/{idSubasta}
-     */
-    @GetMapping("/{idSubasta}")
-    public ResponseEntity<?> obtenerDetalle(
-            @PathVariable Integer idSubasta,
-            @RequestHeader(value = "Autorizacion", required = false) String autorizacion) {
-        try {
-            SubastaDetalleDTO detalle = subastaService.obtenerDetalleSubasta(idSubasta);
-            return ResponseEntity.ok(detalle);
-        } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
-        }
-    }
-
-    /**
      * GET - Obtener catálogo de items de una subasta
      * GET /api/subastas/{idSubasta}/catalogo
      */
@@ -259,32 +263,6 @@ public class SubastaController {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
             }
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
-        }
-    }
-
-    /**
-     * POST - Unirse a la subasta y obtener acceso a streaming
-     * POST /api/subastas/{idSubasta}/unirse
-     */
-    @PostMapping("/{idSubasta}/unirse")
-    public ResponseEntity<?> unirse(
-            @PathVariable Integer idSubasta,
-            @RequestHeader("Autorizacion") String autorizacion) {
-        try {
-            Integer clienteId = extraerIdDelToken(autorizacion);
-            UnirseResponse respuesta = subastaService.unirseAlStreaming(clienteId, idSubasta);
-            return ResponseEntity.ok(respuesta);
-        } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            
-            if (e.getMessage().contains("no encontrado")) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
-            } else if (e.getMessage().contains("categoría") || e.getMessage().contains("método de pago")) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
-            } else {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
-            }
         }
     }
 }

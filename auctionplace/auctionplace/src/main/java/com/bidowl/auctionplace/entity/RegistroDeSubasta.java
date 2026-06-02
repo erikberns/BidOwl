@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 
 @Entity
 @Table(name = "registroDeSubasta")
+@SecondaryTable(name = "registro_de_subasta_datos_adicionales", pkJoinColumns = @PrimaryKeyJoinColumn(name = "identificador"))
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -35,7 +36,7 @@ public class RegistroDeSubasta {
     private Cliente cliente;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "metodoPago", nullable = false)
+    @JoinColumn(table = "registro_de_subasta_datos_adicionales", name = "metodoPago", nullable = false)
     private MetodoPago metodoPago;
 
     @Column(name = "importe", precision = 18, scale = 2, nullable = false)

@@ -5,18 +5,23 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 interface Props {
   onComplete: () => void;
   onRegister?: () => void;
+  onLogin?: () => void;
 }
 
-export function AuthScreen({ onComplete, onRegister }: Props) {
+export function AuthScreen({ onComplete, onRegister, onLogin }: Props) {
   const handleGuest = async () => {
     await AsyncStorage.setItem('hasSeenAuth', 'true');
+    await AsyncStorage.setItem('isGuest', 'true');
     onComplete();
   };
 
   const handleAuth = async () => {
-    // For now, these buttons will also just bypass the screen to be functional
-    await AsyncStorage.setItem('hasSeenAuth', 'true');
-    onComplete();
+    if (onLogin) {
+      onLogin();
+    } else {
+      await AsyncStorage.setItem('hasSeenAuth', 'true');
+      onComplete();
+    }
   };
 
   const handleRegisterClick = () => {

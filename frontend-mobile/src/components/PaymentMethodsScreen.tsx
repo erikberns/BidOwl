@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from '../constants/api';
 
 interface PaymentMethodsScreenProps {
+  userId?: number;
   onBack: () => void;
   onComplete: () => void;
 }
@@ -15,13 +18,70 @@ interface PaymentMethod {
   subtitle: string;
 }
 
-export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ onBack, onComplete }) => {
+const showAlert = (title: string, message: string) => {
+  if (Platform.OS === 'web') {
+    console.log(`[Alert] ${title}: ${message}`);
+    alert(`${title}\n\n${message}`);
+  } else {
+    const { Alert } = require('react-native');
+    Alert.alert(title, message);
+  }
+};
+
+export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ userId, onBack, onComplete }) => {
   const [currentView, setCurrentView] = useState<'list' | 'select' | 'form_bank' | 'form_card' | 'form_check'>('list');
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [selectedType, setSelectedType] = useState<MethodType>('card');
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Form states (simplified for UI demonstration)
+  // Bank Form States
+  const [bankTitular, setBankTitular] = useState('Jose Claudio Godio');
+  const [bankBanco, setBankBanco] = useState('Banco Galicia');
+  const [bankPais, setBankPais] = useState('Argentina');
+  const [bankMoneda, setBankMoneda] = useState('Pesos');
+  const [bankCbuIban, setBankCbuIban] = useState('0720123456789012345678');
   const [bankTab, setBankTab] = useState<'CBU' | 'IBAN'>('CBU');
+
+  // Card Form States
+  const [cardNumero, setCardNumero] = useState('4444555566662345');
+  const [cardTitular, setCardTitular] = useState('Jose Claudio Godio');
+  const [cardVencimiento, setCardVencimiento] = useState('12/30');
+  const [cardCvv, setCardCvv] = useState('892');
+
+  // Check Form States
+  const [checkTitular, setCheckTitular] = useState('Jose Claudio Godio');
+  const [checkBanco, setCheckBanco] = useState('Banco de la Nación Argentina');
+  const [checkNumero, setCheckNumero] = useState('00045821');
+  const [checkMonto, setCheckMonto] = useState('1500000');
+  const [checkPais, setCheckPais] = useState('Argentina');
+  const [checkMoneda, setCheckMoneda] = useState('Pesos');
+
+  const [availablePaises, setAvailablePaises] = useState<any[]>([
+    { numero: 54, nombre: 'Argentina' },
+    { numero: 598, nombre: 'Uruguay' },
+    { numero: 55, nombre: 'Brasil' },
+    { numero: 56, nombre: 'Chile' }
+  ]);
+  const [isBankDropdownOpen, setIsBankDropdownOpen] = useState(false);
+  const [isCheckDropdownOpen, setIsCheckDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    async function loadPaises() {
+      try {
+        console.log('Cargando países desde:', `${API_URL}/personas/paises`);
+        const response = await fetch(`${API_URL}/personas/paises`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.length > 0) {
+            setAvailablePaises(data);
+          }
+        }
+      } catch (error) {
+        console.error('Error cargando países:', error);
+      }
+    }
+    loadPaises();
+  }, []);
 
   const addMethod = (method: Omit<PaymentMethod, 'id'>) => {
     setMethods([...methods, { ...method, id: Math.random().toString() }]);
@@ -32,9 +92,149 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ onBa
     setMethods(methods.filter(m => m.id !== id));
   };
 
+  const getFinalUserId = async (): Promise<number> => {
+    if (userId) return userId;
+    const userStr = await AsyncStorage.getItem('user');
+    if (userStr) {
+      const userObj = JSON.parse(userStr);
+      return userObj.identificador;
+    }
+    throw new Error('No se encontró el identificador del usuario para guardar el método de pago.');
+  };
+
+  const handleAddBank = async () => {
+    if (!bankTitular || !bankBanco || !bankCbuIban) {
+      showAlert('Error', 'Por favor complete los campos obligatorios.');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const finalUserId = await getFinalUserId();
+      const selectedPaisObj = availablePaises.find(p => p.nombre.toLowerCase() === bankPais.toLowerCase());
+      const paisId = selectedPaisObj ? selectedPaisObj.numero : 54;
+      
+      console.log(`Registrando cuenta bancaria para usuario ${finalUserId}...`);
+      const response = await fetch(`${API_URL}/personas/${finalUserId}/metodo-pago/cuenta`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          titularCuenta: bankTitular,
+          nombreBanco: bankBanco,
+          paisId: paisId,
+          cbuIban: bankCbuIban,
+          moneda: bankMoneda.toLowerCase() === 'ar$' ? 'pesos' : bankMoneda.toLowerCase(),
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Error al registrar la cuenta bancaria.');
+      }
+
+      showAlert('Éxito', 'Cuenta bancaria registrada con éxito.');
+      addMethod({
+        type: 'bank',
+        title: `Cuenta Bancaria ${bankBanco}`,
+        subtitle: `CBU/IBAN: ${bankCbuIban}`,
+      });
+    } catch (error: any) {
+      console.error('Error al registrar cuenta bancaria:', error);
+      showAlert('Error', error.message || 'Error al conectar con el servidor.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAddCard = async () => {
+    if (!cardNumero || !cardTitular || !cardVencimiento || !cardCvv) {
+      showAlert('Error', 'Por favor complete todos los campos de la tarjeta.');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const finalUserId = await getFinalUserId();
+      console.log(`Registrando tarjeta para usuario ${finalUserId}...`);
+      const response = await fetch(`${API_URL}/personas/${finalUserId}/metodo-pago/tarjeta`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          numeroTarjeta: cardNumero.replace(/\s/g, ''),
+          titularTarjeta: cardTitular,
+          fechaVencimiento: cardVencimiento,
+          cvv: parseInt(cardCvv) || 0,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Error al registrar la tarjeta de crédito.');
+      }
+
+      addMethod({
+        type: 'card',
+        title: `VISA **** **** **** ${cardNumero.slice(-4)}`,
+        subtitle: `Vence: ${cardVencimiento}`,
+      });
+    } catch (error: any) {
+      console.error('Error al registrar tarjeta:', error);
+      showAlert('Error', error.message || 'Error al conectar con el servidor.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAddCheck = async () => {
+    if (!checkTitular || !checkBanco || !checkNumero || !checkMonto) {
+      showAlert('Error', 'Por favor complete los campos del cheque.');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const finalUserId = await getFinalUserId();
+      const selectedPaisObj = availablePaises.find(p => p.nombre.toLowerCase() === checkPais.toLowerCase());
+      const paisId = selectedPaisObj ? selectedPaisObj.numero : 54;
+      console.log(`Registrando cheque para usuario ${finalUserId}...`);
+      const response = await fetch(`${API_URL}/personas/${finalUserId}/metodo-pago/cheque`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          titular: checkTitular,
+          bancoEmisor: checkBanco,
+          numeroCheque: checkNumero,
+          monto: parseFloat(checkMonto) || 0.0,
+          paisId: paisId,
+          moneda: checkMoneda.toLowerCase() === 'ar$' ? 'pesos' : checkMoneda.toLowerCase(),
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Error al registrar el cheque.');
+      }
+
+      showAlert('Éxito', 'Cheque certificado registrado con éxito.');
+      addMethod({
+        type: 'check',
+        title: `Cheque Certificado ${checkNumero}`,
+        subtitle: `${checkBanco} - Monto: ${checkMonto}`,
+      });
+    } catch (error: any) {
+      console.error('Error al registrar cheque:', error);
+      showAlert('Error', error.message || 'Error al conectar con el servidor.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const renderHeader = (title: string, onBackPress: () => void, isCloseIcon = false) => (
     <View style={styles.header}>
-      <TouchableOpacity onPress={onBackPress} style={styles.backButton}>
+      <TouchableOpacity onPress={onBackPress} style={styles.backButton} disabled={isLoading}>
         <Text style={styles.backText}>{isCloseIcon ? '✕' : '<'}</Text>
       </TouchableOpacity>
       <Text style={styles.headerTitle}>{title}</Text>
@@ -55,7 +255,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ onBa
 
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Metodo de Pago</Text>
-            <TouchableOpacity style={styles.addButton} onPress={() => setCurrentView('select')}>
+            <TouchableOpacity style={styles.addButton} onPress={() => setCurrentView('select')} disabled={isLoading}>
               <Text style={styles.addButtonText}>+</Text>
             </TouchableOpacity>
           </View>
@@ -72,8 +272,11 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ onBa
                     {m.type === 'card' ? '💳' : m.type === 'bank' ? '🏦' : '📄'}
                   </Text>
                 </View>
-                <Text style={styles.methodTitle}>{m.title}</Text>
-                <TouchableOpacity onPress={() => removeMethod(m.id)} style={styles.removeButton}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.methodTitle}>{m.title}</Text>
+                  <Text style={styles.methodSub}>{m.subtitle}</Text>
+                </View>
+                <TouchableOpacity onPress={() => removeMethod(m.id)} style={styles.removeButton} disabled={isLoading}>
                   <Text style={styles.removeButtonText}>✕</Text>
                 </TouchableOpacity>
               </View>
@@ -84,7 +287,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ onBa
         <View style={styles.footer}>
           <TouchableOpacity
             style={[styles.primaryButton, !hasMethods && styles.disabledButton]}
-            disabled={!hasMethods}
+            disabled={!hasMethods || isLoading}
             onPress={onComplete}
           >
             <Text style={[styles.primaryButtonText, !hasMethods && styles.disabledButtonText]}>Continuar</Text>
@@ -111,7 +314,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ onBa
           };
           const isSelected = selectedType === type;
           return (
-            <TouchableOpacity key={type} style={styles.radioRow} onPress={() => setSelectedType(type)}>
+            <TouchableOpacity key={type} style={styles.radioRow} onPress={() => setSelectedType(type)} disabled={isLoading}>
               <Text style={styles.radioLabel}>{labels[type]}</Text>
               <View style={[styles.radioCircle, isSelected && styles.radioCircleSelected]}>
                 {isSelected && <View style={styles.radioInnerCircle} />}
@@ -128,6 +331,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ onBa
             if (selectedType === 'card') setCurrentView('form_card');
             if (selectedType === 'check') setCurrentView('form_check');
           }}
+          disabled={isLoading}
         >
           <Text style={styles.primaryButtonText}>Continuar</Text>
         </TouchableOpacity>
@@ -135,23 +339,61 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ onBa
     </View>
   );
 
-  const InputField = ({ label, placeholder, value, flex = 1 }: any) => (
+  const InputField = ({ label, placeholder, value, onChangeText, flex = 1, keyboardType }: any) => (
     <View style={[styles.inputContainer, { flex }]}>
       <Text style={styles.inputLabel}>{label}</Text>
       <TextInput
         style={styles.input}
         placeholder={placeholder}
         value={value}
+        onChangeText={onChangeText}
         placeholderTextColor="#666"
+        keyboardType={keyboardType}
+        editable={!isLoading}
       />
     </View>
   );
+
+  const CountryDropdownField = ({ label, value, onSelect, isOpen, setIsOpen, flex = 1 }: any) => {
+    return (
+      <View style={[styles.inputContainer, { flex, zIndex: isOpen ? 1000 : 1, overflow: 'visible' }]}>
+        <Text style={styles.inputLabel}>{label}</Text>
+        <TouchableOpacity 
+          style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} 
+          onPress={() => setIsOpen(!isOpen)}
+          disabled={isLoading}
+        >
+          <Text style={{ fontSize: 16, color: '#000' }}>{value}</Text>
+          <Text style={{ fontSize: 12, color: '#666' }}>{isOpen ? '▲' : '▼'}</Text>
+        </TouchableOpacity>
+        
+        {isOpen && (
+          <View style={styles.dropdownMenu}>
+            <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 150 }}>
+              {availablePaises.map((item) => (
+                <TouchableOpacity
+                  key={item.numero}
+                  style={styles.dropdownItem}
+                  onPress={() => {
+                    onSelect(item.nombre);
+                    setIsOpen(false);
+                  }}
+                >
+                  <Text style={styles.dropdownItemText}>{item.nombre}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+      </View>
+    );
+  };
 
   const renderFileUpload = () => (
     <View style={styles.fileUploadSection}>
       <Text style={styles.fileLabel}>Comprobante</Text>
       <View style={styles.fileBoxes}>
-        <TouchableOpacity style={styles.fileAddBox}>
+        <TouchableOpacity style={styles.fileAddBox} disabled={isLoading}>
           <Text style={styles.fileAddText}>+</Text>
         </TouchableOpacity>
         <View style={styles.fileCardBox}>
@@ -166,30 +408,34 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ onBa
       {renderHeader('Agregar Metodo de Pago', () => setCurrentView('select'), true)}
       <ScrollView style={styles.content}>
         <Text style={styles.mainTitle}>Agregar Cuenta Bancaria.</Text>
-        <InputField label="Titular" placeholder="Juan Pérez" />
-        <InputField label="Banco" placeholder="Banco Galicia" />
-        <View style={styles.row}>
-          <InputField label="País" placeholder="Argentina" />
+        <InputField label="Titular" placeholder="Juan Pérez" value={bankTitular} onChangeText={setBankTitular} />
+        <InputField label="Banco" placeholder="Banco Galicia" value={bankBanco} onChangeText={setBankBanco} />
+        <View style={[styles.row, { zIndex: isBankDropdownOpen ? 1000 : 1, position: 'relative' }]}>
+          <CountryDropdownField label="País" value={bankPais} onSelect={setBankPais} isOpen={isBankDropdownOpen} setIsOpen={setIsBankDropdownOpen} />
           <View style={{ width: 15 }} />
-          <InputField label="Moneda" placeholder="AR$" />
+          <InputField label="Moneda" placeholder="AR$" value={bankMoneda} onChangeText={setBankMoneda} />
         </View>
-        <InputField label="Número de Cuenta" placeholder="1234567890" />
+        <InputField label="Número de Cuenta" placeholder="1234567890" value={bankCbuIban} onChangeText={setBankCbuIban} />
 
         <View style={styles.tabsRow}>
-          <TouchableOpacity style={[styles.tab, bankTab === 'CBU' && styles.activeTab]} onPress={() => setBankTab('CBU')}>
+          <TouchableOpacity style={[styles.tab, bankTab === 'CBU' && styles.activeTab]} onPress={() => setBankTab('CBU')} disabled={isLoading}>
             <Text style={[styles.tabText, bankTab === 'CBU' && styles.activeTabText]}>CBU</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.tab, bankTab === 'IBAN' && styles.activeTab]} onPress={() => setBankTab('IBAN')}>
+          <TouchableOpacity style={[styles.tab, bankTab === 'IBAN' && styles.activeTab]} onPress={() => setBankTab('IBAN')} disabled={isLoading}>
             <Text style={[styles.tabText, bankTab === 'IBAN' && styles.activeTabText]}>IBAN</Text>
           </TouchableOpacity>
         </View>
-        <InputField label={bankTab} placeholder="0720123456789012345678" />
+        <InputField label={bankTab} placeholder="0720123456789012345678" value={bankCbuIban} onChangeText={setBankCbuIban} />
 
         {renderFileUpload()}
       </ScrollView>
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.acceptButton} onPress={() => addMethod({ type: 'bank', title: 'Cuenta Bancaria Galicia', subtitle: '' })}>
-          <Text style={styles.acceptButtonText}>Aceptar</Text>
+        <TouchableOpacity style={styles.acceptButton} onPress={handleAddBank} disabled={isLoading}>
+          {isLoading ? (
+            <ActivityIndicator color="#001b2a" />
+          ) : (
+            <Text style={styles.acceptButtonText}>Aceptar</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -207,30 +453,36 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ onBa
             <View style={styles.chipIcon} />
             <Text style={styles.visaText}>VISA</Text>
           </View>
-          <Text style={styles.cardNumber}>**** **** **** 2345</Text>
+          <Text style={styles.cardNumber}>
+            {cardNumero ? cardNumero.replace(/(\d{4})/g, '$1 ').trim() : '**** **** **** ****'}
+          </Text>
           <View style={styles.mockCardBottom}>
             <View>
               <Text style={styles.cardInfoLabel}>Card Holder name</Text>
-              <Text style={styles.cardInfoValue}>Noman Manzoor</Text>
+              <Text style={styles.cardInfoValue}>{cardTitular || 'Noman Manzoor'}</Text>
             </View>
             <View>
               <Text style={styles.cardInfoLabel}>Expiry Date</Text>
-              <Text style={styles.cardInfoValue}>02 / 30</Text>
+              <Text style={styles.cardInfoValue}>{cardVencimiento || '02 / 30'}</Text>
             </View>
           </View>
         </View>
 
-        <InputField label="Numero de Tarjeta" placeholder="0123 4567 8901 2345" />
-        <InputField label="Nombre de Dueño de Tarjeta" placeholder="Noman Manzoor" />
+        <InputField label="Numero de Tarjeta" placeholder="0123 4567 8901 2345" value={cardNumero} onChangeText={setCardNumero} keyboardType="numeric" />
+        <InputField label="Nombre de Dueño de Tarjeta" placeholder="Noman Manzoor" value={cardTitular} onChangeText={setCardTitular} />
         <View style={styles.row}>
-          <InputField label="Fecha Vencimiento" placeholder="02 / 30" />
+          <InputField label="Fecha Vencimiento" placeholder="02 / 30" value={cardVencimiento} onChangeText={setCardVencimiento} />
           <View style={{ width: 15 }} />
-          <InputField label="CVV" placeholder="892" />
+          <InputField label="CVV" placeholder="892" value={cardCvv} onChangeText={setCardCvv} keyboardType="numeric" />
         </View>
       </ScrollView>
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.acceptButton} onPress={() => addMethod({ type: 'card', title: 'VISA **** **** **** 2345', subtitle: '' })}>
-          <Text style={styles.acceptButtonText}>Aceptar</Text>
+        <TouchableOpacity style={styles.acceptButton} onPress={handleAddCard} disabled={isLoading}>
+          {isLoading ? (
+            <ActivityIndicator color="#001b2a" />
+          ) : (
+            <Text style={styles.acceptButtonText}>Aceptar</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -241,21 +493,25 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ onBa
       {renderHeader('Agregar Metodo de Pago', () => setCurrentView('select'), true)}
       <ScrollView style={styles.content}>
         <Text style={styles.mainTitle}>Agregar Cheque Certificado.</Text>
-        <InputField label="Titular" placeholder="Juan Pérez" />
-        <InputField label="Banco Emisor" placeholder="Banco Nación" />
-        <InputField label="Numero de Cheque" placeholder="00045821" />
-        <InputField label="Monto Certificado" placeholder="1.500.000" />
-        <View style={styles.row}>
-          <InputField label="País" placeholder="Argentina" />
+        <InputField label="Titular" placeholder="Juan Pérez" value={checkTitular} onChangeText={setCheckTitular} />
+        <InputField label="Banco Emisor" placeholder="Banco Nación" value={checkBanco} onChangeText={setCheckBanco} />
+        <InputField label="Numero de Cheque" placeholder="00045821" value={checkNumero} onChangeText={setCheckNumero} />
+        <InputField label="Monto Certificado" placeholder="1.500.000" value={checkMonto} onChangeText={setCheckMonto} keyboardType="numeric" />
+        <View style={[styles.row, { zIndex: isCheckDropdownOpen ? 1000 : 1, position: 'relative' }]}>
+          <CountryDropdownField label="País" value={checkPais} onSelect={setCheckPais} isOpen={isCheckDropdownOpen} setIsOpen={setIsCheckDropdownOpen} />
           <View style={{ width: 15 }} />
-          <InputField label="Moneda" placeholder="AR$" />
+          <InputField label="Moneda" placeholder="AR$" value={checkMoneda} onChangeText={setCheckMoneda} />
         </View>
 
         {renderFileUpload()}
       </ScrollView>
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.acceptButton} onPress={() => addMethod({ type: 'check', title: 'Cheque Certificado 00045821', subtitle: '' })}>
-          <Text style={styles.acceptButtonText}>Aceptar</Text>
+        <TouchableOpacity style={styles.acceptButton} onPress={handleAddCheck} disabled={isLoading}>
+          {isLoading ? (
+            <ActivityIndicator color="#001b2a" />
+          ) : (
+            <Text style={styles.acceptButtonText}>Aceptar</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -373,9 +629,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   methodTitle: {
-    flex: 1,
     fontSize: 14,
+    fontWeight: 'bold',
     color: '#333',
+  },
+  methodSub: {
+    fontSize: 11,
+    color: '#666',
+    marginTop: 2,
   },
   removeButton: {
     backgroundColor: '#D9534F',
@@ -416,6 +677,8 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: 10,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 58,
   },
   acceptButtonText: {
     color: '#001b2a',
@@ -576,5 +839,33 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 8,
+    marginTop: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    maxHeight: 160,
+    zIndex: 9999,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  dropdownItemText: {
+    fontSize: 14,
+    color: '#333',
   },
 });

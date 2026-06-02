@@ -1,7 +1,23 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, SafeAreaView, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, SafeAreaView, ScrollView, Alert, ActivityIndicator, Platform, Image } from 'react-native';
 import { API_URL } from '../constants/api';
 import { RegisterData } from './RegisterScreen';
+
+// Helper to show alert on both native and web platforms
+const showAlert = (title: string, message: string, buttons?: { text: string; onPress?: () => void }[]) => {
+  if (Platform.OS === 'web') {
+    console.log(`[Alert] ${title}: ${message}`);
+    alert(`${title}\n\n${message}`);
+    if (buttons && buttons.length > 0) {
+      const actionButton = buttons.find(b => b.onPress);
+      if (actionButton && actionButton.onPress) {
+        actionButton.onPress();
+      }
+    }
+  } else {
+    Alert.alert(title, message, buttons);
+  }
+};
 
 interface Props {
   onBack: () => void;
@@ -14,6 +30,7 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
   const [token, setToken] = useState(['', '', '', '', '']); // 5 digit token
   const [sentToken, setSentToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showStatusScreen, setShowStatusScreen] = useState(false);
 
   const handleTokenChange = (text: string, index: number) => {
     const newToken = [...token];
@@ -23,12 +40,16 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
 
   const handleSendMail = () => {
     if (!email || !email.includes('@')) {
-      Alert.alert('Error', 'Por favor, ingrese un email válido.');
+      showAlert('Error', 'Por favor, ingrese un email válido.');
       return;
     }
     const generated = Math.floor(10000 + Math.random() * 90000).toString();
     setSentToken(generated);
-    Alert.alert(
+    console.log('=== DEBUG TOKEN ===');
+    console.log(`Email: ${email}`);
+    console.log(`Token: ${generated}`);
+    console.log('===================');
+    showAlert(
       'Token Enviado',
       `Se ha enviado un token de validación a ${email}.\n\nTu token de validación es: ${generated}`,
       [{ text: 'Entendido' }]
@@ -39,35 +60,28 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
     const enteredToken = token.join('');
     
     if (!sentToken) {
-      Alert.alert('Error', 'Primero debes solicitar el token presionando "Mandar Mail".');
+      showAlert('Error', 'Primero debes solicitar el token presionando "Mandar Mail".');
       return;
     }
     
     if (enteredToken.length < 5) {
-      Alert.alert('Error', 'Por favor, complete el token de 5 dígitos.');
+      showAlert('Error', 'Por favor, complete el token de 5 dígitos.');
       return;
     }
     
     if (enteredToken !== sentToken && enteredToken !== '12345') {
-      Alert.alert('Error', 'El token ingresado es incorrecto.');
+      showAlert('Error', 'El token ingresado es incorrecto.');
       return;
-    }
-
-    // Generar contraseña aleatoria
-    const length = 8;
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let randomPassword = '';
-    for (let i = 0; i < length; i++) {
-      randomPassword += chars.charAt(Math.floor(Math.random() * chars.length));
     }
 
     setIsLoading(true);
 
     try {
-      // Paso 1: multipart/form-data
+      // Paso 1: Guardar datos en el backend (registros_pendientes)
+      // La contraseña ya no se guarda en registros_pendientes, enviamos vacío
       const formData = new FormData();
       formData.append('email', email);
-      formData.append('contrasena', randomPassword);
+      formData.append('contrasena', '');
       formData.append('documento', registerData?.dni || '');
       formData.append('nombre', registerData?.nombre || '');
       formData.append('apellido', registerData?.apellido || '');
@@ -79,9 +93,7 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
       const step1Response = await fetch(`${API_URL}/personas/registro/paso1`, {
         method: 'POST',
         body: formData,
-        headers: {
-          // En React Native, al pasar FormData, no se debe setear Content-Type
-        },
+        headers: {},
       });
 
       const step1Result = await step1Response.json();
@@ -93,7 +105,7 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
       const personaId = step1Result.personaId;
       console.log('Paso 1 completado. ID de Persona:', personaId);
 
-      // Paso 2: JSON completar registro para activarlo
+      // Paso 2: JSON completar registro para activarlo/enviar a aprobación
       console.log('Sending Completar Registro to:', `${API_URL}/personas/registro/completar`);
       const completeResponse = await fetch(`${API_URL}/personas/registro/completar`, {
         method: 'POST',
@@ -104,7 +116,7 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
           identificador: personaId,
           documento: registerData?.dni || '',
           email: email,
-          contrasena: randomPassword,
+          contrasena: '', // Vacío: se generará al ser aprobada la cuenta
         }),
       });
 
@@ -114,26 +126,56 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
         throw new Error(completeResult.error || 'Error al completar el registro.');
       }
 
-      console.log('Registro completado y activado.');
+      console.log('Registro completado exitosamente y listo para aprobación.');
       
-      Alert.alert(
-        'Registro Exitoso',
-        `¡Tu registro ha sido completado y verificado!\n\nTu contraseña provisoria es:\n${randomPassword}\n\nGuárdala bien, en el futuro te la enviaremos por mail.`,
-        [
-          {
-            text: 'Continuar',
-            onPress: onComplete,
-          },
-        ]
-      );
+      // Mostrar pantalla de cuenta en verificación
+      setShowStatusScreen(true);
     } catch (error: any) {
       console.error('Error de registro:', error);
-      Alert.alert('Error de Registro', error.message || 'Ha ocurrido un error al conectar con el servidor.');
+      showAlert('Error de Registro', error.message || 'Ha ocurrido un error al conectar con el servidor.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Pantalla de Cuenta en Verificación (luego de confirmar token)
+  if (showStatusScreen) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Pressable onPress={() => setShowStatusScreen(false)} style={styles.backButton}>
+            <Text style={styles.backButtonText}>{'<'}</Text>
+          </Pressable>
+          <Text style={styles.headerTitle}>Confirmación de Mail</Text>
+          <View style={styles.placeholderBox} />
+        </View>
+
+        <View style={styles.statusContent}>
+          <Image 
+            source={require('@/assets/images/shield_owl_icon.png')} 
+            style={styles.statusIcon}
+            resizeMode="contain"
+          />
+          
+          <Text style={styles.statusTitle}>Tu cuenta está siendo verificada..</Text>
+          
+          <Text style={styles.statusDescription}>
+            Estamos revisando los datos de tu perfil para habilitar todas las funcionalidades de la plataforma.
+            {"\n\n"}
+            Te avisaremos por correo electrónico cuando el proceso haya finalizado. Gracias por tu paciencia mientras completamos esta etapa.
+          </Text>
+        </View>
+
+        <View style={styles.statusFooter}>
+          <Pressable style={styles.understoodButton} onPress={onComplete}>
+            <Text style={styles.understoodButtonText}>Entendido</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Pantalla de Confirmación de Mail (Formulario inicial)
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -323,6 +365,48 @@ const styles = StyleSheet.create({
   },
   continueButtonText: {
     color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  // Status Screen Styles
+  statusContent: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    alignItems: 'flex-start',
+  },
+  statusIcon: {
+    width: 100,
+    height: 100,
+    marginBottom: 40,
+  },
+  statusTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#051C2C',
+    textAlign: 'left',
+    lineHeight: 36,
+    marginBottom: 20,
+  },
+  statusDescription: {
+    fontSize: 14,
+    color: '#8A8A8A',
+    textAlign: 'left',
+    lineHeight: 22,
+  },
+  statusFooter: {
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+  },
+  understoodButton: {
+    backgroundColor: '#BEE757', // Lime yellow
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    width: '100%',
+  },
+  understoodButtonText: {
+    color: '#051C2C',
     fontSize: 16,
     fontWeight: 'bold',
   },

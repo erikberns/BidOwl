@@ -1,24 +1,102 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, SafeAreaView, ScrollView, ActivityIndicator, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from '../constants/api';
 
 interface Props {
+  userId?: number;
   onBack: () => void;
   onComplete: () => void;
 }
 
-export function PasswordScreen({ onBack, onComplete }: Props) {
+const showAlert = (title: string, message: string) => {
+  if (Platform.OS === 'web') {
+    console.log(`[Alert] ${title}: ${message}`);
+    alert(`${title}\n\n${message}`);
+  } else {
+    const { Alert } = require('react-native');
+    Alert.alert(title, message);
+  }
+};
+
+export function PasswordScreen({ userId, onBack, onComplete }: Props) {
   const [password, setPassword] = useState('contraseñafachera');
   const [confirmPassword, setConfirmPassword] = useState('contraseñafachera');
   const [showPassword, setShowPassword] = useState(true);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleContinue = async () => {
+    if (!password) {
+      showAlert('Error', 'Por favor, ingrese una contraseña.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      showAlert('Error', 'Las contraseñas no coinciden.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      let finalUserId = userId;
+
+      // Si no viene por prop, intentamos cargarlo desde AsyncStorage
+      if (!finalUserId) {
+        const userStr = await AsyncStorage.getItem('user');
+        if (userStr) {
+          const userObj = JSON.parse(userStr);
+          finalUserId = userObj.identificador;
+        }
+      }
+
+      if (!finalUserId) {
+        throw new Error('No se encontró el identificador del usuario para cambiar la contraseña.');
+      }
+
+      console.log(`Enviando cambio de contraseña para el usuario ${finalUserId}...`);
+      const response = await fetch(`${API_URL}/personas/${finalUserId}/cambiar-contrasena`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contrasenaNueva: password,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Error al actualizar la contraseña.');
+      }
+
+      console.log('Contraseña actualizada con éxito');
+      
+      // Actualizar la contraseña en el storage local
+      const userStr = await AsyncStorage.getItem('user');
+      if (userStr) {
+        const userObj = JSON.parse(userStr);
+        userObj.contrasena = password;
+        await AsyncStorage.setItem('user', JSON.stringify(userObj));
+      }
+
+      onComplete();
+    } catch (error: any) {
+      console.error('Error al cambiar contraseña:', error);
+      showAlert('Error', error.message || 'Error al conectar con el servidor.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={onBack} style={styles.backButton}>
+        <Pressable onPress={onBack} style={styles.backButton} disabled={isLoading}>
           <Text style={styles.backButtonText}>{'<'}</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>Metodos de Pago</Text>
+        <Text style={styles.headerTitle}>Crear Contraseña</Text>
         <View style={styles.placeholderBox} />
       </View>
 
@@ -32,7 +110,7 @@ export function PasswordScreen({ onBack, onComplete }: Props) {
           <View style={styles.inputWrapper}>
             <View style={styles.inputHeader}>
               <Text style={styles.inputLabel}>Crear Contraseña</Text>
-              <Pressable onPress={() => setShowPassword(!showPassword)}>
+              <Pressable onPress={() => setShowPassword(!showPassword)} disabled={isLoading}>
                 <Text style={styles.toggleText}>{showPassword ? 'Ocultar' : 'Mostrar'}</Text>
               </Pressable>
             </View>
@@ -43,13 +121,14 @@ export function PasswordScreen({ onBack, onComplete }: Props) {
               secureTextEntry={!showPassword}
               placeholderTextColor="#999"
               autoCapitalize="none"
+              editable={!isLoading}
             />
           </View>
 
           <View style={styles.inputWrapper}>
             <View style={styles.inputHeader}>
               <Text style={styles.inputLabel}>Confirmar Contraseña</Text>
-              <Pressable onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+              <Pressable onPress={() => setShowConfirmPassword(!showConfirmPassword)} disabled={isLoading}>
                 <Text style={styles.toggleText}>{showConfirmPassword ? 'Ocultar' : 'Mostrar'}</Text>
               </Pressable>
             </View>
@@ -60,6 +139,7 @@ export function PasswordScreen({ onBack, onComplete }: Props) {
               secureTextEntry={!showConfirmPassword}
               placeholderTextColor="#999"
               autoCapitalize="none"
+              editable={!isLoading}
             />
           </View>
         </View>
@@ -67,8 +147,12 @@ export function PasswordScreen({ onBack, onComplete }: Props) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Pressable style={styles.continueButton} onPress={onComplete}>
-          <Text style={styles.continueButtonText}>Continuar</Text>
+        <Pressable style={styles.continueButton} onPress={handleContinue} disabled={isLoading}>
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.continueButtonText}>Continuar</Text>
+          )}
         </Pressable>
       </View>
     </SafeAreaView>

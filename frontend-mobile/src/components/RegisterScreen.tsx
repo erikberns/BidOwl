@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, SafeAreaView, Image } from 'react-native';
+import { API_URL } from '../constants/api';
 
 export interface RegisterData {
   nombre: string;
@@ -20,6 +21,32 @@ export function RegisterScreen({ onBack, onComplete }: Props) {
   const [pais, setPais] = useState('Argentina');
   const [dni, setDni] = useState('32145678');
   const [domicilio, setDomicilio] = useState('Lima 757');
+
+  const [availablePaises, setAvailablePaises] = useState<any[]>([
+    { numero: 54, nombre: 'Argentina' },
+    { numero: 598, nombre: 'Uruguay' },
+    { numero: 55, nombre: 'Brasil' },
+    { numero: 56, nombre: 'Chile' }
+  ]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    async function loadPaises() {
+      try {
+        console.log('Cargando países desde:', `${API_URL}/personas/paises`);
+        const response = await fetch(`${API_URL}/personas/paises`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.length > 0) {
+            setAvailablePaises(data);
+          }
+        }
+      } catch (error) {
+        console.error('Error cargando países:', error);
+      }
+    }
+    loadPaises();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -59,14 +86,34 @@ export function RegisterScreen({ onBack, onComplete }: Props) {
             />
           </View>
 
-          <View style={styles.inputWrapper}>
+          <View style={[styles.inputWrapper, { zIndex: isDropdownOpen ? 1000 : 1, overflow: 'visible' }]}>
             <Text style={styles.inputLabel}>País de Residencia</Text>
-            <TextInput
-              style={styles.input}
-              value={pais}
-              onChangeText={setPais}
-              placeholderTextColor="#999"
-            />
+            <Pressable 
+              onPress={() => setIsDropdownOpen(!isDropdownOpen)}
+              style={styles.dropdownTrigger}
+            >
+              <Text style={styles.dropdownValue}>{pais}</Text>
+              <Text style={styles.dropdownArrow}>{isDropdownOpen ? '▲' : '▼'}</Text>
+            </Pressable>
+            
+            {isDropdownOpen && (
+              <View style={styles.dropdownMenu}>
+                <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 150 }}>
+                  {availablePaises.map((item) => (
+                    <Pressable
+                      key={item.numero}
+                      style={styles.dropdownItem}
+                      onPress={() => {
+                        setPais(item.nombre);
+                        setIsDropdownOpen(false);
+                      }}
+                    >
+                      <Text style={styles.dropdownItemText}>{item.nombre}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
           </View>
 
           <View style={styles.inputWrapper}>
@@ -264,5 +311,47 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  dropdownTrigger: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  dropdownValue: {
+    fontSize: 16,
+    color: '#000',
+  },
+  dropdownArrow: {
+    fontSize: 12,
+    color: '#666',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 8,
+    marginTop: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    maxHeight: 160,
+    zIndex: 9999,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  dropdownItemText: {
+    fontSize: 14,
+    color: '#333',
   },
 });
