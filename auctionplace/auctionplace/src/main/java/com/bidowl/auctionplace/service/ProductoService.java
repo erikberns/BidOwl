@@ -50,9 +50,8 @@ public class ProductoService {
      * Obtiene todos los productos disponibles
      */
     public List<ProductoDTO> obtenerDisponibles() {
-        return productoRepository.findAll()
+        return productoRepository.findByDisponible("si")
                 .stream()
-                .filter(p -> "si".equalsIgnoreCase(p.getDisponible()))
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
@@ -65,10 +64,8 @@ public class ProductoService {
             throw new Exception("Dueño no encontrado con ID: " + duenioId);
         }
         
-        Optional<Duenio> duenio = duenioRepository.findById(duenioId);
-        return productoRepository.findAll()
+        return productoRepository.findByDuenioIdentificador(duenioId)
                 .stream()
-                .filter(p -> p.getDuenio() != null && p.getDuenio().getIdentificador().equals(duenioId))
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
