@@ -126,11 +126,7 @@ public class SolicitudProductoService {
         }
 
         // Obtener productos del dueño que están activos (disponibles o con propuesta)
-        List<Producto> productos = productoRepository.findAll()
-                .stream()
-                .filter(p -> p.getDuenio().getIdentificador().equals(creadorId) && 
-                           ("si".equalsIgnoreCase(p.getDisponible()) || p.getIdentificador() != null))
-                .collect(Collectors.toList());
+        List<Producto> productos = productoRepository.findByDuenioIdentificador(creadorId);
 
         return productos.stream()
                 .map(p -> new ItemActivoDTO(
