@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, SafeAreaView, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../constants/api';
+import { InputField } from './ui/InputField';
 
 interface Props {
   onBack: () => void;
   onSuccess: (user: any, requiereConfiguracion: boolean) => void;
+  onForgotPassword?: () => void;
 }
 
 const showAlert = (title: string, message: string) => {
@@ -18,19 +20,35 @@ const showAlert = (title: string, message: string) => {
   }
 };
 
-export function LoginScreen({ onBack, onSuccess }: Props) {
+export function LoginScreen({ onBack, onSuccess, onForgotPassword }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+
   const handleLogin = async () => {
-    if (!email || !email.includes('@')) {
-      showAlert('Error', 'Por favor, ingrese un email válido.');
-      return;
+    setEmailError('');
+    setPasswordError('');
+
+    let hasErrors = false;
+
+    if (!email) {
+      setEmailError('El email es obligatorio.');
+      hasErrors = true;
+    } else if (!email.includes('@')) {
+      setEmailError('Por favor, ingrese un email válido.');
+      hasErrors = true;
     }
+
     if (!password) {
-      showAlert('Error', 'Por favor, ingrese su contraseña.');
+      setPasswordError('Por favor, ingrese su contraseña.');
+      hasErrors = true;
+    }
+
+    if (hasErrors) {
       return;
     }
 
@@ -64,7 +82,8 @@ export function LoginScreen({ onBack, onSuccess }: Props) {
       onSuccess(result.persona, result.requiereConfiguracion);
     } catch (error: any) {
       console.error('Error de login:', error);
-      showAlert('Error de Login', error.message || 'Ha ocurrido un error al conectar con el servidor.');
+      setEmailError(error.message || 'Ha ocurrido un error al conectar con el servidor.');
+      setPasswordError(' ');
     } finally {
       setIsLoading(false);
     }
@@ -86,38 +105,46 @@ export function LoginScreen({ onBack, onSuccess }: Props) {
           Ingresá tu email y la contraseña asignada o tu contraseña personalizada para continuar.
         </Text>
 
-        <View style={styles.inputWrapper}>
-          <Text style={styles.inputLabel}>Email</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            placeholderTextColor="#999"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            editable={!isLoading}
-            placeholder="ejemplo@uade.edu.ar"
-          />
-        </View>
+        <InputField
+          label="Email"
+          value={email}
+          onChangeText={(val) => {
+            setEmail(val);
+            if (emailError) setEmailError('');
+          }}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          editable={!isLoading}
+          placeholder="ejemplo@uade.edu.ar"
+          error={emailError}
+          containerStyle={{ marginBottom: 20 }}
+        />
 
-        <View style={styles.inputWrapper}>
-          <View style={styles.passwordHeader}>
-            <Text style={styles.inputLabel}>Contraseña</Text>
+        <InputField
+          label="Contraseña"
+          value={password}
+          onChangeText={(val) => {
+            setPassword(val);
+            if (passwordError) setPasswordError('');
+          }}
+          secureTextEntry={!showPassword}
+          autoCapitalize="none"
+          editable={!isLoading}
+          placeholder="Contraseña"
+          error={passwordError}
+          headerRight={
             <Pressable onPress={() => setShowPassword(!showPassword)} disabled={isLoading}>
               <Text style={styles.toggleText}>{showPassword ? 'Ocultar' : 'Mostrar'}</Text>
             </Pressable>
-          </View>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            placeholderTextColor="#999"
-            secureTextEntry={!showPassword}
-            autoCapitalize="none"
-            editable={!isLoading}
-            placeholder="Contraseña"
-          />
-        </View>
+          }
+          containerStyle={{ marginBottom: 8 }}
+        />
+
+        {onForgotPassword && (
+          <Pressable style={styles.forgotContainer} onPress={onForgotPassword} disabled={isLoading}>
+            <Text style={styles.forgotText}>Olvide mi contraseña</Text>
+          </Pressable>
+        )}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -187,13 +214,26 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 32,
   },
+  outerContainer: {
+    width: '100%',
+  },
   inputWrapper: {
     borderWidth: 1,
     borderColor: '#E5E5E5',
-    borderRadius: 8,
+    borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginBottom: 20,
+  },
+  inputWrapperError: {
+    borderColor: '#E30613',
+    borderWidth: 1.5,
+  },
+  errorText: {
+    color: '#E30613',
+    fontSize: 14,
+    marginTop: 6,
+    paddingLeft: 4,
   },
   passwordHeader: {
     flexDirection: 'row',
@@ -209,6 +249,16 @@ const styles = StyleSheet.create({
   toggleText: {
     fontSize: 14,
     color: '#000',
+    textDecorationLine: 'underline',
+  },
+  forgotContainer: {
+    alignSelf: 'flex-end',
+    marginBottom: 16,
+    paddingVertical: 4,
+  },
+  forgotText: {
+    color: '#888',
+    fontSize: 14,
     textDecorationLine: 'underline',
   },
   input: {

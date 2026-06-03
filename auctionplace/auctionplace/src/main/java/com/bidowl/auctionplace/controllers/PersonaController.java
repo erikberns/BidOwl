@@ -30,6 +30,12 @@ public class PersonaController {
             @RequestParam(value = "fotoDorso", required = false) MultipartFile fotoDorso) {
         Map<String, Object> response = new HashMap<>();
         try {
+            if (fotoFrente == null || fotoFrente.isEmpty()) {
+                throw new Exception("La foto de frente del DNI es obligatoria.");
+            }
+            if (fotoDorso == null || fotoDorso.isEmpty()) {
+                throw new Exception("La foto de dorso del DNI es obligatoria.");
+            }
             Persona guardada = personaService.registrarPaso1(request, fotoFrente, fotoDorso);
             response.put("mensaje", "Paso 1 de registro completado exitosamente.");
             response.put("personaId", guardada.getIdentificador());
@@ -160,8 +166,11 @@ public class PersonaController {
         }
     }
 
-    @PostMapping("/{id}/metodo-pago/cuenta")
-    public ResponseEntity<?> registrarCuenta(@PathVariable Integer id, @RequestBody CuentaRequest request) {
+    @PostMapping(value = "/{id}/metodo-pago/cuenta", consumes = { "multipart/form-data" })
+    public ResponseEntity<?> registrarCuenta(
+            @PathVariable Integer id,
+            @ModelAttribute CuentaRequest request,
+            @RequestParam(value = "comprobante", required = false) MultipartFile comprobante) {
         Map<String, Object> response = new HashMap<>();
         try {
             MetodoPago mp = personaService.registrarCuenta(
@@ -170,7 +179,8 @@ public class PersonaController {
                     request.getNombreBanco(),
                     request.getPaisId(),
                     request.getCbuIban(),
-                    request.getMoneda());
+                    request.getMoneda(),
+                    comprobante);
             response.put("mensaje", "Cuenta bancaria registrada con éxito.");
             response.put("metodoPago", mp);
             return ResponseEntity.ok(response);
@@ -180,8 +190,11 @@ public class PersonaController {
         }
     }
 
-    @PostMapping("/{id}/metodo-pago/cheque")
-    public ResponseEntity<?> registrarCheque(@PathVariable Integer id, @RequestBody ChequeRequest request) {
+    @PostMapping(value = "/{id}/metodo-pago/cheque", consumes = { "multipart/form-data" })
+    public ResponseEntity<?> registrarCheque(
+            @PathVariable Integer id,
+            @ModelAttribute ChequeRequest request,
+            @RequestParam(value = "comprobante", required = false) MultipartFile comprobante) {
         Map<String, Object> response = new HashMap<>();
         try {
             MetodoPago mp = personaService.registrarCheque(
@@ -191,7 +204,8 @@ public class PersonaController {
                     request.getNumeroCheque(),
                     request.getMonto(),
                     request.getPaisId(),
-                    request.getMoneda());
+                    request.getMoneda(),
+                    comprobante);
             response.put("mensaje", "Cheque certificado registrado con éxito.");
             response.put("metodoPago", mp);
             return ResponseEntity.ok(response);
@@ -209,6 +223,49 @@ public class PersonaController {
         try {
             personaService.subirFotoPerfil(id, foto);
             response.put("mensaje", "Foto de perfil actualizada exitosamente.");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("error", e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @GetMapping("/{id}/foto")
+    public ResponseEntity<byte[]> obtenerFotoPerfil(@PathVariable Integer id) {
+        try {
+            byte[] fotoBytes = personaService.obtenerFotoPerfilBytes(id);
+            if (fotoBytes != null && fotoBytes.length > 0) {
+                return ResponseEntity.ok()
+                        .header(org.springframework.http.HttpHeaders.CONTENT_TYPE, "image/jpeg")
+                        .body(fotoBytes);
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @GetMapping("/check-email")
+    public ResponseEntity<?> checkEmail(@RequestParam String email) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            boolean existe = personaService.existeEmail(email);
+            response.put("existe", existe);
+            boolean contrasenaCambiada = personaService.hasCompletedStage2(email);
+            response.put("contrasenaCambiada", contrasenaCambiada);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("error", e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @PostMapping("/recuperar-contrasena")
+    public ResponseEntity<?> recuperarContrasena(@RequestBody RecuperarContrasenaRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            personaService.recuperarContrasena(request.getEmail(), request.getContrasenaNueva());
+            response.put("mensaje", "Contraseña reestablecida con éxito.");
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("error", e.getMessage());
@@ -423,6 +480,27 @@ public class PersonaController {
 
     public static class CambiarContrasenaRequest {
         private String contrasenaNueva;
+
+        public String getContrasenaNueva() {
+            return contrasenaNueva;
+        }
+
+        public void setContrasenaNueva(String contrasenaNueva) {
+            this.contrasenaNueva = contrasenaNueva;
+        }
+    }
+
+    public static class RecuperarContrasenaRequest {
+        private String email;
+        private String contrasenaNueva;
+
+        public String getEmail() {
+            return email;
+        }
+
+        public void setEmail(String email) {
+            this.email = email;
+        }
 
         public String getContrasenaNueva() {
             return contrasenaNueva;

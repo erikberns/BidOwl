@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, SafeAreaView, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../constants/api';
+import { InputField } from './ui/InputField';
 
 interface Props {
   userId?: number;
@@ -26,13 +27,32 @@ export function PasswordScreen({ userId, onBack, onComplete }: Props) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const [passwordError, setPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
+
   const handleContinue = async () => {
+    setPasswordError('');
+    setConfirmPasswordError('');
+
+    let hasErrors = false;
+
     if (!password) {
-      showAlert('Error', 'Por favor, ingrese una contraseña.');
-      return;
+      setPasswordError('Por favor, ingrese una contraseña.');
+      hasErrors = true;
+    } else if (password.length < 8) {
+      setPasswordError('La contraseña debe tener al menos 8 caracteres de longitud.');
+      hasErrors = true;
     }
-    if (password !== confirmPassword) {
-      showAlert('Error', 'Las contraseñas no coinciden.');
+
+    if (!confirmPassword) {
+      setConfirmPasswordError('Por favor, confirme su contraseña.');
+      hasErrors = true;
+    } else if (password !== confirmPassword) {
+      setConfirmPasswordError('Las contraseñas no coinciden.');
+      hasErrors = true;
+    }
+
+    if (hasErrors) {
       return;
     }
 
@@ -40,14 +60,20 @@ export function PasswordScreen({ userId, onBack, onComplete }: Props) {
 
     try {
       let finalUserId = userId;
+      let currentPassword = '';
 
-      // Si no viene por prop, intentamos cargarlo desde AsyncStorage
-      if (!finalUserId) {
-        const userStr = await AsyncStorage.getItem('user');
-        if (userStr) {
-          const userObj = JSON.parse(userStr);
-          finalUserId = userObj.identificador;
-        }
+      // Cargar la contraseña actual (temporal) desde storage para validar que no sea igual
+      const userStr = await AsyncStorage.getItem('user');
+      if (userStr) {
+        const userObj = JSON.parse(userStr);
+        finalUserId = userObj.identificador;
+        currentPassword = userObj.contrasena;
+      }
+
+      if (currentPassword && password === currentPassword) {
+        setPasswordError('La nueva contraseña no puede ser la misma que la contraseña temporal otorgada.');
+        setIsLoading(false);
+        return;
       }
 
       if (!finalUserId) {
@@ -74,9 +100,9 @@ export function PasswordScreen({ userId, onBack, onComplete }: Props) {
       console.log('Contraseña actualizada con éxito');
       
       // Actualizar la contraseña en el storage local
-      const userStr = await AsyncStorage.getItem('user');
-      if (userStr) {
-        const userObj = JSON.parse(userStr);
+      const storedUserStr = await AsyncStorage.getItem('user');
+      if (storedUserStr) {
+        const userObj = JSON.parse(storedUserStr);
         userObj.contrasena = password;
         await AsyncStorage.setItem('user', JSON.stringify(userObj));
       }
@@ -84,7 +110,7 @@ export function PasswordScreen({ userId, onBack, onComplete }: Props) {
       onComplete();
     } catch (error: any) {
       console.error('Error al cambiar contraseña:', error);
-      showAlert('Error', error.message || 'Error al conectar con el servidor.');
+      setPasswordError(error.message || 'Error al conectar con el servidor.');
     } finally {
       setIsLoading(false);
     }
@@ -107,41 +133,41 @@ export function PasswordScreen({ userId, onBack, onComplete }: Props) {
         </Text>
 
         <View style={styles.formContainer}>
-          <View style={styles.inputWrapper}>
-            <View style={styles.inputHeader}>
-              <Text style={styles.inputLabel}>Crear Contraseña</Text>
+          <InputField
+            label="Crear Contraseña"
+            value={password}
+            onChangeText={(val) => {
+              setPassword(val);
+              if (passwordError) setPasswordError('');
+            }}
+            secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            editable={!isLoading}
+            error={passwordError}
+            headerRight={
               <Pressable onPress={() => setShowPassword(!showPassword)} disabled={isLoading}>
                 <Text style={styles.toggleText}>{showPassword ? 'Ocultar' : 'Mostrar'}</Text>
               </Pressable>
-            </View>
-            <TextInput
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              placeholderTextColor="#999"
-              autoCapitalize="none"
-              editable={!isLoading}
-            />
-          </View>
+            }
+          />
 
-          <View style={styles.inputWrapper}>
-            <View style={styles.inputHeader}>
-              <Text style={styles.inputLabel}>Confirmar Contraseña</Text>
+          <InputField
+            label="Confirmar Contraseña"
+            value={confirmPassword}
+            onChangeText={(val) => {
+              setConfirmPassword(val);
+              if (confirmPasswordError) setConfirmPasswordError('');
+            }}
+            secureTextEntry={!showConfirmPassword}
+            autoCapitalize="none"
+            editable={!isLoading}
+            error={confirmPasswordError}
+            headerRight={
               <Pressable onPress={() => setShowConfirmPassword(!showConfirmPassword)} disabled={isLoading}>
                 <Text style={styles.toggleText}>{showConfirmPassword ? 'Ocultar' : 'Mostrar'}</Text>
               </Pressable>
-            </View>
-            <TextInput
-              style={styles.input}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showConfirmPassword}
-              placeholderTextColor="#999"
-              autoCapitalize="none"
-              editable={!isLoading}
-            />
-          </View>
+            }
+          />
         </View>
 
       </ScrollView>
@@ -212,12 +238,25 @@ const styles = StyleSheet.create({
   formContainer: {
     gap: 16,
   },
+  outerContainer: {
+    width: '100%',
+  },
   inputWrapper: {
     borderWidth: 1,
     borderColor: '#E5E5E5',
-    borderRadius: 8,
+    borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
+  },
+  inputWrapperError: {
+    borderColor: '#E30613',
+    borderWidth: 1.5,
+  },
+  errorText: {
+    color: '#E30613',
+    fontSize: 14,
+    marginTop: 6,
+    paddingLeft: 4,
   },
   inputHeader: {
     flexDirection: 'row',

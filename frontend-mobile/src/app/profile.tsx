@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import PaymentMethodsModal from '@/components/PaymentMethodsModal';
+import { API_URL } from '@/constants/api';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -15,6 +16,7 @@ export default function ProfileScreen() {
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
   const [isGuest, setIsGuest] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [photoError, setPhotoError] = useState(false);
 
 
   useEffect(() => {
@@ -28,7 +30,21 @@ export default function ProfileScreen() {
             setCurrentUser(null);
           } else {
             setIsGuest(false);
-            setCurrentUser(JSON.parse(userStr));
+            const parsedUser = JSON.parse(userStr);
+            setCurrentUser(parsedUser);
+            setPhotoError(false); // Reset photo loading state on refresh
+            
+            try {
+              console.log(`Cargando datos frescos del usuario ${parsedUser.identificador} de la API...`);
+              const res = await fetch(`${API_URL}/personas/${parsedUser.identificador}`);
+              if (res.ok) {
+                const latestUser = await res.json();
+                setCurrentUser(latestUser);
+                await AsyncStorage.setItem('user', JSON.stringify(latestUser));
+              }
+            } catch (err) {
+              console.warn('Error fetching latest user details:', err);
+            }
           }
         } catch (e) {
           setIsGuest(true);
@@ -155,7 +171,24 @@ export default function ProfileScreen() {
         {/* Profile Card */}
         <View style={styles.profileCard}>
           {/* Avatar */}
-          <View style={styles.avatar} />
+          <View style={styles.avatar}>
+            {!photoError && currentUser?.identificador ? (
+              <Image 
+                source={{ uri: `${API_URL}/personas/${currentUser.identificador}/foto?t=${new Date().getTime()}` }} 
+                style={styles.avatarImage}
+                onError={(e) => {
+                  console.log('Error al cargar la foto de perfil en el frontend:', e.nativeEvent.error);
+                  setPhotoError(true);
+                }}
+              />
+            ) : (
+              <View style={styles.avatarFallback}>
+                <Text style={styles.avatarFallbackText}>
+                  {currentUser?.nombre ? currentUser.nombre[0].toUpperCase() : 'U'}
+                </Text>
+              </View>
+            )}
+          </View>
 
           {/* User Info */}
           <Text style={styles.userName}>
@@ -365,6 +398,26 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     backgroundColor: '#E5E5E5',
     marginBottom: 16,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 50,
+    resizeMode: 'cover',
+  },
+  avatarFallback: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 50,
+    backgroundColor: '#E5E5E5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarFallbackText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#666',
   },
   userName: {
     fontSize: 18,

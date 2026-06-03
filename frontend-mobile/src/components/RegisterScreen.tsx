@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, SafeAreaView, Image } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, SafeAreaView, Image, Platform } from 'react-native';
 import { API_URL } from '../constants/api';
+import { InputField } from './ui/InputField';
 
 export interface RegisterData {
   nombre: string;
@@ -8,6 +9,8 @@ export interface RegisterData {
   pais: string;
   dni: string;
   domicilio: string;
+  fotoFrente?: any;
+  fotoDorso?: any;
 }
 
 interface Props {
@@ -15,12 +18,169 @@ interface Props {
   onComplete: (data: RegisterData) => void;
 }
 
+const showAlert = (title: string, message: string) => {
+  if (Platform.OS === 'web') {
+    console.log(`[Alert] ${title}: ${message}`);
+    alert(`${title}\n\n${message}`);
+  } else {
+    const { Alert } = require('react-native');
+    Alert.alert(title, message);
+  }
+};
+
 export function RegisterScreen({ onBack, onComplete }: Props) {
   const [nombre, setNombre] = useState('Jose');
   const [apellido, setApellido] = useState('Godio Claudio');
   const [pais, setPais] = useState('Argentina');
   const [dni, setDni] = useState('32145678');
   const [domicilio, setDomicilio] = useState('Lima 757');
+
+  // Error states for inputs
+  const [nombreError, setNombreError] = useState('');
+  const [apellidoError, setApellidoError] = useState('');
+  const [paisError, setPaisError] = useState('');
+  const [dniError, setDniError] = useState('');
+  const [domicilioError, setDomicilioError] = useState('');
+  const [dniFotosError, setDniFotosError] = useState('');
+
+  const handleContinue = () => {
+    // Clear previous errors
+    setNombreError('');
+    setApellidoError('');
+    setPaisError('');
+    setDniError('');
+    setDomicilioError('');
+    setDniFotosError('');
+
+    let hasErrors = false;
+
+    if (!nombre || !nombre.trim()) {
+      setNombreError('El nombre es obligatorio.');
+      hasErrors = true;
+    }
+
+    if (!apellido || !apellido.trim()) {
+      setApellidoError('El apellido es obligatorio.');
+      hasErrors = true;
+    }
+
+    if (!pais) {
+      setPaisError('El país es obligatorio.');
+      hasErrors = true;
+    }
+
+    if (!dni) {
+      setDniError('El DNI es obligatorio.');
+      hasErrors = true;
+    }
+
+    if (!domicilio) {
+      setDomicilioError('El domicilio es obligatorio.');
+      hasErrors = true;
+    }
+
+    const hasNumber = /\d/;
+    if (nombre && hasNumber.test(nombre)) {
+      setNombreError('El nombre no puede contener números.');
+      hasErrors = true;
+    }
+
+    if (apellido && hasNumber.test(apellido)) {
+      setApellidoError('El apellido no puede contener números.');
+      hasErrors = true;
+    }
+
+    const isDigitsOnly = /^\d+$/;
+    if (dni && (!isDigitsOnly.test(dni) || dni.length !== 8)) {
+      setDniError('El DNI tiene que tener 8 numeros');
+      hasErrors = true;
+    }
+
+    if (!fotoFrenteFile || !fotoDorsoFile) {
+      setDniFotosError('Debe cargar las fotos de frente y dorso del DNI.');
+      hasErrors = true;
+    }
+
+    if (hasErrors) {
+      return;
+    }
+
+    onComplete({ 
+      nombre, 
+      apellido, 
+      pais, 
+      dni, 
+      domicilio, 
+      fotoFrente: fotoFrenteFile, 
+      fotoDorso: fotoDorsoFile 
+    });
+  };
+
+  const [fotoFrenteUri, setFotoFrenteUri] = useState<string | null>(null);
+  const [fotoFrenteFile, setFotoFrenteFile] = useState<any>(null);
+  const [fotoDorsoUri, setFotoDorsoUri] = useState<string | null>(null);
+  const [fotoDorsoFile, setFotoDorsoFile] = useState<any>(null);
+
+  const fileInputFrenteRef = useRef<any>(null);
+  const fileInputDorsoRef = useRef<any>(null);
+
+  const handleSelectFrente = () => {
+    setDniFotosError('');
+    if (Platform.OS === 'web') {
+      if (fileInputFrenteRef.current) {
+        fileInputFrenteRef.current.click();
+      }
+    } else {
+      setFotoFrenteUri('https://images.unsplash.com/photo-1554774853-aae0a22c8aa4?w=150');
+      setFotoFrenteFile({
+        uri: 'mock-uri-frente',
+        name: 'dni-frente.jpg',
+        type: 'image/jpeg',
+      });
+    }
+  };
+
+  const handleSelectDorso = () => {
+    setDniFotosError('');
+    if (Platform.OS === 'web') {
+      if (fileInputDorsoRef.current) {
+        fileInputDorsoRef.current.click();
+      }
+    } else {
+      setFotoDorsoUri('https://images.unsplash.com/photo-1554774853-aae0a22c8aa4?w=150');
+      setFotoDorsoFile({
+        uri: 'mock-uri-dorso',
+        name: 'dni-dorso.jpg',
+        type: 'image/jpeg',
+      });
+    }
+  };
+
+  const handleFrenteFileChange = (e: any) => {
+    const file = e.target.files[0];
+    if (file) {
+      setDniFotosError('');
+      setFotoFrenteFile(file);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setFotoFrenteUri(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDorsoFileChange = (e: any) => {
+    const file = e.target.files[0];
+    if (file) {
+      setDniFotosError('');
+      setFotoDorsoFile(file);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setFotoDorsoUri(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const [availablePaises, setAvailablePaises] = useState<any[]>([
     { numero: 54, nombre: 'Argentina' },
@@ -66,76 +226,80 @@ export function RegisterScreen({ onBack, onComplete }: Props) {
         </Text>
 
         <View style={styles.formContainer}>
-          <View style={styles.inputWrapper}>
-            <Text style={styles.inputLabel}>Nombre</Text>
-            <TextInput
-              style={styles.input}
-              value={nombre}
-              onChangeText={setNombre}
-              placeholderTextColor="#999"
-            />
+          <InputField
+            label="Nombre"
+            value={nombre}
+            onChangeText={(val) => {
+              setNombre(val);
+              if (nombreError) setNombreError('');
+            }}
+            error={nombreError}
+          />
+
+          <InputField
+            label="Apellido/s"
+            value={apellido}
+            onChangeText={(val) => {
+              setApellido(val);
+              if (apellidoError) setApellidoError('');
+            }}
+            error={apellidoError}
+          />
+
+          <View style={[styles.outerContainer, { zIndex: isDropdownOpen ? 1000 : 1, overflow: 'visible' }]}>
+            <View style={[styles.inputWrapper, { overflow: 'visible' }, !!paisError && styles.inputWrapperError]}>
+              <Text style={styles.inputLabel}>País de Residencia</Text>
+              <Pressable 
+                onPress={() => setIsDropdownOpen(!isDropdownOpen)}
+                style={styles.dropdownTrigger}
+              >
+                <Text style={styles.dropdownValue}>{pais}</Text>
+                <Text style={styles.dropdownArrow}>{isDropdownOpen ? '▲' : '▼'}</Text>
+              </Pressable>
+              
+              {isDropdownOpen && (
+                <View style={styles.dropdownMenu}>
+                  <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 150, backgroundColor: '#ffffff' }}>
+                    {availablePaises.map((item) => (
+                      <Pressable
+                        key={item.numero}
+                        style={[styles.dropdownItem, { backgroundColor: '#ffffff' }]}
+                        onPress={() => {
+                          setPais(item.nombre);
+                          setPaisError('');
+                          setIsDropdownOpen(false);
+                        }}
+                      >
+                        <Text style={styles.dropdownItemText}>{item.nombre}</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
+            {!!paisError && <Text style={styles.errorText}>{paisError}</Text>}
           </View>
 
-          <View style={styles.inputWrapper}>
-            <Text style={styles.inputLabel}>Apellido/s</Text>
-            <TextInput
-              style={styles.input}
-              value={apellido}
-              onChangeText={setApellido}
-              placeholderTextColor="#999"
-            />
-          </View>
+          <InputField
+            label="DNI"
+            value={dni}
+            onChangeText={(val) => {
+              setDni(val);
+              if (dniError) setDniError('');
+            }}
+            keyboardType="numeric"
+            error={dniError}
+          />
 
-          <View style={[styles.inputWrapper, { zIndex: isDropdownOpen ? 1000 : 1, overflow: 'visible' }]}>
-            <Text style={styles.inputLabel}>País de Residencia</Text>
-            <Pressable 
-              onPress={() => setIsDropdownOpen(!isDropdownOpen)}
-              style={styles.dropdownTrigger}
-            >
-              <Text style={styles.dropdownValue}>{pais}</Text>
-              <Text style={styles.dropdownArrow}>{isDropdownOpen ? '▲' : '▼'}</Text>
-            </Pressable>
-            
-            {isDropdownOpen && (
-              <View style={styles.dropdownMenu}>
-                <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 150, backgroundColor: '#ffffff' }}>
-                  {availablePaises.map((item) => (
-                    <Pressable
-                      key={item.numero}
-                      style={[styles.dropdownItem, { backgroundColor: '#ffffff' }]}
-                      onPress={() => {
-                        setPais(item.nombre);
-                        setIsDropdownOpen(false);
-                      }}
-                    >
-                      <Text style={styles.dropdownItemText}>{item.nombre}</Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-          </View>
-
-          <View style={styles.inputWrapper}>
-            <Text style={styles.inputLabel}>DNI</Text>
-            <TextInput
-              style={styles.input}
-              value={dni}
-              onChangeText={setDni}
-              placeholderTextColor="#999"
-              keyboardType="numeric"
-            />
-          </View>
-
-          <View style={styles.inputWrapper}>
-            <Text style={styles.inputLabel}>Domicilio Legal</Text>
-            <TextInput
-              style={styles.input}
-              value={domicilio}
-              onChangeText={setDomicilio}
-              placeholderTextColor="#999"
-            />
-          </View>
+          <InputField
+            label="Domicilio Legal"
+            value={domicilio}
+            onChangeText={(val) => {
+              setDomicilio(val);
+              if (domicilioError) setDomicilioError('');
+            }}
+            error={domicilioError}
+          />
         </View>
 
         <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Necesitaremos Verificarte.</Text>
@@ -146,24 +310,70 @@ export function RegisterScreen({ onBack, onComplete }: Props) {
         <View style={styles.dniSection}>
           <Text style={styles.dniLabel}>Foto de DNI <Text style={styles.dniLabelItalic}>(Frente y Dorso)</Text></Text>
           
+          {/* Invisible file inputs for Web */}
+          {Platform.OS === 'web' && (
+            <>
+              <input
+                type="file"
+                ref={fileInputFrenteRef}
+                style={{ display: 'none' }}
+                accept="image/*"
+                onChange={handleFrenteFileChange}
+              />
+              <input
+                type="file"
+                ref={fileInputDorsoRef}
+                style={{ display: 'none' }}
+                accept="image/*"
+                onChange={handleDorsoFileChange}
+              />
+            </>
+          )}
+
           <View style={styles.dniImagesRow}>
-            {/* Upload Button Box */}
-            <Pressable style={styles.uploadBox}>
-              <View style={styles.plusCircle}>
-                <Text style={styles.plusText}>+</Text>
-              </View>
+            {/* Frente Box */}
+            <Pressable 
+              style={[styles.uploadBox, fotoFrenteUri ? styles.uploadBoxHasImage : null]} 
+              onPress={handleSelectFrente}
+            >
+              {fotoFrenteUri ? (
+                <Image source={{ uri: fotoFrenteUri }} style={styles.dniPreviewImage} />
+              ) : (
+                <View style={styles.uploadContent}>
+                  <View style={styles.plusCircle}>
+                    <Text style={styles.plusText}>+</Text>
+                  </View>
+                  <Text style={styles.uploadBoxLabel}>Frente</Text>
+                </View>
+              )}
             </Pressable>
 
-            {/* DNI File Placeholder using view since we don't have asset */}
-            <View style={styles.dniImagePlaceholder}>
-              <Text style={{fontSize: 10, color: '#666', textAlign: 'center'}}>DNI Placeholder</Text>
-            </View>
+            {/* Dorso Box */}
+            <Pressable 
+              style={[styles.uploadBox, fotoDorsoUri ? styles.uploadBoxHasImage : null]} 
+              onPress={handleSelectDorso}
+            >
+              {fotoDorsoUri ? (
+                <Image source={{ uri: fotoDorsoUri }} style={styles.dniPreviewImage} />
+              ) : (
+                <View style={styles.uploadContent}>
+                  <View style={styles.plusCircle}>
+                    <Text style={styles.plusText}>+</Text>
+                  </View>
+                  <Text style={styles.uploadBoxLabel}>Dorso</Text>
+                </View>
+              )}
+            </Pressable>
           </View>
+          {!!dniFotosError && <Text style={[styles.errorText, { marginTop: 12 }]}>{dniFotosError}</Text>}
         </View>
       </ScrollView>
 
       <View style={styles.footer}>
-        <Pressable style={styles.continueButton} onPress={() => onComplete({ nombre, apellido, pais, dni, domicilio })}>
+        <Pressable 
+          style={styles.continueButton} 
+          onPress={handleContinue}
+        >
           <Text style={styles.continueButtonText}>Continuar</Text>
         </Pressable>
       </View>
@@ -224,12 +434,25 @@ const styles = StyleSheet.create({
   formContainer: {
     gap: 16,
   },
+  outerContainer: {
+    width: '100%',
+  },
   inputWrapper: {
     borderWidth: 1,
     borderColor: '#E5E5E5',
-    borderRadius: 8,
+    borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
+  },
+  inputWrapperError: {
+    borderColor: '#E30613',
+    borderWidth: 1.5,
+  },
+  errorText: {
+    color: '#E30613',
+    fontSize: 14,
+    marginTop: 6,
+    paddingLeft: 4,
   },
   inputLabel: {
     fontSize: 12,
@@ -261,14 +484,19 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   uploadBox: {
-    width: 100,
+    flex: 1,
     height: 100,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#E5E5E5',
+    borderStyle: 'dashed',
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#FAFAFA',
+  },
+  uploadBoxHasImage: {
+    borderStyle: 'solid',
+    borderColor: '#2A8E5D',
   },
   plusCircle: {
     width: 24,
@@ -284,16 +512,21 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: '#000',
   },
-  dniImagePlaceholder: {
-    width: 160,
-    height: 100,
-    borderRadius: 8,
-    backgroundColor: '#EBEBEB',
-    borderColor: '#D4D4D4',
-    borderWidth: 1,
-    overflow: 'hidden',
-    justifyContent: 'center',
+  dniPreviewImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 6,
+    resizeMode: 'cover',
+  },
+  uploadContent: {
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  uploadBoxLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
   },
   footer: {
     paddingHorizontal: 24,

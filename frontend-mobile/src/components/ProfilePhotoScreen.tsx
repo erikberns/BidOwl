@@ -54,8 +54,6 @@ export function ProfilePhotoScreen({ userId, onBack, onComplete }: Props) {
 
   const handleContinue = async () => {
     if (!selectedFile) {
-      // Si no seleccionó foto, se puede continuar/omitir
-      onComplete();
       return;
     }
 
@@ -151,14 +149,21 @@ export function ProfilePhotoScreen({ userId, onBack, onComplete }: Props) {
       {/* Footer */}
       <View style={styles.footer}>
         <TouchableOpacity 
-          style={[styles.continueButton, isLoading && { opacity: 0.6 }]} 
+          style={[
+            styles.continueButton, 
+            (!selectedFile || isLoading) && styles.disabledButton,
+            isLoading && { opacity: 0.6 }
+          ]} 
           onPress={handleContinue}
-          disabled={isLoading}
+          disabled={!selectedFile || isLoading}
         >
           {isLoading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.continueButtonText}>Continuar</Text>
+            <Text style={[
+              styles.continueButtonText,
+              !selectedFile && styles.disabledButtonText
+            ]}>Continuar</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -268,5 +273,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  disabledButton: {
+    backgroundColor: '#D3D3D3',
+  },
+  disabledButtonText: {
+    color: '#888',
   },
 });

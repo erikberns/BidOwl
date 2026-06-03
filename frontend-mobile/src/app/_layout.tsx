@@ -15,6 +15,7 @@ import { CategoryGrantedScreen } from '@/components/CategoryGrantedScreen';
 import { WelcomeScreen } from '@/components/WelcomeScreen';
 import { LoginScreen } from '@/components/LoginScreen';
 import { ProfilePhotoScreen } from '@/components/ProfilePhotoScreen';
+import { PasswordRecoveryScreen } from '@/components/PasswordRecoveryScreen';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -28,6 +29,8 @@ export default function TabLayout() {
   const [isCategoryGranted, setIsCategoryGranted] = useState<boolean>(false);
   const [isShowingWelcome, setIsShowingWelcome] = useState<boolean>(false);
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
+  const [isRecoveringPassword, setIsRecoveringPassword] = useState<boolean>(false);
+  const [recoverySource, setRecoverySource] = useState<'auth' | 'login' | null>(null);
   const [registerData, setRegisterData] = useState<RegisterData | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
@@ -228,6 +231,32 @@ export default function TabLayout() {
               setHasSeenAuth(true);
             }
           }}
+          onForgotPassword={() => {
+            setRecoverySource('login');
+            setIsLoggingIn(false);
+            setIsRecoveringPassword(true);
+          }}
+        />
+      );
+    }
+
+    if (isRecoveringPassword) {
+      return (
+        <PasswordRecoveryScreen
+          onBack={() => {
+            setIsRecoveringPassword(false);
+            if (recoverySource === 'login') {
+              setIsLoggingIn(true);
+            }
+            setRecoverySource(null);
+          }}
+          onComplete={() => {
+            setIsRecoveringPassword(false);
+            if (recoverySource === 'login') {
+              setIsLoggingIn(true);
+            }
+            setRecoverySource(null);
+          }}
         />
       );
     }
@@ -237,6 +266,20 @@ export default function TabLayout() {
         onComplete={() => setHasSeenAuth(true)} 
         onRegister={() => setIsRegistering(true)} 
         onLogin={() => setIsLoggingIn(true)}
+        onForgotPassword={() => {
+          setRecoverySource('auth');
+          setIsRecoveringPassword(true);
+        }}
+        onLoginSuccess={async (user, requiereConfiguracion) => {
+          setCurrentUser(user);
+          if (requiereConfiguracion) {
+            setIsSettingPassword(true);
+          } else {
+            await AsyncStorage.setItem('hasSeenAuth', 'true');
+            await AsyncStorage.removeItem('isGuest');
+            setHasSeenAuth(true);
+          }
+        }}
       />
     );
   }

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform, ActivityIndicator, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../constants/api';
 
@@ -42,11 +42,22 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
   const [bankCbuIban, setBankCbuIban] = useState('0720123456789012345678');
   const [bankTab, setBankTab] = useState<'CBU' | 'IBAN'>('CBU');
 
+  // Bank Form Error States
+  const [bankTitularError, setBankTitularError] = useState('');
+  const [bankBancoError, setBankBancoError] = useState('');
+  const [bankCbuIbanError, setBankCbuIbanError] = useState('');
+
   // Card Form States
   const [cardNumero, setCardNumero] = useState('4444555566662345');
   const [cardTitular, setCardTitular] = useState('Jose Claudio Godio');
   const [cardVencimiento, setCardVencimiento] = useState('12/30');
   const [cardCvv, setCardCvv] = useState('892');
+
+  // Card Form Error States
+  const [cardNumeroError, setCardNumeroError] = useState('');
+  const [cardTitularError, setCardTitularError] = useState('');
+  const [cardVencimientoError, setCardVencimientoError] = useState('');
+  const [cardCvvError, setCardCvvError] = useState('');
 
   // Check Form States
   const [checkTitular, setCheckTitular] = useState('Jose Claudio Godio');
@@ -55,6 +66,90 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
   const [checkMonto, setCheckMonto] = useState('1500000');
   const [checkPais, setCheckPais] = useState('Argentina');
   const [checkMoneda, setCheckMoneda] = useState('Pesos');
+
+  // Check Form Error States
+  const [checkTitularError, setCheckTitularError] = useState('');
+  const [checkBancoError, setCheckBancoError] = useState('');
+  const [checkNumeroError, setCheckNumeroError] = useState('');
+  const [checkMontoError, setCheckMontoError] = useState('');
+
+  // File upload states for bank and check receipts
+  const [bankFileUri, setBankFileUri] = useState<string | null>(null);
+  const [bankFile, setBankFile] = useState<any>(null);
+  const [checkFileUri, setCheckFileUri] = useState<string | null>(null);
+  const [checkFile, setCheckFile] = useState<any>(null);
+
+  // Clear errors when switching views
+  useEffect(() => {
+    setBankTitularError('');
+    setBankBancoError('');
+    setBankCbuIbanError('');
+    setCardNumeroError('');
+    setCardTitularError('');
+    setCardVencimientoError('');
+    setCardCvvError('');
+    setCheckTitularError('');
+    setCheckBancoError('');
+    setCheckNumeroError('');
+    setCheckMontoError('');
+  }, [currentView]);
+
+  const fileInputBankRef = useRef<any>(null);
+  const fileInputCheckRef = useRef<any>(null);
+
+  const handleSelectBankFile = () => {
+    if (Platform.OS === 'web') {
+      if (fileInputBankRef.current) {
+        fileInputBankRef.current.click();
+      }
+    } else {
+      setBankFileUri('https://images.unsplash.com/photo-1554774853-aae0a22c8aa4?w=150');
+      setBankFile({
+        uri: 'mock-uri-bank',
+        name: 'comprobante-banco.jpg',
+        type: 'image/jpeg',
+      });
+    }
+  };
+
+  const handleSelectCheckFile = () => {
+    if (Platform.OS === 'web') {
+      if (fileInputCheckRef.current) {
+        fileInputCheckRef.current.click();
+      }
+    } else {
+      setCheckFileUri('https://images.unsplash.com/photo-1554774853-aae0a22c8aa4?w=150');
+      setCheckFile({
+        uri: 'mock-uri-check',
+        name: 'comprobante-cheque.jpg',
+        type: 'image/jpeg',
+      });
+    }
+  };
+
+  const handleBankFileChange = (e: any) => {
+    const file = e.target.files[0];
+    if (file) {
+      setBankFile(file);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setBankFileUri(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCheckFileChange = (e: any) => {
+    const file = e.target.files[0];
+    if (file) {
+      setCheckFile(file);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setCheckFileUri(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const [availablePaises, setAvailablePaises] = useState<any[]>([
     { numero: 54, nombre: 'Argentina' },
@@ -103,8 +198,25 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
   };
 
   const handleAddBank = async () => {
-    if (!bankTitular || !bankBanco || !bankCbuIban) {
-      showAlert('Error', 'Por favor complete los campos obligatorios.');
+    setBankTitularError('');
+    setBankBancoError('');
+    setBankCbuIbanError('');
+
+    let hasErrors = false;
+    if (!bankTitular || !bankTitular.trim()) {
+      setBankTitularError('El titular es obligatorio.');
+      hasErrors = true;
+    }
+    if (!bankBanco || !bankBanco.trim()) {
+      setBankBancoError('El banco es obligatorio.');
+      hasErrors = true;
+    }
+    if (!bankCbuIban || !bankCbuIban.trim()) {
+      setBankCbuIbanError('El número de cuenta es obligatorio.');
+      hasErrors = true;
+    }
+
+    if (hasErrors) {
       return;
     }
     setIsLoading(true);
@@ -113,19 +225,30 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       const selectedPaisObj = availablePaises.find(p => p.nombre.toLowerCase() === bankPais.toLowerCase());
       const paisId = selectedPaisObj ? selectedPaisObj.numero : 54;
       
+      const formData = new FormData();
+      formData.append('titularCuenta', bankTitular);
+      formData.append('nombreBanco', bankBanco);
+      formData.append('paisId', paisId.toString());
+      formData.append('cbuIban', bankCbuIban);
+      formData.append('moneda', bankMoneda.toLowerCase() === 'ar$' ? 'pesos' : bankMoneda.toLowerCase());
+
+      if (bankFile) {
+        if (Platform.OS === 'web') {
+          formData.append('comprobante', bankFile);
+        } else {
+          formData.append('comprobante', {
+            uri: bankFile.uri,
+            name: bankFile.name,
+            type: bankFile.type,
+          } as any);
+        }
+      }
+
       console.log(`Registrando cuenta bancaria para usuario ${finalUserId}...`);
       const response = await fetch(`${API_URL}/personas/${finalUserId}/metodo-pago/cuenta`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          titularCuenta: bankTitular,
-          nombreBanco: bankBanco,
-          paisId: paisId,
-          cbuIban: bankCbuIban,
-          moneda: bankMoneda.toLowerCase() === 'ar$' ? 'pesos' : bankMoneda.toLowerCase(),
-        }),
+        body: formData,
+        headers: {},
       });
 
       const result = await response.json();
@@ -139,6 +262,9 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
         title: `Cuenta Bancaria ${bankBanco}`,
         subtitle: `CBU/IBAN: ${bankCbuIban}`,
       });
+      // Clear form & file
+      setBankFile(null);
+      setBankFileUri(null);
     } catch (error: any) {
       console.error('Error al registrar cuenta bancaria:', error);
       showAlert('Error', error.message || 'Error al conectar con el servidor.');
@@ -148,8 +274,30 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
   };
 
   const handleAddCard = async () => {
-    if (!cardNumero || !cardTitular || !cardVencimiento || !cardCvv) {
-      showAlert('Error', 'Por favor complete todos los campos de la tarjeta.');
+    setCardNumeroError('');
+    setCardTitularError('');
+    setCardVencimientoError('');
+    setCardCvvError('');
+
+    let hasErrors = false;
+    if (!cardNumero || !cardNumero.trim()) {
+      setCardNumeroError('El número de tarjeta es obligatorio.');
+      hasErrors = true;
+    }
+    if (!cardTitular || !cardTitular.trim()) {
+      setCardTitularError('El titular de la tarjeta es obligatorio.');
+      hasErrors = true;
+    }
+    if (!cardVencimiento || !cardVencimiento.trim()) {
+      setCardVencimientoError('La fecha de vencimiento es obligatoria.');
+      hasErrors = true;
+    }
+    if (!cardCvv || !cardCvv.trim()) {
+      setCardCvvError('El CVV es obligatorio.');
+      hasErrors = true;
+    }
+
+    if (hasErrors) {
       return;
     }
     setIsLoading(true);
@@ -188,8 +336,30 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
   };
 
   const handleAddCheck = async () => {
-    if (!checkTitular || !checkBanco || !checkNumero || !checkMonto) {
-      showAlert('Error', 'Por favor complete los campos del cheque.');
+    setCheckTitularError('');
+    setCheckBancoError('');
+    setCheckNumeroError('');
+    setCheckMontoError('');
+
+    let hasErrors = false;
+    if (!checkTitular || !checkTitular.trim()) {
+      setCheckTitularError('El titular es obligatorio.');
+      hasErrors = true;
+    }
+    if (!checkBanco || !checkBanco.trim()) {
+      setCheckBancoError('El banco emisor es obligatorio.');
+      hasErrors = true;
+    }
+    if (!checkNumero || !checkNumero.trim()) {
+      setCheckNumeroError('El número de cheque es obligatorio.');
+      hasErrors = true;
+    }
+    if (!checkMonto || !checkMonto.trim()) {
+      setCheckMontoError('El monto certificado es obligatorio.');
+      hasErrors = true;
+    }
+
+    if (hasErrors) {
       return;
     }
     setIsLoading(true);
@@ -197,20 +367,32 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       const finalUserId = await getFinalUserId();
       const selectedPaisObj = availablePaises.find(p => p.nombre.toLowerCase() === checkPais.toLowerCase());
       const paisId = selectedPaisObj ? selectedPaisObj.numero : 54;
+      
+      const formData = new FormData();
+      formData.append('titular', checkTitular);
+      formData.append('bancoEmisor', checkBanco);
+      formData.append('numeroCheque', checkNumero);
+      formData.append('monto', checkMonto);
+      formData.append('paisId', paisId.toString());
+      formData.append('moneda', checkMoneda.toLowerCase() === 'ar$' ? 'pesos' : checkMoneda.toLowerCase());
+
+      if (checkFile) {
+        if (Platform.OS === 'web') {
+          formData.append('comprobante', checkFile);
+        } else {
+          formData.append('comprobante', {
+            uri: checkFile.uri,
+            name: checkFile.name,
+            type: checkFile.type,
+          } as any);
+        }
+      }
+
       console.log(`Registrando cheque para usuario ${finalUserId}...`);
       const response = await fetch(`${API_URL}/personas/${finalUserId}/metodo-pago/cheque`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          titular: checkTitular,
-          bancoEmisor: checkBanco,
-          numeroCheque: checkNumero,
-          monto: parseFloat(checkMonto) || 0.0,
-          paisId: paisId,
-          moneda: checkMoneda.toLowerCase() === 'ar$' ? 'pesos' : checkMoneda.toLowerCase(),
-        }),
+        body: formData,
+        headers: {},
       });
 
       const result = await response.json();
@@ -224,6 +406,9 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
         title: `Cheque Certificado ${checkNumero}`,
         subtitle: `${checkBanco} - Monto: ${checkMonto}`,
       });
+      // Clear form & file
+      setCheckFile(null);
+      setCheckFileUri(null);
     } catch (error: any) {
       console.error('Error al registrar cheque:', error);
       showAlert('Error', error.message || 'Error al conectar con el servidor.');
@@ -339,83 +524,151 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     </View>
   );
 
-  const InputField = ({ label, placeholder, value, onChangeText, flex = 1, keyboardType }: any) => (
-    <View style={[styles.inputContainer, { flex }]}>
-      <Text style={styles.inputLabel}>{label}</Text>
-      <TextInput
-        style={styles.input}
-        placeholder={placeholder}
-        value={value}
-        onChangeText={onChangeText}
-        placeholderTextColor="#666"
-        keyboardType={keyboardType}
-        editable={!isLoading}
-      />
-    </View>
-  );
-
-  const CountryDropdownField = ({ label, value, onSelect, isOpen, setIsOpen, flex = 1 }: any) => {
+  const InputField = ({ label, placeholder, value, onChangeText, flex = 1, keyboardType, error, style, ...props }: any) => {
+    const hasError = !!error;
     return (
-      <View style={[styles.inputContainer, { flex, zIndex: isOpen ? 1000 : 1, overflow: 'visible' }]}>
-        <Text style={styles.inputLabel}>{label}</Text>
-        <TouchableOpacity 
-          style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} 
-          onPress={() => setIsOpen(!isOpen)}
-          disabled={isLoading}
-        >
-          <Text style={{ fontSize: 16, color: '#000' }}>{value}</Text>
-          <Text style={{ fontSize: 12, color: '#666' }}>{isOpen ? '▲' : '▼'}</Text>
-        </TouchableOpacity>
-        
-        {isOpen && (
-          <View style={styles.dropdownMenu}>
-            <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 150, backgroundColor: '#ffffff' }}>
-              {availablePaises.map((item) => (
-                <TouchableOpacity
-                  key={item.numero}
-                  style={[styles.dropdownItem, { backgroundColor: '#ffffff' }]}
-                  onPress={() => {
-                    onSelect(item.nombre);
-                    setIsOpen(false);
-                  }}
-                >
-                  <Text style={styles.dropdownItemText}>{item.nombre}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
+      <View style={{ flex, width: '100%' }}>
+        <View style={[styles.inputContainer, hasError && styles.inputContainerError]}>
+          <Text style={styles.inputLabel}>{label}</Text>
+          <TextInput
+            style={[styles.input, style]}
+            placeholder={placeholder}
+            value={value}
+            onChangeText={onChangeText}
+            placeholderTextColor="#666"
+            keyboardType={keyboardType}
+            editable={!isLoading}
+            {...props}
+          />
+        </View>
+        {hasError && <Text style={styles.errorText}>{error}</Text>}
       </View>
     );
   };
 
-  const renderFileUpload = () => (
-    <View style={styles.fileUploadSection}>
-      <Text style={styles.fileLabel}>Comprobante</Text>
-      <View style={styles.fileBoxes}>
-        <TouchableOpacity style={styles.fileAddBox} disabled={isLoading}>
-          <Text style={styles.fileAddText}>+</Text>
-        </TouchableOpacity>
-        <View style={styles.fileCardBox}>
-          <Text style={styles.fileCardText}>Comprobante.pdf</Text>
+  const CountryDropdownField = ({ label, value, onSelect, isOpen, setIsOpen, flex = 1, error }: any) => {
+    const hasError = !!error;
+    return (
+      <View style={{ flex, zIndex: isOpen ? 1000 : 1, overflow: 'visible', width: '100%' }}>
+        <View style={[styles.inputContainer, hasError && styles.inputContainerError, { overflow: 'visible' }]}>
+          <Text style={styles.inputLabel}>{label}</Text>
+          <TouchableOpacity 
+            style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} 
+            onPress={() => setIsOpen(!isOpen)}
+            disabled={isLoading}
+          >
+            <Text style={{ fontSize: 16, color: '#000' }}>{value}</Text>
+            <Text style={{ fontSize: 12, color: '#666' }}>{isOpen ? '▲' : '▼'}</Text>
+          </TouchableOpacity>
+          
+          {isOpen && (
+            <View style={styles.dropdownMenu}>
+              <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 150, backgroundColor: '#ffffff' }}>
+                {availablePaises.map((item) => (
+                  <TouchableOpacity
+                    key={item.numero}
+                    style={[styles.dropdownItem, { backgroundColor: '#ffffff' }]}
+                    onPress={() => {
+                      onSelect(item.nombre);
+                      setIsOpen(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownItemText}>{item.nombre}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+        </View>
+        {hasError && <Text style={styles.errorText}>{error}</Text>}
+      </View>
+    );
+  };
+
+  const renderFileUpload = (type: 'bank' | 'check') => {
+    const fileUri = type === 'bank' ? bankFileUri : checkFileUri;
+    const fileObj = type === 'bank' ? bankFile : checkFile;
+    const selectHandler = type === 'bank' ? handleSelectBankFile : handleSelectCheckFile;
+    const fileInputRef = type === 'bank' ? fileInputBankRef : fileInputCheckRef;
+    const fileChangeHandler = type === 'bank' ? handleBankFileChange : handleCheckFileChange;
+
+    return (
+      <View style={styles.fileUploadSection}>
+        <Text style={styles.fileLabel}>Comprobante</Text>
+        
+        {Platform.OS === 'web' && (
+          <input
+            type="file"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            accept="image/*"
+            onChange={fileChangeHandler}
+          />
+        )}
+
+        <View style={styles.fileBoxes}>
+          <TouchableOpacity 
+            style={[styles.fileAddBox, fileUri ? styles.fileAddBoxHasImage : null]} 
+            onPress={selectHandler}
+            disabled={isLoading}
+          >
+            {fileUri ? (
+              <Image source={{ uri: fileUri }} style={styles.filePreviewImage} />
+            ) : (
+              <Text style={styles.fileAddText}>+</Text>
+            )}
+          </TouchableOpacity>
+          
+          <View style={styles.fileCardBox}>
+            <Text style={styles.fileCardText}>
+              {fileObj ? fileObj.name || 'Comprobante seleccionado' : 'Sin archivo'}
+            </Text>
+          </View>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderBankForm = () => (
     <View style={styles.container}>
       {renderHeader('Agregar Metodo de Pago', () => setCurrentView('select'), true)}
       <ScrollView style={styles.content}>
         <Text style={styles.mainTitle}>Agregar Cuenta Bancaria.</Text>
-        <InputField label="Titular" placeholder="Juan Pérez" value={bankTitular} onChangeText={setBankTitular} />
-        <InputField label="Banco" placeholder="Banco Galicia" value={bankBanco} onChangeText={setBankBanco} />
+        <InputField 
+          label="Titular" 
+          placeholder="Juan Pérez" 
+          value={bankTitular} 
+          onChangeText={(val: string) => {
+            setBankTitular(val);
+            if (bankTitularError) setBankTitularError('');
+          }} 
+          error={bankTitularError}
+        />
+        <InputField 
+          label="Banco" 
+          placeholder="Banco Galicia" 
+          value={bankBanco} 
+          onChangeText={(val: string) => {
+            setBankBanco(val);
+            if (bankBancoError) setBankBancoError('');
+          }} 
+          error={bankBancoError}
+        />
         <View style={[styles.row, { zIndex: isBankDropdownOpen ? 1000 : 1, position: 'relative' }]}>
           <CountryDropdownField label="País" value={bankPais} onSelect={setBankPais} isOpen={isBankDropdownOpen} setIsOpen={setIsBankDropdownOpen} />
           <View style={{ width: 15 }} />
           <InputField label="Moneda" placeholder="AR$" value={bankMoneda} onChangeText={setBankMoneda} />
         </View>
-        <InputField label="Número de Cuenta" placeholder="1234567890" value={bankCbuIban} onChangeText={setBankCbuIban} />
+        <InputField 
+          label="Número de Cuenta" 
+          placeholder="1234567890" 
+          value={bankCbuIban} 
+          onChangeText={(val: string) => {
+            setBankCbuIban(val);
+            if (bankCbuIbanError) setBankCbuIbanError('');
+          }} 
+          error={bankCbuIbanError}
+        />
 
         <View style={styles.tabsRow}>
           <TouchableOpacity style={[styles.tab, bankTab === 'CBU' && styles.activeTab]} onPress={() => setBankTab('CBU')} disabled={isLoading}>
@@ -425,9 +678,18 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
             <Text style={[styles.tabText, bankTab === 'IBAN' && styles.activeTabText]}>IBAN</Text>
           </TouchableOpacity>
         </View>
-        <InputField label={bankTab} placeholder="0720123456789012345678" value={bankCbuIban} onChangeText={setBankCbuIban} />
+        <InputField 
+          label={bankTab} 
+          placeholder="0720123456789012345678" 
+          value={bankCbuIban} 
+          onChangeText={(val: string) => {
+            setBankCbuIban(val);
+            if (bankCbuIbanError) setBankCbuIbanError('');
+          }} 
+          error={bankCbuIbanError}
+        />
 
-        {renderFileUpload()}
+        {renderFileUpload('bank')}
       </ScrollView>
       <View style={styles.footer}>
         <TouchableOpacity style={styles.acceptButton} onPress={handleAddBank} disabled={isLoading}>
@@ -468,12 +730,50 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
           </View>
         </View>
 
-        <InputField label="Numero de Tarjeta" placeholder="0123 4567 8901 2345" value={cardNumero} onChangeText={setCardNumero} keyboardType="numeric" />
-        <InputField label="Nombre de Dueño de Tarjeta" placeholder="Noman Manzoor" value={cardTitular} onChangeText={setCardTitular} />
+        <InputField 
+          label="Numero de Tarjeta" 
+          placeholder="0123 4567 8901 2345" 
+          value={cardNumero} 
+          onChangeText={(val: string) => {
+            setCardNumero(val);
+            if (cardNumeroError) setCardNumeroError('');
+          }} 
+          keyboardType="numeric" 
+          error={cardNumeroError}
+        />
+        <InputField 
+          label="Nombre de Dueño de Tarjeta" 
+          placeholder="Noman Manzoor" 
+          value={cardTitular} 
+          onChangeText={(val: string) => {
+            setCardTitular(val);
+            if (cardTitularError) setCardTitularError('');
+          }} 
+          error={cardTitularError}
+        />
         <View style={styles.row}>
-          <InputField label="Fecha Vencimiento" placeholder="02 / 30" value={cardVencimiento} onChangeText={setCardVencimiento} />
+          <InputField 
+            label="Fecha Vencimiento" 
+            placeholder="02 / 30" 
+            value={cardVencimiento} 
+            onChangeText={(val: string) => {
+              setCardVencimiento(val);
+              if (cardVencimientoError) setCardVencimientoError('');
+            }} 
+            error={cardVencimientoError}
+          />
           <View style={{ width: 15 }} />
-          <InputField label="CVV" placeholder="892" value={cardCvv} onChangeText={setCardCvv} keyboardType="numeric" />
+          <InputField 
+            label="CVV" 
+            placeholder="892" 
+            value={cardCvv} 
+            onChangeText={(val: string) => {
+              setCardCvv(val);
+              if (cardCvvError) setCardCvvError('');
+            }} 
+            keyboardType="numeric" 
+            error={cardCvvError}
+          />
         </View>
       </ScrollView>
       <View style={styles.footer}>
@@ -493,17 +793,54 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       {renderHeader('Agregar Metodo de Pago', () => setCurrentView('select'), true)}
       <ScrollView style={styles.content}>
         <Text style={styles.mainTitle}>Agregar Cheque Certificado.</Text>
-        <InputField label="Titular" placeholder="Juan Pérez" value={checkTitular} onChangeText={setCheckTitular} />
-        <InputField label="Banco Emisor" placeholder="Banco Nación" value={checkBanco} onChangeText={setCheckBanco} />
-        <InputField label="Numero de Cheque" placeholder="00045821" value={checkNumero} onChangeText={setCheckNumero} />
-        <InputField label="Monto Certificado" placeholder="1.500.000" value={checkMonto} onChangeText={setCheckMonto} keyboardType="numeric" />
+        <InputField 
+          label="Titular" 
+          placeholder="Juan Pérez" 
+          value={checkTitular} 
+          onChangeText={(val: string) => {
+            setCheckTitular(val);
+            if (checkTitularError) setCheckTitularError('');
+          }} 
+          error={checkTitularError}
+        />
+        <InputField 
+          label="Banco Emisor" 
+          placeholder="Banco Nación" 
+          value={checkBanco} 
+          onChangeText={(val: string) => {
+            setCheckBanco(val);
+            if (checkBancoError) setCheckBancoError('');
+          }} 
+          error={checkBancoError}
+        />
+        <InputField 
+          label="Numero de Cheque" 
+          placeholder="00045821" 
+          value={checkNumero} 
+          onChangeText={(val: string) => {
+            setCheckNumero(val);
+            if (checkNumeroError) setCheckNumeroError('');
+          }} 
+          error={checkNumeroError}
+        />
+        <InputField 
+          label="Monto Certificado" 
+          placeholder="1.500.000" 
+          value={checkMonto} 
+          onChangeText={(val: string) => {
+            setCheckMonto(val);
+            if (checkMontoError) setCheckMontoError('');
+          }} 
+          keyboardType="numeric" 
+          error={checkMontoError}
+        />
         <View style={[styles.row, { zIndex: isCheckDropdownOpen ? 1000 : 1, position: 'relative' }]}>
           <CountryDropdownField label="País" value={checkPais} onSelect={setCheckPais} isOpen={isCheckDropdownOpen} setIsOpen={setIsCheckDropdownOpen} />
           <View style={{ width: 15 }} />
           <InputField label="Moneda" placeholder="AR$" value={checkMoneda} onChangeText={setCheckMoneda} />
         </View>
-
-        {renderFileUpload()}
+ 
+        {renderFileUpload('check')}
       </ScrollView>
       <View style={styles.footer}>
         <TouchableOpacity style={styles.acceptButton} onPress={handleAddCheck} disabled={isLoading}>
@@ -722,9 +1059,20 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     borderWidth: 1,
     borderColor: '#E0E0E0',
-    borderRadius: 10,
+    borderRadius: 16,
     paddingHorizontal: 15,
     paddingVertical: 8,
+  },
+  inputContainerError: {
+    borderColor: '#E30613',
+    borderWidth: 1.5,
+  },
+  errorText: {
+    color: '#E30613',
+    fontSize: 12,
+    marginTop: -10,
+    marginBottom: 15,
+    paddingLeft: 4,
   },
   inputLabel: {
     fontSize: 10,
@@ -778,6 +1126,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
+  },
+  fileAddBoxHasImage: {
+    borderColor: '#2A8E5D',
+  },
+  filePreviewImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+    resizeMode: 'cover',
   },
   fileAddText: {
     fontSize: 30,

@@ -10,7 +10,10 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional
 public class PersonaService implements PersonaServiceInterface {
 
     @Autowired
@@ -43,9 +46,29 @@ public class PersonaService implements PersonaServiceInterface {
     @Override
     public Persona registrarPaso1(RegistroPaso1Request request, MultipartFile fotoDniFrente, MultipartFile fotoDniDorso) throws Exception {
         
+        if (request.getNombre() == null || request.getNombre().trim().isEmpty()) {
+            throw new Exception("El nombre es obligatorio");
+        }
+        if (request.getNombre().matches(".*\\d.*")) {
+            throw new Exception("El nombre no puede contener números");
+        }
+        if (request.getApellido() == null || request.getApellido().trim().isEmpty()) {
+            throw new Exception("El apellido es obligatorio");
+        }
+        if (request.getApellido().matches(".*\\d.*")) {
+            throw new Exception("El apellido no puede contener números");
+        }
+        if (request.getDocumento() == null || !request.getDocumento().matches("\\d{8}")) {
+            throw new Exception("El DNI debe contener exactamente 8 números");
+        }
+        if (request.getEmail() == null || !request.getEmail().contains("@")) {
+            throw new Exception("Por favor, ingrese un email válido.");
+        }
+
         if (request.getEmail() != null) {
-            if (personaRepository.findByEmail(request.getEmail()).isPresent() ||
-                registroPendienteRepository.findByEmail(request.getEmail()).isPresent()) {
+            String trimmedEmail = request.getEmail().trim();
+            if (personaRepository.findByEmailIgnoreCase(trimmedEmail).isPresent() ||
+                registroPendienteRepository.findByEmailIgnoreCase(trimmedEmail).isPresent()) {
                 throw new Exception("El email ya se encuentra registrado");
             }
         }
@@ -84,10 +107,11 @@ public class PersonaService implements PersonaServiceInterface {
                 .orElseThrow(() -> new Exception("Registro pendiente no encontrado"));
 
         if (email != null) {
-            if (personaRepository.findByEmail(email).isPresent()) {
+            String trimmedEmail = email.trim();
+            if (personaRepository.findByEmailIgnoreCase(trimmedEmail).isPresent()) {
                 throw new Exception("El email ingresado ya está en uso por otra cuenta.");
             }
-            Optional<RegistroPendiente> existente = registroPendienteRepository.findByEmail(email);
+            Optional<RegistroPendiente> existente = registroPendienteRepository.findByEmailIgnoreCase(trimmedEmail);
             if (existente.isPresent() && !existente.get().getId().equals(id)) {
                 throw new Exception("El email ingresado ya está en uso por otra cuenta.");
             }
@@ -114,7 +138,8 @@ public class PersonaService implements PersonaServiceInterface {
 
     @Override
     public Persona login(String email, String contrasena) throws Exception {
-        Optional<Persona> personaOpt = personaRepository.findByEmail(email);
+        String trimmedEmail = email.trim();
+        Optional<Persona> personaOpt = personaRepository.findByEmailIgnoreCase(trimmedEmail);
         if (personaOpt.isPresent()) {
             Persona persona = personaOpt.get();
             if (!persona.getContrasena().equals(contrasena)) {
@@ -126,7 +151,7 @@ public class PersonaService implements PersonaServiceInterface {
             return persona;
         }
 
-        Optional<RegistroPendiente> rpOpt = registroPendienteRepository.findByEmail(email);
+        Optional<RegistroPendiente> rpOpt = registroPendienteRepository.findByEmailIgnoreCase(trimmedEmail);
         if (rpOpt.isPresent()) {
             RegistroPendiente rp = rpOpt.get();
             if ("PENDIENTE".equalsIgnoreCase(rp.getEstado()) || "PENDIENTE_APROBACION".equalsIgnoreCase(rp.getEstado())) {
@@ -158,7 +183,7 @@ public class PersonaService implements PersonaServiceInterface {
         cliente.setApellido(rp.getApellido());
         cliente.setDireccion(rp.getDireccion());
         cliente.setEstado("activo");
-        cliente.setFoto(rp.getFotoFrente());
+        cliente.setFoto(null); // Foto de perfil se sube en la etapa 2, no se inicializa con la del DNI.
         
         cliente.setFotoFrente(rp.getFotoFrente());
         cliente.setFotoDorso(rp.getFotoDorso());
@@ -252,7 +277,7 @@ public class PersonaService implements PersonaServiceInterface {
     }
 
     @Override
-    public MetodoPago registrarCuenta(Integer personaId, String titular, String banco, Integer paisId, String cbu, String moneda) throws Exception {
+    public MetodoPago registrarCuenta(Integer personaId, String titular, String banco, Integer paisId, String cbu, String moneda, org.springframework.web.multipart.MultipartFile comprobante) throws Exception {
         Persona persona = obtenerPorId(personaId);
         Pais pais = paisRepository.findById(paisId)
                 .orElseThrow(() -> new Exception("País no encontrado"));
@@ -263,6 +288,11 @@ public class PersonaService implements PersonaServiceInterface {
         cb.setPais(pais);
         cb.setCbuIban(cbu);
         cb.setMoneda(moneda.toLowerCase()); // "pesos" o "dolares"
+        
+        if (comprobante != null && !comprobante.isEmpty()) {
+            cb.setComprobante(comprobante.getBytes());
+        }
+
         CuentaBancaria cbGuardada = cuentaBancariaRepository.save(cb);
 
         MetodoPago mp = new MetodoPago();
@@ -273,7 +303,7 @@ public class PersonaService implements PersonaServiceInterface {
     }
 
     @Override
-    public MetodoPago registrarCheque(Integer personaId, String titular, String banco, String numeroCheque, BigDecimal monto, Integer paisId, String moneda) throws Exception {
+    public MetodoPago registrarCheque(Integer personaId, String titular, String banco, String numeroCheque, BigDecimal monto, Integer paisId, String moneda, org.springframework.web.multipart.MultipartFile comprobante) throws Exception {
         Persona persona = obtenerPorId(personaId);
         Pais pais = paisRepository.findById(paisId)
                 .orElseThrow(() -> new Exception("País no encontrado"));
@@ -285,6 +315,11 @@ public class PersonaService implements PersonaServiceInterface {
         cc.setMonto(monto);
         cc.setPais(pais);
         cc.setMoneda(moneda);
+
+        if (comprobante != null && !comprobante.isEmpty()) {
+            cc.setComprobante(comprobante.getBytes());
+        }
+
         ChequeCertificado ccGuardado = chequeCertificadoRepository.save(cc);
 
         MetodoPago mp = new MetodoPago();
@@ -303,6 +338,12 @@ public class PersonaService implements PersonaServiceInterface {
     @Override
     public void cambiarContrasena(Integer id, String contrasenaNueva) throws Exception {
         Persona persona = obtenerPorId(id);
+        if (contrasenaNueva == null || contrasenaNueva.length() < 8) {
+            throw new Exception("La contraseña debe tener al menos 8 caracteres de longitud.");
+        }
+        if (persona.getContrasena() != null && persona.getContrasena().equals(contrasenaNueva)) {
+            throw new Exception("La nueva contraseña no puede ser la misma que la contraseña temporal otorgada.");
+        }
         persona.setContrasena(contrasenaNueva);
         persona.setContrasenaCambiada(true);
         personaRepository.save(persona);
@@ -320,5 +361,60 @@ public class PersonaService implements PersonaServiceInterface {
             persona.setFoto(file.getBytes());
             personaRepository.save(persona);
         }
+    }
+
+    @Override
+    public boolean existeEmail(String email) throws Exception {
+        if (email == null) return false;
+        String trimmedEmail = email.trim();
+        if (personaRepository.findByEmailIgnoreCase(trimmedEmail).isPresent()) {
+            return true;
+        }
+        Optional<RegistroPendiente> rpOpt = registroPendienteRepository.findByEmailIgnoreCase(trimmedEmail);
+        if (rpOpt.isPresent()) {
+            return !"RECHAZADO".equalsIgnoreCase(rpOpt.get().getEstado());
+        }
+        return false;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public byte[] obtenerFotoPerfilBytes(Integer id) throws Exception {
+        Persona persona = obtenerPorId(id);
+        return persona.getFoto();
+    }
+
+    @Override
+    public void recuperarContrasena(String email, String contrasenaNueva) throws Exception {
+        if (email == null || email.trim().isEmpty()) {
+            throw new Exception("El email es obligatorio.");
+        }
+        String trimmedEmail = email.trim();
+        Persona persona = personaRepository.findByEmailIgnoreCase(trimmedEmail)
+                .orElseThrow(() -> new Exception("No se encontró ningún usuario registrado con este email."));
+
+        if (persona.getContrasenaCambiada() == null || !persona.getContrasenaCambiada()) {
+            throw new Exception("Debe haber completado la etapa 2 de registro para poder recuperar su contraseña.");
+        }
+                
+        if (contrasenaNueva == null || contrasenaNueva.length() < 8) {
+            throw new Exception("La contraseña debe tener al menos 8 caracteres de longitud.");
+        }
+        
+        persona.setContrasena(contrasenaNueva);
+        persona.setContrasenaCambiada(true);
+        personaRepository.save(persona);
+    }
+
+    @Override
+    public boolean hasCompletedStage2(String email) throws Exception {
+        if (email == null) return false;
+        String trimmedEmail = email.trim();
+        Optional<Persona> personaOpt = personaRepository.findByEmailIgnoreCase(trimmedEmail);
+        if (personaOpt.isPresent()) {
+            Persona p = personaOpt.get();
+            return p.getContrasenaCambiada() != null && p.getContrasenaCambiada();
+        }
+        return false;
     }
 }

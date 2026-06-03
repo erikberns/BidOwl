@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, SafeAreaView, ScrollView, Alert, ActivityIndicator, Platform, Image } from 'react-native';
 import { API_URL } from '../constants/api';
 import { RegisterData } from './RegisterScreen';
+import { InputField } from './ui/InputField';
 
 // Helper to show alert on both native and web platforms
 const showAlert = (title: string, message: string, buttons?: { text: string; onPress?: () => void }[]) => {
@@ -32,45 +33,98 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
   const [isLoading, setIsLoading] = useState(false);
   const [showStatusScreen, setShowStatusScreen] = useState(false);
 
+  const [emailError, setEmailError] = useState('');
+  const [tokenError, setTokenError] = useState('');
+  const inputRefs = useRef<Array<TextInput | null>>([]);
+
   const handleTokenChange = (text: string, index: number) => {
     const newToken = [...token];
     newToken[index] = text;
     setToken(newToken);
+
+    if (text && index < 4) {
+      inputRefs.current[index + 1]?.focus();
+    }
   };
 
-  const handleSendMail = () => {
-    if (!email || !email.includes('@')) {
-      showAlert('Error', 'Por favor, ingrese un email válido.');
+  const handleKeyPress = (e: any, index: number) => {
+    if (e.nativeEvent.key === 'Backspace') {
+      if (!token[index] && index > 0) {
+        const newToken = [...token];
+        newToken[index - 1] = '';
+        setToken(newToken);
+        inputRefs.current[index - 1]?.focus();
+      }
+    }
+  };
+
+  const handleSendMail = async () => {
+    setEmailError('');
+
+    if (!email) {
+      setEmailError('El email es obligatorio.');
+      return;
+    } else if (!email.includes('@')) {
+      setEmailError('Por favor, ingrese un email válido.');
       return;
     }
-    const generated = Math.floor(10000 + Math.random() * 90000).toString();
-    setSentToken(generated);
-    console.log('=== DEBUG TOKEN ===');
-    console.log(`Email: ${email}`);
-    console.log(`Token: ${generated}`);
-    console.log('===================');
-    showAlert(
-      'Token Enviado',
-      `Se ha enviado un token de validación a ${email}.\n\nTu token de validación es: ${generated}`,
-      [{ text: 'Entendido' }]
-    );
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError('Por favor, ingrese una dirección de correo electrónico válida.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      console.log(`Verificando disponibilidad del correo: ${email}`);
+      const response = await fetch(`${API_URL}/personas/check-email?email=${encodeURIComponent(email)}`);
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Error al verificar disponibilidad del email.');
+      }
+      
+      if (result.existe) {
+        setEmailError('El email ingresado ya se encuentra registrado.');
+        return;
+      }
+
+      const generated = Math.floor(10000 + Math.random() * 90000).toString();
+      setSentToken(generated);
+      console.log('=== DEBUG TOKEN ===');
+      console.log(`Email: ${email}`);
+      console.log(`Token: ${generated}`);
+      console.log('===================');
+      showAlert(
+        'Token Enviado',
+        `Se ha enviado un token de validación a ${email}.\n\nTu token de validación es: ${generated}`,
+        [{ text: 'Entendido' }]
+      );
+    } catch (error: any) {
+      console.error(error);
+      setEmailError(error.message || 'Error al conectar con el servidor.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleContinue = async () => {
     const enteredToken = token.join('');
+    setTokenError('');
     
     if (!sentToken) {
-      showAlert('Error', 'Primero debes solicitar el token presionando "Mandar Mail".');
+      setTokenError('Primero debes solicitar el token presionando "Mandar Mail".');
       return;
     }
     
     if (enteredToken.length < 5) {
-      showAlert('Error', 'Por favor, complete el token de 5 dígitos.');
+      setTokenError('Por favor, complete el token de 5 dígitos.');
       return;
     }
     
     if (enteredToken !== sentToken && enteredToken !== '12345') {
-      showAlert('Error', 'El token ingresado es incorrecto.');
+      setTokenError('El token ingresado es incorrecto.');
       return;
     }
 
@@ -87,6 +141,30 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
       formData.append('apellido', registerData?.apellido || '');
       formData.append('pais', registerData?.pais || '');
       formData.append('domicilio', registerData?.domicilio || '');
+
+      if (registerData?.fotoFrente) {
+        if (Platform.OS === 'web') {
+          formData.append('fotoFrente', registerData.fotoFrente);
+        } else {
+          formData.append('fotoFrente', {
+            uri: registerData.fotoFrente.uri,
+            name: registerData.fotoFrente.name,
+            type: registerData.fotoFrente.type,
+          } as any);
+        }
+      }
+
+      if (registerData?.fotoDorso) {
+        if (Platform.OS === 'web') {
+          formData.append('fotoDorso', registerData.fotoDorso);
+        } else {
+          formData.append('fotoDorso', {
+            uri: registerData.fotoDorso.uri,
+            name: registerData.fotoDorso.name,
+            type: registerData.fotoDorso.type,
+          } as any);
+        }
+      }
 
       console.log('Sending Paso 1 multiform registration to:', `${API_URL}/personas/registro/paso1`);
       
@@ -132,7 +210,7 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
       setShowStatusScreen(true);
     } catch (error: any) {
       console.error('Error de registro:', error);
-      showAlert('Error de Registro', error.message || 'Ha ocurrido un error al conectar con el servidor.');
+      setTokenError(error.message || 'Ha ocurrido un error al conectar con el servidor.');
     } finally {
       setIsLoading(false);
     }
@@ -192,18 +270,19 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
           Le enviaremos un mail de confirmacion para poder confirmar su identificacion y poder otorgarle su categoria de BidOwl
         </Text>
 
-        <View style={styles.inputWrapper}>
-          <Text style={styles.inputLabel}>Email</Text>
-          <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            placeholderTextColor="#999"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            editable={!isLoading}
-          />
-        </View>
+        <InputField
+          label="Email"
+          value={email}
+          onChangeText={(val) => {
+            setEmail(val);
+            if (emailError) setEmailError('');
+          }}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          editable={!isLoading}
+          error={emailError}
+          containerStyle={{ marginBottom: 16 }}
+        />
 
         <Pressable style={styles.sendMailButton} onPress={handleSendMail} disabled={isLoading}>
           <Text style={styles.sendMailButtonText}>Mandar Mail</Text>
@@ -215,9 +294,17 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
             {token.map((digit, index) => (
               <TextInput
                 key={index}
-                style={styles.tokenInput}
+                ref={(ref) => { inputRefs.current[index] = ref; }}
+                style={[
+                  styles.tokenInput,
+                  !!tokenError && { borderColor: '#E30613', borderWidth: 1.5 }
+                ]}
                 value={digit}
-                onChangeText={(text) => handleTokenChange(text.replace(/[^0-9]/g, ''), index)}
+                onChangeText={(text) => {
+                  handleTokenChange(text.replace(/[^0-9]/g, ''), index);
+                  if (tokenError) setTokenError('');
+                }}
+                onKeyPress={(e) => handleKeyPress(e, index)}
                 keyboardType="numeric"
                 maxLength={1}
                 textAlign="center"
@@ -225,6 +312,7 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
               />
             ))}
           </View>
+          {!!tokenError && <Text style={[styles.errorText, { marginTop: 12 }]}>{tokenError}</Text>}
         </View>
       </ScrollView>
 
@@ -295,13 +383,26 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 24,
   },
+  outerContainer: {
+    width: '100%',
+  },
   inputWrapper: {
     borderWidth: 1,
     borderColor: '#E5E5E5',
-    borderRadius: 8,
+    borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
     marginBottom: 16,
+  },
+  inputWrapperError: {
+    borderColor: '#E30613',
+    borderWidth: 1.5,
+  },
+  errorText: {
+    color: '#E30613',
+    fontSize: 14,
+    marginTop: 6,
+    paddingLeft: 4,
   },
   inputLabel: {
     fontSize: 12,

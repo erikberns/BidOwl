@@ -31,4 +31,7 @@ public class Pujo {
 
     @Column(name = "ganador", length = 2)
     private String ganador = "no"; // "si", "no"
+
+    @Column(name = "fecha_hora")
+    private java.time.LocalDateTime fechaHora;
 }
