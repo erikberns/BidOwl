@@ -2,15 +2,13 @@ package com.bidowl.auctionplace.service;
 
 import com.bidowl.auctionplace.dto.*;
 import com.bidowl.auctionplace.entity.*;
-// Asumimos que estas excepciones personalizadas existen en un paquete 'exception'
-// import com.bidowl.auctionplace.exception.BusinessLogicException;
-// import com.bidowl.auctionplace.exception.ResourceNotFoundException;
 import com.bidowl.auctionplace.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -47,7 +45,7 @@ public class SubastaService {
 
     public Subasta obtenerPorId(Integer id) {
         return subastaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Subasta no encontrada con el identificador: " + id)); // Debería ser ResourceNotFoundException
+                .orElseThrow(() -> new java.util.NoSuchElementException("Subasta no encontrada con el identificador: " + id));
     }
 
     public List<ItemCatalogo> obtenerCatalogo(Integer subastaId) {
@@ -57,18 +55,18 @@ public class SubastaService {
     public Asistente unirseASubasta(Integer clienteId, Integer subastaId) {
         Subasta subasta = obtenerPorId(subastaId);
         Cliente cliente = clienteRepository.findById(clienteId)
-                .orElseThrow(() -> new RuntimeException("Cliente no encontrado con el identificador: " + clienteId)); // ResourceNotFoundException
+                .orElseThrow(() -> new java.util.NoSuchElementException("Cliente no encontrado con el identificador: " + clienteId));
 
         // 1. Validar categoría
         if (getCategoryRank(cliente.getCategoriaCliente()) < getCategoryRank(subasta.getCategoria())) {
-            throw new RuntimeException("Tu categoría (" + cliente.getCategoriaCliente() +
-                                ") es inferior a la categoría requerida para esta subasta (" + subasta.getCategoria() + ")."); // BusinessLogicException
+            throw new IllegalArgumentException("Tu categoría (" + cliente.getCategoriaCliente() +
+                                ") es inferior a la categoría requerida para esta subasta (" + subasta.getCategoria() + ").");
         }
 
         // 2. Validar que tenga al menos un método de pago
         List<MetodoPago> pagos = metodoPagoRepository.findByPersonaIdentificador(clienteId);
         if (pagos.isEmpty()) {
-            throw new RuntimeException("Debes registrar al menos un medio de pago verificado antes de unirte a una subasta."); // BusinessLogicException
+            throw new IllegalStateException("Debes registrar al menos un medio de pago verificado antes de unirte a una subasta.");
         }
 
         // 3. Si ya es asistente, retornar existente (la lógica de creación se centraliza)
@@ -111,7 +109,7 @@ public class SubastaService {
     public EstadoItemSubastaDTO obtenerEstadoItem(Integer idSubasta, Integer iditem) {
         // Validar que el item existe y pertenece a la subasta en una sola consulta
         ItemCatalogo itemCatalogo = itemCatalogoRepository.findByIdentificadorAndCatalogo_Subasta_Identificador(iditem, idSubasta)
-                .orElseThrow(() -> new RuntimeException("Item con ID " + iditem + " no encontrado en la subasta " + idSubasta)); // TODO: Cambiar a ResourceNotFoundException
+                .orElseThrow(() -> new java.util.NoSuchElementException("Item con ID " + iditem + " no encontrado en la subasta " + idSubasta));
         
         // Obtener la puja líder (mayor monto)
         Optional<Pujo> pujaLider = pujoRepository.findFirstByItemIdentificadorOrderByImporteDesc(iditem);
@@ -138,7 +136,7 @@ public class SubastaService {
     public List<HistorialPujaDTO> obtenerHistorialPujas(Integer idSubasta, Integer iditem) {
         // Validar que el item pertenece a la subasta
         if (!itemCatalogoRepository.existsByIdentificadorAndCatalogo_Subasta_Identificador(iditem, idSubasta)) {
-             throw new RuntimeException("Item con ID " + iditem + " no encontrado en la subasta " + idSubasta); // TODO: Cambiar a ResourceNotFoundException
+             throw new java.util.NoSuchElementException("Item con ID " + iditem + " no encontrado en la subasta " + idSubasta);
         }
         // Obtener todas las pujas ordenadas por monto descendente
         List<Pujo> pujas = pujoRepository.findPujasByItem(iditem);
@@ -149,9 +147,20 @@ public class SubastaService {
                     dto.setIdpersona(puja.getAsistente().getCliente().getIdentificador().toString());
                     dto.setNombre(puja.getAsistente().getCliente().getNombre());
                     dto.setMonto(puja.getImporte());
-                    // CORRECCIÓN IMPORTANTE: La tabla 'pujos' necesita una columna de fecha/hora.
-                    // Si existiera (ej: puja.getFechaHora()), se podría calcular el tiempo transcurrido.
-                    dto.setHace("hace unos minutos"); // Simulado por falta de columna en BD
+                    // Se utiliza la columna 'fecha_hora' de la tabla 'pujos'
+                    if (puja.getFechaHora() != null) {
+                        long minutes = java.time.temporal.ChronoUnit.MINUTES.between(puja.getFechaHora(), LocalDateTime.now());
+                        if (minutes < 1) {
+                            dto.setHace("hace segundos");
+                        } else if (minutes < 60) {
+                            dto.setHace("hace " + minutes + " min");
+                        } else {
+                            long hours = java.time.temporal.ChronoUnit.HOURS.between(puja.getFechaHora(), LocalDateTime.now());
+                            dto.setHace("hace " + hours + " h");
+                        }
+                    } else {
+                        dto.setHace("N/A");
+                    }
                     return dto;
                 })
                 .collect(Collectors.toList());
@@ -164,7 +173,7 @@ public class SubastaService {
     public LimitesPujaDTO obtenerLimitesPuja(Integer idSubasta, Integer iditem) {
         // Validar que el item existe y pertenece a la subasta
         ItemCatalogo itemCatalogo = itemCatalogoRepository.findByIdentificadorAndCatalogo_Subasta_Identificador(iditem, idSubasta)
-                .orElseThrow(() -> new RuntimeException("Item con ID " + iditem + " no encontrado en la subasta " + idSubasta)); // TODO: Cambiar a ResourceNotFoundException
+                .orElseThrow(() -> new java.util.NoSuchElementException("Item con ID " + iditem + " no encontrado en la subasta " + idSubasta));
         
         // Calcular límites basados en el precio base
         BigDecimal precioBase = itemCatalogo.getPrecioBase();
@@ -194,37 +203,37 @@ public class SubastaService {
         
         // Validar que el item existe y pertenece a la subasta
         ItemCatalogo itemCatalogo = itemCatalogoRepository.findByIdentificadorAndCatalogo_Subasta_Identificador(iditem, idSubasta)
-                .orElseThrow(() -> new RuntimeException("Item con ID " + iditem + " no encontrado en la subasta " + idSubasta)); // TODO: Cambiar a ResourceNotFoundException
+                .orElseThrow(() -> new java.util.NoSuchElementException("Item con ID " + iditem + " no encontrado en la subasta " + idSubasta));
 
         // Validar que la subasta existe y está abierta
         Optional<Subasta> subasta = subastaRepository.findById(idSubasta);
         if (subasta.isEmpty() || !"abierta".equalsIgnoreCase(subasta.get().getEstado())) {
-            throw new RuntimeException("La subasta no existe o no está abierta"); // TODO: Cambiar a BusinessLogicException
+            throw new IllegalStateException("La subasta no existe o no está abierta");
         }
 
         // Validar método de pago
         if (idMetodoPago == null || idMetodoPago.isEmpty()) {
-            throw new RuntimeException("Debe proporcionar un método de pago"); // TODO: Cambiar a BusinessLogicException
+            throw new IllegalArgumentException("Debe proporcionar un método de pago");
         }
 
         Integer metodoPagoId;
         try {
             metodoPagoId = Integer.parseInt(idMetodoPago);
         } catch (NumberFormatException e) {
-            throw new RuntimeException("ID de método de pago inválido"); // TODO: Cambiar a BusinessLogicException
+            throw new IllegalArgumentException("ID de método de pago inválido");
         }
 
         if (!metodoPagoRepository.existsById(metodoPagoId)) {
-            throw new RuntimeException("Método de pago no encontrado"); // TODO: Cambiar a ResourceNotFoundException
+            throw new java.util.NoSuchElementException("Método de pago no encontrado");
         }
 
         // Validar montos contra límites
         LimitesPujaDTO limites = obtenerLimitesPuja(idSubasta, iditem);
         if (monto.compareTo(limites.getPujaMinima()) < 0) {
-            throw new RuntimeException("La puja es menor al mínimo permitido: " + limites.getPujaMinima()); // TODO: Cambiar a BusinessLogicException
+            throw new IllegalArgumentException("La puja es menor al mínimo permitido: " + limites.getPujaMinima());
         }
         if (monto.compareTo(limites.getPujaMaxima()) > 0) {
-            throw new RuntimeException("La puja excede el máximo permitido: " + limites.getPujaMaxima()); // TODO: Cambiar a BusinessLogicException
+            throw new IllegalArgumentException("La puja excede el máximo permitido: " + limites.getPujaMaxima());
         }
 
         // Obtener o crear asistente (lógica centralizada y corregida)
@@ -236,6 +245,7 @@ public class SubastaService {
         puja.setItem(itemCatalogo);
         puja.setImporte(monto);
         puja.setGanador("no");
+        puja.setFechaHora(LocalDateTime.now());
 
         Pujo pujaSaved = pujoRepository.save(puja);
 
@@ -252,34 +262,10 @@ public class SubastaService {
      * GET /api/subastas?estado=activa&categoria=oro&pagina=1&limite=10
      */
     public List<SubastaPublicaDTO> obtenerCatalogoPublico(String estado, String categoria, int pagina, int limite) {
-        // CORRECCIÓN: La paginación y el filtrado deben hacerse en la base de datos.
-        // 1. Crear un objeto Pageable
         Pageable pageable = PageRequest.of(pagina - 1, limite);
-
-        // 2. Crear un método en SubastaRepository que acepte filtros y paginación.
-        // Ejemplo: Page<Subasta> findByEstadoAndCategoria(String estado, String categoria, Pageable pageable);
-        // Por simplicidad aquí, asumimos que existe y lo llamamos.
-        // List<Subasta> subastasPaginadas = subastaRepository.findByFilters(estado, categoria, pageable).getContent();
-        
-        // La siguiente implementación es ineficiente y debe ser reemplazada por la de arriba.
-        List<Subasta> subastasPaginadas = subastaRepository.findAll(pageable).getContent();
-
-        return subastasPaginadas.stream()
-                .map(s -> {
-                    SubastaPublicaDTO dto = new SubastaPublicaDTO();
-                    dto.setId(s.getIdentificador().toString());
-                    dto.setTitulo("Subasta " + s.getIdentificador());
-                    dto.setFecha(s.getFecha() != null ? s.getFecha().toString() : "");
-                    dto.setCategoria(s.getCategoria());
-                    
-                    // Contar items
-                    List<ItemCatalogo> items = itemCatalogoRepository.findByCatalogoSubastaIdentificador(s.getIdentificador());
-                    dto.setCantidaditems(items.size());
-                    dto.setImagenPortada("https://via.placeholder.com/400x300?text=Subasta" + s.getIdentificador());
-                    
-                    return dto;
-                })
-                .collect(Collectors.toList());
+        // REESTRUCTURADO: Esta llamada ahora es altamente eficiente.
+        // Utiliza la consulta JPQL personalizada en SubastaRepository para evitar el problema N+1.
+        return subastaRepository.findCatalogoPublico(estado, categoria, pageable).getContent();
     }
 
     /**
@@ -289,7 +275,7 @@ public class SubastaService {
     public SubastaDetalleDTO obtenerDetalleSubasta(Integer idSubasta) {
         Optional<Subasta> subasta = subastaRepository.findById(idSubasta);
         if (subasta.isEmpty()) {
-            throw new RuntimeException("Subasta no encontrada"); // ResourceNotFoundException
+            throw new java.util.NoSuchElementException("Subasta no encontrada");
         }
 
         Subasta s = subasta.get();
@@ -330,7 +316,7 @@ public class SubastaService {
     public List<ItemCatalogoDTO> obtenerCatalogoItemsSubasta(Integer idSubasta) {
         Optional<Subasta> subasta = subastaRepository.findById(idSubasta);
         if (subasta.isEmpty()) {
-            throw new RuntimeException("Subasta no encontrada"); // ResourceNotFoundException
+            throw new java.util.NoSuchElementException("Subasta no encontrada");
         }
 
         List<ItemCatalogo> items = itemCatalogoRepository.findByCatalogoSubastaIdentificador(idSubasta);
@@ -358,13 +344,13 @@ public class SubastaService {
         // Validar que la subasta existe
         Optional<Subasta> subasta = subastaRepository.findById(idSubasta);
         if (subasta.isEmpty()) {
-            throw new RuntimeException("Subasta no encontrada"); // ResourceNotFoundException
+            throw new java.util.NoSuchElementException("Subasta no encontrada");
         }
 
         // Validar que el cliente existe
         Optional<Cliente> cliente = clienteRepository.findById(clienteId);
         if (cliente.isEmpty()) {
-            throw new RuntimeException("Cliente no encontrado"); // ResourceNotFoundException
+            throw new java.util.NoSuchElementException("Cliente no encontrado");
         }
 
         String categoriaRequerida = subasta.get().getCategoria();
@@ -399,7 +385,7 @@ public class SubastaService {
         // Verificar elegibilidad primero
         ElegibilidadDTO elegibilidad = verificarElegibilidad(clienteId, idSubasta);
         if (!elegibilidad.getPuedeUnirse()) {
-            throw new RuntimeException(elegibilidad.getMotivoRechazo()); // BusinessLogicException
+            throw new IllegalArgumentException(elegibilidad.getMotivoRechazo());
         }
 
         // Crear/obtener asistente usando el método centralizado
@@ -425,17 +411,17 @@ public class SubastaService {
         return asistenteRepository.findByClienteIdentificadorAndSubastaIdentificador(clienteId, subastaId)
                 .orElseGet(() -> {
                     Subasta subasta = subastaRepository.findById(subastaId)
-                            .orElseThrow(() -> new RuntimeException("Subasta no encontrada: " + subastaId)); // ResourceNotFoundException
+                            .orElseThrow(() -> new java.util.NoSuchElementException("Subasta no encontrada: " + subastaId));
 
                     Cliente cliente = clienteRepository.findById(clienteId)
-                            .orElseThrow(() -> new RuntimeException("Cliente no encontrado: " + clienteId)); // ResourceNotFoundException
+                            .orElseThrow(() -> new java.util.NoSuchElementException("Cliente no encontrado: " + clienteId));
 
                     // Validaciones de elegibilidad (se podrían mover aquí también si se desea)
                     if (getCategoryRank(cliente.getCategoriaCliente()) < getCategoryRank(subasta.getCategoria())) {
-                        throw new RuntimeException("Categoría de cliente insuficiente."); // BusinessLogicException
+                        throw new IllegalArgumentException("Categoría de cliente insuficiente.");
                     }
                     if (metodoPagoRepository.findByPersonaIdentificador(clienteId).isEmpty()) {
-                        throw new RuntimeException("Se requiere un método de pago."); // BusinessLogicException
+                        throw new IllegalStateException("Se requiere un método de pago.");
                     }
 
                     Asistente nuevoAsistente = new Asistente();
