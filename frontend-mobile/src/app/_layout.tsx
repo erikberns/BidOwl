@@ -14,6 +14,7 @@ import { PaymentMethodsScreen } from '@/components/PaymentMethodsScreen';
 import { CategoryGrantedScreen } from '@/components/CategoryGrantedScreen';
 import { WelcomeScreen } from '@/components/WelcomeScreen';
 import { LoginScreen } from '@/components/LoginScreen';
+import { ProfilePhotoScreen } from '@/components/ProfilePhotoScreen';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -22,6 +23,7 @@ export default function TabLayout() {
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
   const [isConfirmingEmail, setIsConfirmingEmail] = useState<boolean>(false);
   const [isSettingPassword, setIsSettingPassword] = useState<boolean>(false);
+  const [isSettingProfilePhoto, setIsSettingProfilePhoto] = useState<boolean>(false);
   const [isSettingPaymentMethods, setIsSettingPaymentMethods] = useState<boolean>(false);
   const [isCategoryGranted, setIsCategoryGranted] = useState<boolean>(false);
   const [isShowingWelcome, setIsShowingWelcome] = useState<boolean>(false);
@@ -98,7 +100,7 @@ export default function TabLayout() {
           userId={currentUser?.identificador}
           onBack={() => {
             setIsSettingPaymentMethods(false);
-            setIsSettingPassword(true);
+            setIsSettingProfilePhoto(true);
           }}
           onComplete={() => {
             setIsSettingPaymentMethods(false);
@@ -133,6 +135,22 @@ export default function TabLayout() {
       );
     }
 
+    if (isSettingProfilePhoto) {
+      return (
+        <ProfilePhotoScreen
+          userId={currentUser?.identificador}
+          onBack={() => {
+            setIsSettingProfilePhoto(false);
+            setIsSettingPassword(true);
+          }}
+          onComplete={() => {
+            setIsSettingProfilePhoto(false);
+            setIsSettingPaymentMethods(true);
+          }}
+        />
+      );
+    }
+
     if (isSettingPassword) {
       return (
         <PasswordScreen 
@@ -143,7 +161,7 @@ export default function TabLayout() {
           }}
           onComplete={() => {
             setIsSettingPassword(false);
-            setIsSettingPaymentMethods(true);
+            setIsSettingProfilePhoto(true);
           }}
         />
       );

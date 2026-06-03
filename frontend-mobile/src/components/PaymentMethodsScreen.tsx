@@ -369,11 +369,11 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
         
         {isOpen && (
           <View style={styles.dropdownMenu}>
-            <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 150 }}>
+            <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 150, backgroundColor: '#ffffff' }}>
               {availablePaises.map((item) => (
                 <TouchableOpacity
                   key={item.numero}
-                  style={styles.dropdownItem}
+                  style={[styles.dropdownItem, { backgroundColor: '#ffffff' }]}
                   onPress={() => {
                     onSelect(item.nombre);
                     setIsOpen(false);

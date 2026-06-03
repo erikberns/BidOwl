@@ -201,6 +201,21 @@ public class PersonaController {
         }
     }
 
+    @PostMapping(value = "/{id}/foto", consumes = { "multipart/form-data" })
+    public ResponseEntity<?> subirFotoPerfil(
+            @PathVariable Integer id,
+            @RequestParam("foto") org.springframework.web.multipart.MultipartFile foto) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            personaService.subirFotoPerfil(id, foto);
+            response.put("mensaje", "Foto de perfil actualizada exitosamente.");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("error", e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
+    }
+
     // --- Clases DTO internas ---
     public static class CompletarRegistroRequest {
         private Integer identificador;

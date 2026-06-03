@@ -22,4 +22,5 @@ public interface PersonaServiceInterface {
     boolean requiereConfiguracion(Integer id) throws Exception;
     void cambiarContrasena(Integer id, String contrasenaNueva) throws Exception;
     List<com.bidowl.auctionplace.entity.Pais> obtenerPaises() throws Exception;
+    void subirFotoPerfil(Integer id, org.springframework.web.multipart.MultipartFile file) throws Exception;
 }

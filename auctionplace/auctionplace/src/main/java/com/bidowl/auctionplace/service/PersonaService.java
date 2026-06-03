@@ -312,4 +312,13 @@ public class PersonaService implements PersonaServiceInterface {
     public List<Pais> obtenerPaises() throws Exception {
         return paisRepository.findAll();
     }
+
+    @Override
+    public void subirFotoPerfil(Integer id, org.springframework.web.multipart.MultipartFile file) throws Exception {
+        Persona persona = obtenerPorId(id);
+        if (file != null && !file.isEmpty()) {
+            persona.setFoto(file.getBytes());
+            personaRepository.save(persona);
+        }
+    }
 }

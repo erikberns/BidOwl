@@ -98,11 +98,11 @@ export function RegisterScreen({ onBack, onComplete }: Props) {
             
             {isDropdownOpen && (
               <View style={styles.dropdownMenu}>
-                <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 150 }}>
+                <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 150, backgroundColor: '#ffffff' }}>
                   {availablePaises.map((item) => (
                     <Pressable
                       key={item.numero}
-                      style={styles.dropdownItem}
+                      style={[styles.dropdownItem, { backgroundColor: '#ffffff' }]}
                       onPress={() => {
                         setPais(item.nombre);
                         setIsDropdownOpen(false);
