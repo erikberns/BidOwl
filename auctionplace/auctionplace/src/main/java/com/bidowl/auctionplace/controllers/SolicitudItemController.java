@@ -386,13 +386,11 @@ public class SolicitudItemController {
         if (token == null || token.isEmpty()) {
             throw new Exception("Token no proporcionado");
         }
-        // Simulación: extraer ID del header
-        // En producción, validar JWT
         try {
-            // Por ahora, retornar un ID por defecto (cambiar según implementación real)
-            return 1;
-        } catch (Exception e) {
-            throw new Exception("Token inválido");
+            // Permitimos que para pruebas se envíe directamente el ID en el header "Autorizacion"
+            return Integer.parseInt(token.trim());
+        } catch (NumberFormatException e) {
+            throw new Exception("Token inválido. Para pruebas, envíe el ID numérico del usuario.");
         }
     }
 
