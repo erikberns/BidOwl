@@ -1,8 +1,19 @@
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
-// Si se corre en emulador Android se usa 10.0.2.2, si es iOS o web se usa localhost.
-// O se puede cambiar por la IP local de la computadora para pruebas en dispositivo físico.
+// Obtiene la IP de la computadora de desarrollo (donde corre Metro) de forma dinámica
+const getLocalIp = (): string => {
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (!hostUri) {
+    return '192.168.1.8'; // Fallback a la IP configurada previamente
+  }
+  return hostUri.split(':')[0];
+};
+
+const LOCAL_IP = getLocalIp();
+
 export const API_URL = Platform.select({
-  android: 'http://10.0.2.2:8080/api',
-  default: 'http://localhost:8080/api',
+  web: 'http://localhost:8080/api',
+  default: `http://${LOCAL_IP}:8080/api`,
 });
+
