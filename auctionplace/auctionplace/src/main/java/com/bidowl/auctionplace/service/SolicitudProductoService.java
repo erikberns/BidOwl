@@ -30,9 +30,6 @@ public class SolicitudProductoService {
     @Autowired
     private DuenioRepository duenioRepository;
 
-    @Autowired
-    private CuentaBancariaRepository cuentaBancariaRepository;
-
     /**
      * Crear una nueva solicitud de artículo (usa tabla productos)
      * POST /api/solicitudes-items
@@ -232,17 +229,6 @@ public class SolicitudProductoService {
             throw new Exception("Solicitud no encontrada con ID: " + idSolicitud);
         }
 
-        // Validar cuenta si se proporciona
-        if (idCuentaDeposito != null && !idCuentaDeposito.isEmpty()) {
-            try {
-                Integer cuentaId = Integer.parseInt(idCuentaDeposito);
-                if (!cuentaBancariaRepository.existsById(cuentaId)) {
-                    throw new Exception("Cuenta de depósito no encontrada");
-                }
-            } catch (NumberFormatException e) {
-                throw new Exception("ID de cuenta inválido");
-            }
-        }
 
         Producto p = producto.get();
         // SUGERENCIA: Aquí debería crearse el 'ItemCatalogo' final con el precio y comisión acordados.

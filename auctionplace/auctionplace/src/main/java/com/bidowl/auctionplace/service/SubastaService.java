@@ -30,9 +30,6 @@ public class SubastaService {
     private ClienteRepository clienteRepository;
 
     @Autowired
-    private MetodoPagoRepository metodoPagoRepository;
-
-    @Autowired
     private PujoRepository pujoRepository;
 
     public List<Subasta> obtenerTodas() {
@@ -63,19 +60,13 @@ public class SubastaService {
                                 ") es inferior a la categoría requerida para esta subasta (" + subasta.getCategoria() + ").");
         }
 
-        // 2. Validar que tenga al menos un método de pago
-        List<MetodoPago> pagos = metodoPagoRepository.findByPersonaIdentificador(clienteId);
-        if (pagos.isEmpty()) {
-            throw new IllegalStateException("Debes registrar al menos un medio de pago verificado antes de unirte a una subasta.");
-        }
-
-        // 3. Si ya es asistente, retornar existente (la lógica de creación se centraliza)
+        // 2. Si ya es asistente, retornar existente (la lógica de creación se centraliza)
         Optional<Asistente> existente = asistenteRepository.findByClienteIdentificadorAndSubastaIdentificador(clienteId, subastaId);
         if (existente.isPresent()) {
             return existente.get();
         }
 
-        // 4. Crear asistente
+        // 3. Crear asistente
         Asistente nuevoAsistente = new Asistente();
         nuevoAsistente.setCliente(cliente);
         nuevoAsistente.setSubasta(subasta);
@@ -147,20 +138,8 @@ public class SubastaService {
                     dto.setIdpersona(puja.getAsistente().getCliente().getIdentificador().toString());
                     dto.setNombre(puja.getAsistente().getCliente().getNombre());
                     dto.setMonto(puja.getImporte());
-                    // Se utiliza la columna 'fecha_hora' de la tabla 'pujos'
-                    if (puja.getFechaHora() != null) {
-                        long minutes = java.time.temporal.ChronoUnit.MINUTES.between(puja.getFechaHora(), LocalDateTime.now());
-                        if (minutes < 1) {
-                            dto.setHace("hace segundos");
-                        } else if (minutes < 60) {
-                            dto.setHace("hace " + minutes + " min");
-                        } else {
-                            long hours = java.time.temporal.ChronoUnit.HOURS.between(puja.getFechaHora(), LocalDateTime.now());
-                            dto.setHace("hace " + hours + " h");
-                        }
-                    } else {
-                        dto.setHace("N/A");
-                    }
+                    // Como la tabla 'pujos' no tiene columna de fecha/hora en la base de datos, siempre mostramos N/A
+                    dto.setHace("N/A");
                     return dto;
                 })
                 .collect(Collectors.toList());
@@ -211,22 +190,6 @@ public class SubastaService {
             throw new IllegalStateException("La subasta no existe o no está abierta");
         }
 
-        // Validar método de pago
-        if (idMetodoPago == null || idMetodoPago.isEmpty()) {
-            throw new IllegalArgumentException("Debe proporcionar un método de pago");
-        }
-
-        Integer metodoPagoId;
-        try {
-            metodoPagoId = Integer.parseInt(idMetodoPago);
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("ID de método de pago inválido");
-        }
-
-        if (!metodoPagoRepository.existsById(metodoPagoId)) {
-            throw new java.util.NoSuchElementException("Método de pago no encontrado");
-        }
-
         // Validar montos contra límites
         LimitesPujaDTO limites = obtenerLimitesPuja(idSubasta, iditem);
         if (monto.compareTo(limites.getPujaMinima()) < 0) {
@@ -245,7 +208,6 @@ public class SubastaService {
         puja.setItem(itemCatalogo);
         puja.setImporte(monto);
         puja.setGanador("no");
-        puja.setFechaHora(LocalDateTime.now());
 
         Pujo pujaSaved = pujoRepository.save(puja);
 
@@ -364,13 +326,6 @@ public class SubastaService {
             return resultado;
         }
 
-        // Validar que tenga al menos un método de pago
-        List<MetodoPago> metodos = metodoPagoRepository.findByPersonaIdentificador(clienteId);
-        if (metodos.isEmpty()) {
-            resultado.setPuedeUnirse(false);
-            resultado.setMotivoRechazo("Debes registrar al menos un método de pago verificado");
-            return resultado;
-        }
 
         resultado.setPuedeUnirse(true);
         resultado.setMotivoRechazo(null);
@@ -419,9 +374,6 @@ public class SubastaService {
                     // Validaciones de elegibilidad (se podrían mover aquí también si se desea)
                     if (getCategoryRank(cliente.getCategoriaCliente()) < getCategoryRank(subasta.getCategoria())) {
                         throw new IllegalArgumentException("Categoría de cliente insuficiente.");
-                    }
-                    if (metodoPagoRepository.findByPersonaIdentificador(clienteId).isEmpty()) {
-                        throw new IllegalStateException("Se requiere un método de pago.");
                     }
 
                     Asistente nuevoAsistente = new Asistente();
