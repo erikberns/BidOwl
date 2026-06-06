@@ -1,17 +1,27 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs } from 'expo-router';
 import JoinAuctionBar from '@/components/JoinAuctionBar';
 import { MOCK_AUCTION_ITEMS } from '@/constants/mockData';
+import { API_URL } from '@/constants/api';
 
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 
 export default function CatalogScreen() {
   const { id } = useLocalSearchParams();
   const auctionIdStr = Array.isArray(id) ? id[0] : id || '1';
-  const items = MOCK_AUCTION_ITEMS[auctionIdStr] || MOCK_AUCTION_ITEMS['1'];
+  const [items, setItems] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadItems() {
+      const res = await fetch(`${API_URL}/subastas/${id}/catalogo`);
+      const data = await res.json();
+      setItems(data);
+    }
+    loadItems();
+  }, [id]);
 
   const mockItems = items.map(item => ({
     id: item.id,
