@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Modal, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   StyleSheet,
   ScrollView,
@@ -28,6 +30,38 @@ export default function PublishScreen() {
   const [isArtpiece, setIsArtpiece] = useState(false);
   const [isBelonging, setIsBelonging] = useState(false);
   const [images, setImages] = useState<string[]>([]);
+  const [isGuest, setIsGuest] = useState(true);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalMessage, setModalMessage] = useState('');
+  const [modalOnOk, setModalOnOk] = useState<(() => void) | null>(null);
+
+  const showAppModal = (title: string, message: string, onOk?: () => void) => {
+    setModalTitle(title);
+    setModalMessage(message);
+    setModalOnOk(() => (onOk ? onOk : null));
+    setModalVisible(true);
+  };
+
+  const hideAppModal = () => {
+    setModalVisible(false);
+    if (modalOnOk) {
+      try { modalOnOk(); } catch (e) { /* ignore */ }
+      setModalOnOk(null);
+    }
+  };
+
+  useEffect(() => {
+    async function loadGuestStatus() {
+      try {
+        const isGuestStr = await AsyncStorage.getItem('isGuest');
+        setIsGuest(isGuestStr === 'true' || isGuestStr === null);
+      } catch {
+        setIsGuest(true);
+      }
+    }
+    loadGuestStatus();
+  }, []);
 
   const handleAddImage = async () => {
     try {
@@ -54,10 +88,23 @@ export default function PublishScreen() {
   };
 
   const handleSubmit = async () => {
-    if (images.length < 3) {
-      console.warn('Se requieren al menos 3 imágenes');
+    console.log('handleSubmit invoked, images count:', images.length, 'isGuest:', isGuest);
+
+    if (isGuest) {
+      showAppModal(
+        'Inicio de sesión requerido',
+        'Para enviar una solicitud debes iniciar sesión primero. Ve al perfil y accede a tu cuenta.',
+        () => router.push('/profile')
+      );
       return;
     }
+
+    if (images.length < 3) {
+      showAppModal('Atención', 'Se requieren al menos 3 imágenes para enviar la solicitud.');
+      return;
+    }
+
+    showAppModal('Enviando', 'Enviando solicitud, por favor espere...');
 
     const form = new FormData();
     form.append('nombre', articleName);
@@ -83,16 +130,23 @@ export default function PublishScreen() {
         headers: {
           // Ajustar header de autorización según implementación real
           Autorizacion: 'token',
-          'Content-Type': 'multipart/form-data',
         },
         body: form,
       });
-      const json = await res.json();
-      console.log('Respuesta creación solicitud:', json);
-      // redirigir o mostrar éxito según convenga
-      router.back();
+
+      const json = await res.json().catch(() => ({}));
+      if (res.ok) {
+        hideAppModal();
+        showAppModal('Solicitud enviada', 'La solicitud se envió correctamente.', () => router.back());
+      } else {
+        hideAppModal();
+        const msg = json?.error || json?.mensaje || 'Error al crear la solicitud';
+        showAppModal('Error', String(msg));
+      }
     } catch (err) {
       console.warn('Error enviando solicitud:', err);
+      hideAppModal();
+      showAppModal('Error', 'No se pudo enviar la solicitud. Intenta nuevamente.');
     }
   };
 
@@ -252,6 +306,25 @@ export default function PublishScreen() {
           <Text style={styles.submitButtonText}>Mandar</Text>
         </TouchableOpacity>
       </ScrollView>
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={modalStyles.backdrop}>
+          <View style={modalStyles.modalBox}>
+            <Text style={modalStyles.modalTitle}>{modalTitle}</Text>
+            <Text style={modalStyles.modalMessage}>{modalMessage}</Text>
+            <TouchableOpacity
+              style={modalStyles.modalButton}
+              onPress={hideAppModal}
+            >
+              <Text style={modalStyles.modalButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -458,5 +531,43 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#051C2C',
+  },
+});
+
+const modalStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalBox: {
+    width: '80%',
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 8,
+    color: '#051C2C',
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalButton: {
+    backgroundColor: '#BEE757',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  modalButtonText: {
+    color: '#051C2C',
+    fontWeight: '700',
   },
 });
