@@ -15,6 +15,8 @@ import { useRouter } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import * as ImagePicker from 'expo-image-picker';
+import { API_URL } from '@/constants/api';
 
 export default function PublishScreen() {
   const router = useRouter();
@@ -27,8 +29,71 @@ export default function PublishScreen() {
   const [isBelonging, setIsBelonging] = useState(false);
   const [images, setImages] = useState<string[]>([]);
 
-  const handleAddImage = () => {
-    setImages([...images, 'https://via.placeholder.com/80']);
+  const handleAddImage = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permission.status !== 'granted') return;
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.8,
+        allowsEditing: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const uri = result.assets[0].uri;
+        setImages(prev => (prev.length < 6 ? [...prev, uri] : prev));
+      }
+    } catch (err) {
+      console.warn('Error seleccionando imagen', err);
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = async () => {
+    if (images.length < 3) {
+      console.warn('Se requieren al menos 3 imágenes');
+      return;
+    }
+
+    const form = new FormData();
+    form.append('nombre', articleName);
+    form.append('descripcion', articleDescription);
+    form.append('esArteODisenador', JSON.stringify(isArtpiece));
+    form.append('nombreCreador', creatorName);
+    form.append('fechaCreacion', articleDate);
+    form.append('historia', articleHistory);
+    form.append('declaracionPropiedad', JSON.stringify(isBelonging));
+
+    images.forEach((uri, idx) => {
+      const filename = uri.split('/').pop() || `image_${idx}.jpg`;
+      const match = filename.match(/\.([0-9a-z]+)(?:[?#]|$)/i);
+      const ext = match ? match[1] : 'jpg';
+      const type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+      // @ts-ignore
+      form.append('imagenes', { uri, name: filename, type });
+    });
+
+    try {
+      const res = await fetch(`${API_URL}/solicitudes-items`, {
+        method: 'POST',
+        headers: {
+          // Ajustar header de autorización según implementación real
+          Autorizacion: 'token',
+          'Content-Type': 'multipart/form-data',
+        },
+        body: form,
+      });
+      const json = await res.json();
+      console.log('Respuesta creación solicitud:', json);
+      // redirigir o mostrar éxito según convenga
+      router.back();
+    } catch (err) {
+      console.warn('Error enviando solicitud:', err);
+    }
   };
 
   return (
@@ -66,8 +131,10 @@ export default function PublishScreen() {
             </View>
           </View>
           <View style={styles.imagesGrid}>
-            {images.map((_, idx) => (
-              <View key={idx} style={styles.imageThumb} />
+            {images.map((uri, idx) => (
+              <Pressable key={idx} onPress={() => handleRemoveImage(idx)}>
+                <Image source={{ uri }} style={styles.imageThumb} />
+              </Pressable>
             ))}
             {images.length < 6 && (
               <Pressable style={styles.addImageButton} onPress={handleAddImage}>
@@ -180,17 +247,7 @@ export default function PublishScreen() {
         <TouchableOpacity
           style={styles.submitButton}
           activeOpacity={0.8}
-          onPress={() => {
-            console.log('Publishing:', {
-              articleName,
-              articleDescription,
-              creatorName,
-              articleDate,
-              articleHistory,
-              isArtpiece,
-              isBelonging,
-            });
-          }}
+          onPress={handleSubmit}
         >
           <Text style={styles.submitButtonText}>Mandar</Text>
         </TouchableOpacity>
