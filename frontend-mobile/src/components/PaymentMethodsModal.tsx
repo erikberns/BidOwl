@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, Modal, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet, Pressable, Modal, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { MaxContentWidth } from '@/constants/theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from '../constants/api';
+import { PaymentMethodsScreen } from './PaymentMethodsScreen';
 
 interface PaymentMethod {
   id: string;
@@ -17,43 +20,136 @@ interface PaymentMethodsModalProps {
 }
 
 export default function PaymentMethodsModal({ visible, onClose }: PaymentMethodsModalProps) {
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
-    {
-      id: '1',
-      type: 'visa',
-      label: 'VISA',
-      details: '**** **** **** 2345',
-    },
-    {
-      id: '2',
-      type: 'bank',
-      label: 'Cuenta Bancaria Cólosa',
-      details: 'Cuentas Corrientes',
-    },
-    {
-      id: '3',
-      type: 'check',
-      label: 'Cheque Certificado',
-      details: '00045801',
-    },
-  ]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [userId, setUserId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
 
-  const removePaymentMethod = (id: string) => {
-    setPaymentMethods(paymentMethods.filter((method) => method.id !== id));
+  useEffect(() => {
+    if (visible) {
+      fetchPaymentMethods();
+    }
+  }, [visible]);
+
+  const fetchPaymentMethods = async () => {
+    setIsLoading(true);
+    try {
+      const userStr = await AsyncStorage.getItem('user');
+      if (!userStr) {
+        setPaymentMethods([]);
+        return;
+      }
+      const user = JSON.parse(userStr);
+      const uId = user.identificador;
+      setUserId(uId);
+      if (!uId) {
+        setPaymentMethods([]);
+        return;
+      }
+
+      console.log(`Fetching payment methods for user ${uId} from ${API_URL}/personas/${uId}/metodos-pago`);
+      const response = await fetch(`${API_URL}/personas/${uId}/metodos-pago`);
+      if (!response.ok) {
+        throw new Error('Error al obtener los métodos de pago.');
+      }
+      const data = await response.json();
+      console.log('Fetched payment methods:', data);
+
+      const mapped: PaymentMethod[] = data.map((item: any) => {
+        if (item.tarjetaCredito) {
+          const num = item.tarjetaCredito.numeroTarjeta || '';
+          const last4 = num.length >= 4 ? num.slice(-4) : num;
+          return {
+            id: String(item.identificador),
+            type: 'visa',
+            label: 'Tarjeta de Crédito',
+            details: `**** **** **** ${last4}`,
+          };
+        } else if (item.cuentaBancaria) {
+          return {
+            id: String(item.identificador),
+            type: 'bank',
+            label: `Cuenta Bancaria ${item.cuentaBancaria.nombreBanco || ''}`,
+            details: `CBU/IBAN: ${item.cuentaBancaria.cbuIban || ''}`,
+          };
+        } else if (item.chequeCertificado) {
+          return {
+            id: String(item.identificador),
+            type: 'check',
+            label: `Cheque Certificado ${item.chequeCertificado.numeroCheque || ''}`,
+            details: `Banco: ${item.chequeCertificado.bancoEmisor || ''}`,
+          };
+        }
+        return {
+          id: String(item.identificador),
+          type: 'check',
+          label: 'Método desconocido',
+          details: '',
+        };
+      });
+      setPaymentMethods(mapped);
+    } catch (error) {
+      console.error('Error fetching payment methods:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const removePaymentMethod = async (id: string) => {
+    try {
+      const response = await fetch(`${API_URL}/personas/metodo-pago/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const errResult = await response.json();
+        throw new Error(errResult.error || 'Error al eliminar el método de pago.');
+      }
+      setPaymentMethods((prev) => prev.filter((method) => method.id !== id));
+    } catch (error: any) {
+      console.error('Error deleting payment method:', error);
+      if (Platform.OS === 'web') {
+        alert(error.message || 'No se pudo eliminar el método de pago.');
+      } else {
+        const { Alert } = require('react-native');
+        Alert.alert('Error', error.message || 'No se pudo eliminar el método de pago.');
+      }
+    }
   };
 
   const getIconName = (type: string) => {
     switch (type) {
       case 'visa':
-        return { ios: 'creditcard.fill', android: 'credit_card', web: 'credit_card' };
+        return { ios: 'creditcard', android: 'credit_card', web: 'credit_card' };
       case 'bank':
-        return { ios: 'building.2.fill', android: 'account_balance', web: 'account_balance' };
+        return { ios: 'building.2', android: 'account_balance', web: 'account_balance' };
       case 'check':
-        return { ios: 'checkmark.circle.fill', android: 'check_circle', web: 'check_circle' };
+        return { ios: 'doc.plaintext', android: 'description', web: 'description' };
       default:
         return { ios: 'questionmark.circle', android: 'help', web: 'help' };
     }
   };
+
+  if (isAdding) {
+    return (
+      <Modal
+        visible={visible}
+        animationType="slide"
+        onRequestClose={() => setIsAdding(false)}
+      >
+        <PaymentMethodsScreen
+          userId={userId || undefined}
+          onBack={() => {
+            setIsAdding(false);
+            fetchPaymentMethods();
+          }}
+          onComplete={() => {
+            setIsAdding(false);
+            fetchPaymentMethods();
+          }}
+        />
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -84,37 +180,64 @@ export default function PaymentMethodsModal({ visible, onClose }: PaymentMethods
 
           {/* Payment Methods List */}
           <View style={styles.methodsContainer}>
-            {paymentMethods.map((method) => (
-              <View key={method.id} style={styles.methodItem}>
-                <View style={styles.methodContent}>
-                  <SymbolView
-                    tintColor="#2C6E3F"
-                    // @ts-ignore
-                    name={getIconName(method.type)}
-                    size={24}
-                  />
-                  <View style={styles.methodInfo}>
-                    <Text style={styles.methodLabel}>{method.label}</Text>
-                    <Text style={styles.methodDetails}>{method.details}</Text>
+            {isLoading ? (
+              <ActivityIndicator size="large" color="#2C6E3F" style={{ marginVertical: 30 }} />
+            ) : paymentMethods.length === 0 ? (
+              <Text style={styles.emptyText}>No tienes métodos de pago registrados.</Text>
+            ) : (
+              paymentMethods.map((method) => (
+                <View key={method.id} style={styles.methodItem}>
+                  <View style={styles.methodContent}>
+                    {/* Left edit pencil badge */}
+                    <View style={styles.editButton}>
+                      <SymbolView
+                        tintColor="#FFFFFF"
+                        // @ts-ignore
+                        name={{ ios: 'pencil', android: 'edit', web: 'edit' }}
+                        size={14}
+                      />
+                    </View>
+                    
+                    {/* Outline icon */}
+                    <SymbolView
+                      tintColor="#051C2C"
+                      // @ts-ignore
+                      name={getIconName(method.type)}
+                      size={24}
+                    />
+
+                    <View style={styles.methodInfo}>
+                      <Text style={styles.methodLabel}>
+                        <Text style={styles.methodLabelBold}>{method.label}</Text>
+                      </Text>
+                      {!!method.details && (
+                        <Text style={styles.methodDetails}>{method.details}</Text>
+                      )}
+                    </View>
                   </View>
+                  
+                  {/* Red cross delete button */}
+                  <Pressable
+                    onPress={() => removePaymentMethod(method.id)}
+                    style={styles.deleteButton}
+                  >
+                    <SymbolView
+                      tintColor="#FFFFFF"
+                      // @ts-ignore
+                      name={{ ios: 'xmark', android: 'close', web: 'close' }}
+                      size={14}
+                    />
+                  </Pressable>
                 </View>
-                <Pressable
-                  onPress={() => removePaymentMethod(method.id)}
-                  style={styles.deleteButton}
-                >
-                  <SymbolView
-                    tintColor="#E74C3C"
-                    // @ts-ignore
-                    name={{ ios: 'trash.fill', android: 'delete', web: 'delete' }}
-                    size={20}
-                  />
-                </Pressable>
-              </View>
-            ))}
+              ))
+            )}
           </View>
 
           {/* Add Payment Method Button */}
-          <TouchableOpacity style={styles.addButton}>
+          <TouchableOpacity 
+            style={styles.addButton}
+            onPress={() => setIsAdding(true)}
+          >
             <SymbolView
               tintColor="#2C6E3F"
               // @ts-ignore
@@ -177,35 +300,53 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 16,
-    paddingHorizontal: 12,
-    backgroundColor: '#F9F9F9',
-    borderRadius: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 16,
     marginBottom: 12,
   },
   methodContent: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
+  },
+  editButton: {
+    width: 32,
+    height: 32,
+    borderTopLeftRadius: 6,
+    borderBottomLeftRadius: 6,
+    borderTopRightRadius: 16,
+    borderBottomRightRadius: 16,
+    backgroundColor: '#1B8153', // Deep green badge
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   methodInfo: {
     flex: 1,
   },
   methodLabel: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '400',
     color: '#051C2C',
-    marginBottom: 4,
+  },
+  methodLabelBold: {
+    fontWeight: '700',
   },
   methodDetails: {
     fontSize: 14,
     color: '#8A8A8A',
   },
   deleteButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FFE5E5',
+    width: 32,
+    height: 32,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
+    borderTopRightRadius: 6,
+    borderBottomRightRadius: 6,
+    backgroundColor: '#BD3E4A', // Crimson red badge
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -243,5 +384,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#8A8A8A',
+    textAlign: 'center',
+    marginVertical: 20,
   },
 });

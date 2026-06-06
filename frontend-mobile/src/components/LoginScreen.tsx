@@ -78,6 +78,10 @@ export function LoginScreen({ onBack, onSuccess, onForgotPassword }: Props) {
       // Guardar usuario en AsyncStorage
       await AsyncStorage.setItem('user', JSON.stringify(result.persona));
       await AsyncStorage.removeItem('isGuest');
+      if (result.requiereConfiguracion) {
+        await AsyncStorage.setItem('registrationStage2Status', 'in_progress');
+        await AsyncStorage.setItem('registrationStage2Step', 'password');
+      }
 
       onSuccess(result.persona, result.requiereConfiguracion);
     } catch (error: any) {

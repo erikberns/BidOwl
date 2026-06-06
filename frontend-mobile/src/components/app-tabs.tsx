@@ -32,14 +32,13 @@ const WEB_ICONS: Record<string, string> = {
 };
 
 function CustomTabBar({ state, descriptors, navigation }: any) {
-  const scheme = useColorScheme();
-  const isDark = scheme === 'dark';
+  const isDark = false;
   const insets = useSafeAreaInsets();
 
-  const activeColor = isDark ? '#FFFFFF' : '#051C2C';
-  const inactiveColor = isDark ? '#8A9EAD' : '#7A7A7A';
-  const backgroundColor = isDark ? '#0F212E' : '#FFFFFF';
-  const borderColor = isDark ? '#1C3141' : '#ECECEC';
+  const activeColor = '#051C2C';
+  const inactiveColor = '#7A7A7A';
+  const backgroundColor = '#FFFFFF';
+  const borderColor = '#ECECEC';
 
   const activeRoute = state.routes[state.index];
   const isAuctionDetail = activeRoute && activeRoute.name === 'auction/[id]';

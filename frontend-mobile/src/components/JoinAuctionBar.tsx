@@ -10,14 +10,13 @@ interface JoinAuctionBarProps {
 }
 
 export default function JoinAuctionBar({ auctionId, onBack }: JoinAuctionBarProps) {
-  const scheme = useColorScheme();
-  const isDark = scheme === 'dark';
+  const isDark = false;
   const insets = useSafeAreaInsets();
   const [isModalVisible, setIsModalVisible] = useState(false);
 
-  const activeColor = isDark ? '#FFFFFF' : '#051C2C';
-  const backgroundColor = isDark ? '#0F212E' : '#FFFFFF';
-  const borderColor = isDark ? '#1C3141' : '#ECECEC';
+  const activeColor = '#051C2C';
+  const backgroundColor = '#FFFFFF';
+  const borderColor = '#ECECEC';
 
   const handleBack = () => {
     if (onBack) {

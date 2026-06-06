@@ -8,6 +8,7 @@ interface Props {
   userId?: number;
   onBack: () => void;
   onComplete: () => void;
+  isEditing?: boolean;
 }
 
 const showAlert = (title: string, message: string) => {
@@ -20,10 +21,10 @@ const showAlert = (title: string, message: string) => {
   }
 };
 
-export function PasswordScreen({ userId, onBack, onComplete }: Props) {
+export function PasswordScreen({ userId, onBack, onComplete, isEditing = false }: Props) {
   const [password, setPassword] = useState('contraseñafachera');
   const [confirmPassword, setConfirmPassword] = useState('contraseñafachera');
-  const [showPassword, setShowPassword] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -104,9 +105,11 @@ export function PasswordScreen({ userId, onBack, onComplete }: Props) {
       if (storedUserStr) {
         const userObj = JSON.parse(storedUserStr);
         userObj.contrasena = password;
+        userObj.contrasenaCambiada = true;
         await AsyncStorage.setItem('user', JSON.stringify(userObj));
       }
 
+      await AsyncStorage.setItem('registrationStage2Step', 'photo');
       onComplete();
     } catch (error: any) {
       console.error('Error al cambiar contraseña:', error);
@@ -122,7 +125,7 @@ export function PasswordScreen({ userId, onBack, onComplete }: Props) {
         <Pressable onPress={onBack} style={styles.backButton} disabled={isLoading}>
           <Text style={styles.backButtonText}>{'<'}</Text>
         </Pressable>
-        <Text style={styles.headerTitle}>Crear Contraseña</Text>
+        <Text style={styles.headerTitle}>{isEditing ? 'Cambiar Contraseña' : 'Crear Contraseña'}</Text>
         <View style={styles.placeholderBox} />
       </View>
 
@@ -134,7 +137,7 @@ export function PasswordScreen({ userId, onBack, onComplete }: Props) {
 
         <View style={styles.formContainer}>
           <InputField
-            label="Crear Contraseña"
+            label={isEditing ? 'Nueva Contraseña' : 'Crear Contraseña'}
             value={password}
             onChangeText={(val) => {
               setPassword(val);

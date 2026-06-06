@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, SafeAreaView, Image, Platform } from 'react-native';
 import { API_URL } from '../constants/api';
 import { InputField } from './ui/InputField';
+import * as ImagePicker from 'expo-image-picker';
 
 export interface RegisterData {
   nombre: string;
@@ -124,35 +125,75 @@ export function RegisterScreen({ onBack, onComplete }: Props) {
   const fileInputFrenteRef = useRef<any>(null);
   const fileInputDorsoRef = useRef<any>(null);
 
-  const handleSelectFrente = () => {
+  const handleSelectFrente = async () => {
     setDniFotosError('');
     if (Platform.OS === 'web') {
       if (fileInputFrenteRef.current) {
         fileInputFrenteRef.current.click();
       }
     } else {
-      setFotoFrenteUri('https://images.unsplash.com/photo-1554774853-aae0a22c8aa4?w=150');
-      setFotoFrenteFile({
-        uri: 'mock-uri-frente',
-        name: 'dni-frente.jpg',
-        type: 'image/jpeg',
-      });
+      try {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          showAlert('Permiso Requerido', 'Se necesita acceso a la galería para poder cargar las fotos del DNI.');
+          return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          quality: 0.8,
+        });
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+          const asset = result.assets[0];
+          setFotoFrenteUri(asset.uri);
+          setFotoFrenteFile({
+            uri: asset.uri,
+            name: asset.fileName || 'dni-frente.jpg',
+            type: asset.mimeType || 'image/jpeg',
+          });
+        }
+      } catch (error: any) {
+        console.error(error);
+        showAlert('Error', 'No se pudo seleccionar la foto del frente.');
+      }
     }
   };
 
-  const handleSelectDorso = () => {
+  const handleSelectDorso = async () => {
     setDniFotosError('');
     if (Platform.OS === 'web') {
       if (fileInputDorsoRef.current) {
         fileInputDorsoRef.current.click();
       }
     } else {
-      setFotoDorsoUri('https://images.unsplash.com/photo-1554774853-aae0a22c8aa4?w=150');
-      setFotoDorsoFile({
-        uri: 'mock-uri-dorso',
-        name: 'dni-dorso.jpg',
-        type: 'image/jpeg',
-      });
+      try {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          showAlert('Permiso Requerido', 'Se necesita acceso a la galería para poder cargar las fotos del DNI.');
+          return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          quality: 0.8,
+        });
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+          const asset = result.assets[0];
+          setFotoDorsoUri(asset.uri);
+          setFotoDorsoFile({
+            uri: asset.uri,
+            name: asset.fileName || 'dni-dorso.jpg',
+            type: asset.mimeType || 'image/jpeg',
+          });
+        }
+      } catch (error: any) {
+        console.error(error);
+        showAlert('Error', 'No se pudo seleccionar la foto del dorso.');
+      }
     }
   };
 

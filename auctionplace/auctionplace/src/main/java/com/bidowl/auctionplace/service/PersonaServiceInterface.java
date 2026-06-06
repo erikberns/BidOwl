@@ -18,6 +18,7 @@ public interface PersonaServiceInterface {
     MetodoPago registrarCuenta(Integer personaId, String titular, String banco, Integer paisId, String cbu, String moneda, org.springframework.web.multipart.MultipartFile comprobante) throws Exception;
     MetodoPago registrarCheque(Integer personaId, String titular, String banco, String numeroCheque, BigDecimal monto, Integer paisId, String moneda, org.springframework.web.multipart.MultipartFile comprobante) throws Exception;
     String aprobarRegistro(Integer id) throws Exception;
+    String aprobarRegistro(Integer id, String categoria) throws Exception;
     List<RegistroPendiente> obtenerRegistrosPendientes();
     boolean requiereConfiguracion(Integer id) throws Exception;
     void cambiarContrasena(Integer id, String contrasenaNueva) throws Exception;
@@ -27,4 +28,7 @@ public interface PersonaServiceInterface {
     byte[] obtenerFotoPerfilBytes(Integer id) throws Exception;
     void recuperarContrasena(String email, String contrasenaNueva) throws Exception;
     boolean hasCompletedStage2(String email) throws Exception;
+    List<MetodoPago> obtenerMetodosPago(Integer personaId) throws Exception;
+    void eliminarMetodoPago(Integer metodoPagoId) throws Exception;
+    void rechazarRegistro(Integer id, String motivo) throws Exception;
 }

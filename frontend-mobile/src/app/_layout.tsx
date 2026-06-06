@@ -2,6 +2,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import React, { useEffect, useState } from 'react';
 import { useColorScheme, View, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppTabs from '@/components/app-tabs';
@@ -40,12 +41,27 @@ export default function TabLayout() {
         const hasSeenOnboardingStr = await AsyncStorage.getItem('hasSeenOnboarding');
         setIsFirstLaunch(hasSeenOnboardingStr === null);
 
-        const hasSeenAuthStr = await AsyncStorage.getItem('hasSeenAuth');
-        setHasSeenAuth(hasSeenAuthStr === 'true');
-
         const userStr = await AsyncStorage.getItem('user');
-        if (userStr) {
-          setCurrentUser(JSON.parse(userStr));
+        const stage2Status = await AsyncStorage.getItem('registrationStage2Status');
+        const stage2Step = await AsyncStorage.getItem('registrationStage2Step');
+
+        if (stage2Status === 'in_progress' && userStr) {
+          setHasSeenAuth(false);
+          const userObj = JSON.parse(userStr);
+          setCurrentUser(userObj);
+          if (stage2Step === 'photo') {
+            setIsSettingProfilePhoto(true);
+          } else if (stage2Step === 'payment_methods') {
+            setIsSettingPaymentMethods(true);
+          } else {
+            setIsSettingPassword(true);
+          }
+        } else {
+          const hasSeenAuthStr = await AsyncStorage.getItem('hasSeenAuth');
+          setHasSeenAuth(hasSeenAuthStr === 'true');
+          if (userStr) {
+            setCurrentUser(JSON.parse(userStr));
+          }
         }
       } catch (error) {
         setIsFirstLaunch(false); // Fallback if error
@@ -105,7 +121,9 @@ export default function TabLayout() {
             setIsSettingPaymentMethods(false);
             setIsSettingProfilePhoto(true);
           }}
-          onComplete={() => {
+          onComplete={async () => {
+            await AsyncStorage.removeItem('registrationStage2Status');
+            await AsyncStorage.removeItem('registrationStage2Step');
             setIsSettingPaymentMethods(false);
             setIsCategoryGranted(true);
           }}
@@ -285,9 +303,11 @@ export default function TabLayout() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider value={DefaultTheme}>
+        <AnimatedSplashOverlay />
+        <AppTabs />
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }

@@ -90,15 +90,23 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
         return;
       }
 
-      const generated = Math.floor(10000 + Math.random() * 90000).toString();
-      setSentToken(generated);
-      console.log('=== DEBUG TOKEN ===');
-      console.log(`Email: ${email}`);
-      console.log(`Token: ${generated}`);
-      console.log('===================');
+      const tokenResponse = await fetch(`${API_URL}/personas/enviar-token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const tokenResult = await tokenResponse.json();
+
+      if (!tokenResponse.ok) {
+        throw new Error(tokenResult.error || 'Error al enviar el token.');
+      }
+
+      setSentToken(tokenResult.token);
       showAlert(
         'Token Enviado',
-        `Se ha enviado un token de validación a ${email}.\n\nTu token de validación es: ${generated}`,
+        'Se ha enviado un token de validación a tu dirección de correo electrónico. Por favor, revisa tu casilla.',
         [{ text: 'Entendido' }]
       );
     } catch (error: any) {

@@ -43,6 +43,9 @@ public class PersonaService implements PersonaServiceInterface {
     @Autowired
     private RegistroPendienteRepository registroPendienteRepository;
 
+    @Autowired
+    private EmailService emailService;
+
     @Override
     public Persona registrarPaso1(RegistroPaso1Request request, MultipartFile fotoDniFrente, MultipartFile fotoDniDorso) throws Exception {
         
@@ -167,6 +170,11 @@ public class PersonaService implements PersonaServiceInterface {
 
     @Override
     public String aprobarRegistro(Integer id) throws Exception {
+        return aprobarRegistro(id, "comun");
+    }
+
+    @Override
+    public String aprobarRegistro(Integer id, String categoria) throws Exception {
         RegistroPendiente rp = registroPendienteRepository.findById(id)
                 .orElseThrow(() -> new Exception("Registro pendiente no encontrado"));
 
@@ -191,8 +199,8 @@ public class PersonaService implements PersonaServiceInterface {
         cliente.setEmail(rp.getEmail() != null ? rp.getEmail() : "aprobado-" + id + "@bidowl.com");
         cliente.setContrasena(contrasenaGenerada);
         cliente.setContrasenaCambiada(false);
-        cliente.setCategoria("comun");
-        cliente.setCategoriaCliente("comun");
+        cliente.setCategoria(categoria);
+        cliente.setCategoriaCliente(categoria);
         cliente.setAdmitido("si");
 
         cliente.setRematesAsistidos(0);
@@ -234,17 +242,27 @@ public class PersonaService implements PersonaServiceInterface {
         rp.setEstado("APROBADO");
         registroPendienteRepository.save(rp);
 
-        // Simulación de envío de correo en consola para depuración
-        System.out.println("====================================================================");
-        System.out.println("📧 CORREO SIMULADO ENVIADO A: " + cliente.getEmail());
-        System.out.println("Asunto: ¡Tu registro en BidOwl ha sido aprobado!");
-        System.out.println("Contenido: Hola " + cliente.getNombre() + ", tu cuenta ha sido verificada y activada.");
-        System.out.println("Para ingresar, utiliza las siguientes credenciales temporales:");
-        System.out.println("   - Email: " + cliente.getEmail());
-        System.out.println("   - Contraseña Temporal: " + contrasenaGenerada);
-        System.out.println("====================================================================");
+        emailService.enviarCredencialesAprobadas(cliente.getEmail(), cliente.getNombre(), contrasenaGenerada);
 
         return contrasenaGenerada;
+    }
+
+    @Override
+    public void rechazarRegistro(Integer id, String motivo) throws Exception {
+        RegistroPendiente rp = registroPendienteRepository.findById(id)
+                .orElseThrow(() -> new Exception("Registro pendiente no encontrado"));
+
+        if ("APROBADO".equalsIgnoreCase(rp.getEstado())) {
+            throw new Exception("El registro ya ha sido aprobado previamente");
+        }
+        if ("RECHAZADO".equalsIgnoreCase(rp.getEstado())) {
+            throw new Exception("El registro ya ha sido rechazado previamente");
+        }
+
+        rp.setEstado("RECHAZADO");
+        registroPendienteRepository.save(rp);
+
+        emailService.enviarRegistroRechazado(rp.getEmail(), rp.getNombre(), motivo);
     }
 
     @Override
@@ -416,5 +434,32 @@ public class PersonaService implements PersonaServiceInterface {
             return p.getContrasenaCambiada() != null && p.getContrasenaCambiada();
         }
         return false;
+    }
+
+    @Override
+    public List<MetodoPago> obtenerMetodosPago(Integer personaId) throws Exception {
+        return metodoPagoRepository.findByPersonaIdentificador(personaId);
+    }
+
+    @Override
+    public void eliminarMetodoPago(Integer metodoPagoId) throws Exception {
+        MetodoPago mp = metodoPagoRepository.findById(metodoPagoId)
+                .orElseThrow(() -> new Exception("No se encontró el método de pago."));
+
+        TarjetaCredito tc = mp.getTarjetaCredito();
+        CuentaBancaria cb = mp.getCuentaBancaria();
+        ChequeCertificado cc = mp.getChequeCertificado();
+
+        metodoPagoRepository.delete(mp);
+
+        if (tc != null) {
+            tarjetaCreditoRepository.delete(tc);
+        }
+        if (cb != null) {
+            cuentaBancariaRepository.delete(cb);
+        }
+        if (cc != null) {
+            chequeCertificadoRepository.delete(cc);
+        }
     }
 }

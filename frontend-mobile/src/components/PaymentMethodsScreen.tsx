@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform, ActivityIndicator, Image } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../constants/api';
+import { SymbolView } from 'expo-symbols';
 
 interface PaymentMethodsScreenProps {
   userId?: number;
@@ -16,6 +17,26 @@ interface PaymentMethod {
   type: MethodType;
   title: string;
   subtitle: string;
+  bankTitular?: string;
+  bankBanco?: string;
+  bankPais?: string;
+  bankMoneda?: string;
+  bankCbuIban?: string;
+  bankTab?: 'CBU' | 'IBAN';
+  bankFile?: any;
+  bankFileUri?: string | null;
+  cardNumero?: string;
+  cardTitular?: string;
+  cardVencimiento?: string;
+  cardCvv?: string;
+  checkTitular?: string;
+  checkBanco?: string;
+  checkNumero?: string;
+  checkMonto?: string;
+  checkPais?: string;
+  checkMoneda?: string;
+  checkFile?: any;
+  checkFileUri?: string | null;
 }
 
 const showAlert = (title: string, message: string) => {
@@ -33,6 +54,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [selectedType, setSelectedType] = useState<MethodType>('card');
   const [isLoading, setIsLoading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Bank Form States
   const [bankTitular, setBankTitular] = useState('Jose Claudio Godio');
@@ -72,6 +94,8 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
   const [checkBancoError, setCheckBancoError] = useState('');
   const [checkNumeroError, setCheckNumeroError] = useState('');
   const [checkMontoError, setCheckMontoError] = useState('');
+  const [bankFileError, setBankFileError] = useState('');
+  const [checkFileError, setCheckFileError] = useState('');
 
   // File upload states for bank and check receipts
   const [bankFileUri, setBankFileUri] = useState<string | null>(null);
@@ -84,6 +108,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     setBankTitularError('');
     setBankBancoError('');
     setBankCbuIbanError('');
+    setBankFileError('');
     setCardNumeroError('');
     setCardTitularError('');
     setCardVencimientoError('');
@@ -92,6 +117,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     setCheckBancoError('');
     setCheckNumeroError('');
     setCheckMontoError('');
+    setCheckFileError('');
   }, [currentView]);
 
   const fileInputBankRef = useRef<any>(null);
@@ -178,13 +204,163 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     loadPaises();
   }, []);
 
-  const addMethod = (method: Omit<PaymentMethod, 'id'>) => {
-    setMethods([...methods, { ...method, id: Math.random().toString() }]);
+  useEffect(() => {
+    async function loadExistingMethods() {
+      try {
+        const finalUserId = await getFinalUserId();
+        setIsLoading(true);
+        console.log(`Cargando métodos de pago existentes para el usuario ${finalUserId} en la pantalla...`);
+        const response = await fetch(`${API_URL}/personas/${finalUserId}/metodos-pago`);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Métodos cargados para la pantalla:', data);
+          const mapped: PaymentMethod[] = data.map((item: any) => {
+            if (item.tarjetaCredito) {
+              const last4 = item.tarjetaCredito.numeroTarjeta?.slice(-4) || '';
+              return {
+                id: String(item.identificador),
+                type: 'card',
+                title: `VISA **** **** **** ${last4}`,
+                subtitle: `Vence: ${item.tarjetaCredito.fechaVencimiento || ''}`,
+                cardNumero: item.tarjetaCredito.numeroTarjeta,
+                cardTitular: item.tarjetaCredito.titularTarjeta,
+                cardVencimiento: item.tarjetaCredito.fechaVencimiento,
+                cardCvv: String(item.tarjetaCredito.cvv),
+              };
+            } else if (item.cuentaBancaria) {
+              return {
+                id: String(item.identificador),
+                type: 'bank',
+                title: `Cuenta Bancaria ${item.cuentaBancaria.nombreBanco || ''}`,
+                subtitle: `CBU/IBAN: ${item.cuentaBancaria.cbuIban || ''}`,
+                bankTitular: item.cuentaBancaria.titularCuenta,
+                bankBanco: item.cuentaBancaria.nombreBanco,
+                bankPais: item.cuentaBancaria.pais?.nombre || 'Argentina',
+                bankMoneda: item.cuentaBancaria.moneda === 'pesos' ? 'Pesos' : 'Dólares',
+                bankCbuIban: item.cuentaBancaria.cbuIban,
+                bankTab: item.cuentaBancaria.cbuIban?.length === 22 ? 'CBU' : 'IBAN',
+              };
+            } else if (item.chequeCertificado) {
+              return {
+                id: String(item.identificador),
+                type: 'check',
+                title: `Cheque Certificado ${item.chequeCertificado.numeroCheque || ''}`,
+                subtitle: `${item.chequeCertificado.bancoEmisor || ''} - Monto: ${item.chequeCertificado.monto || ''}`,
+                checkTitular: item.chequeCertificado.titular,
+                checkBanco: item.chequeCertificado.bancoEmisor,
+                checkNumero: item.chequeCertificado.numeroCheque,
+                checkMonto: String(item.chequeCertificado.monto),
+                checkPais: item.chequeCertificado.pais?.nombre || 'Argentina',
+                checkMoneda: item.chequeCertificado.moneda === 'pesos' ? 'Pesos' : 'Dólares',
+              };
+            }
+            return null;
+          }).filter(Boolean) as PaymentMethod[];
+          setMethods(mapped);
+        }
+      } catch (error) {
+        console.error('Error loading existing methods in PaymentMethodsScreen:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadExistingMethods();
+  }, [userId]);
+
+  const addMethod = (methodData: Omit<PaymentMethod, 'id'>, newId?: string) => {
+    if (editingId) {
+      setMethods(methods.map(m => m.id === editingId ? { ...m, ...methodData } : m));
+      setEditingId(null);
+    } else {
+      setMethods([...methods, { ...methodData, id: newId || Math.random().toString() }]);
+    }
     setCurrentView('list');
   };
 
-  const removeMethod = (id: string) => {
+  const removeMethod = async (id: string) => {
+    const isSaved = /^\d+$/.test(id);
+    if (isSaved) {
+      setIsLoading(true);
+      try {
+        const response = await fetch(`${API_URL}/personas/metodo-pago/${id}`, {
+          method: 'DELETE',
+        });
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error || 'Error al eliminar el método de pago.');
+        }
+      } catch (error: any) {
+        console.error('Error deleting method:', error);
+        showAlert('Error', error.message || 'No se pudo eliminar el método de pago.');
+        setIsLoading(false);
+        return;
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
     setMethods(methods.filter(m => m.id !== id));
+    if (editingId === id) {
+      setEditingId(null);
+    }
+  };
+
+  const clearFormFields = () => {
+    setEditingId(null);
+    
+    setBankTitular('Jose Claudio Godio');
+    setBankBanco('Banco Galicia');
+    setBankPais('Argentina');
+    setBankMoneda('Pesos');
+    setBankCbuIban('0720123456789012345678');
+    setBankTab('CBU');
+    setBankFile(null);
+    setBankFileUri(null);
+
+    setCardNumero('4444555566662345');
+    setCardTitular('Jose Claudio Godio');
+    setCardVencimiento('12/30');
+    setCardCvv('892');
+
+    setCheckTitular('Jose Claudio Godio');
+    setCheckBanco('Banco de la Nación Argentina');
+    setCheckNumero('00045821');
+    setCheckMonto('1500000');
+    setCheckPais('Argentina');
+    setCheckMoneda('Pesos');
+    setCheckFile(null);
+    setCheckFileUri(null);
+  };
+
+  const handleEditPress = (method: PaymentMethod) => {
+    setEditingId(method.id);
+    if (method.type === 'bank') {
+      setBankTitular(method.bankTitular || '');
+      setBankBanco(method.bankBanco || '');
+      setBankPais(method.bankPais || 'Argentina');
+      setBankMoneda(method.bankMoneda || 'Pesos');
+      setBankCbuIban(method.bankCbuIban || '');
+      setBankTab(method.bankTab || 'CBU');
+      setBankFile(method.bankFile || null);
+      setBankFileUri(method.bankFileUri || null);
+      setCurrentView('form_bank');
+    } else if (method.type === 'card') {
+      setCardNumero(method.cardNumero || '');
+      setCardTitular(method.cardTitular || '');
+      setCardVencimiento(method.cardVencimiento || '');
+      setCardCvv(method.cardCvv || '');
+      setCurrentView('form_card');
+    } else if (method.type === 'check') {
+      setCheckTitular(method.checkTitular || '');
+      setCheckBanco(method.checkBanco || '');
+      setCheckNumero(method.checkNumero || '');
+      setCheckMonto(method.checkMonto || '');
+      setCheckPais(method.checkPais || 'Argentina');
+      setCheckMoneda(method.checkMoneda || 'Pesos');
+      setCheckFile(method.checkFile || null);
+      setCheckFileUri(method.checkFileUri || null);
+      setCurrentView('form_check');
+    }
   };
 
   const getFinalUserId = async (): Promise<number> => {
@@ -201,18 +377,48 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     setBankTitularError('');
     setBankBancoError('');
     setBankCbuIbanError('');
+    setBankFileError('');
 
     let hasErrors = false;
     if (!bankTitular || !bankTitular.trim()) {
       setBankTitularError('El titular es obligatorio.');
       hasErrors = true;
+    } else if (/\d/.test(bankTitular)) {
+      setBankTitularError('El nombre del titular no puede contener números.');
+      hasErrors = true;
     }
+
     if (!bankBanco || !bankBanco.trim()) {
       setBankBancoError('El banco es obligatorio.');
       hasErrors = true;
     }
+
     if (!bankCbuIban || !bankCbuIban.trim()) {
       setBankCbuIbanError('El número de cuenta es obligatorio.');
+      hasErrors = true;
+    } else {
+      const cleanVal = bankCbuIban.trim();
+      if (bankTab === 'CBU') {
+        if (!/^\d+$/.test(cleanVal)) {
+          setBankCbuIbanError('El CBU debe contener solo números.');
+          hasErrors = true;
+        } else if (cleanVal.length !== 22) {
+          setBankCbuIbanError('El CBU debe tener exactamente 22 dígitos.');
+          hasErrors = true;
+        }
+      } else if (bankTab === 'IBAN') {
+        if (!/^[a-zA-Z0-9]+$/.test(cleanVal)) {
+          setBankCbuIbanError('El IBAN debe contener solo caracteres alfanuméricos.');
+          hasErrors = true;
+        } else if (cleanVal.length < 15 || cleanVal.length > 34) {
+          setBankCbuIbanError('El IBAN debe tener entre 15 y 34 caracteres.');
+          hasErrors = true;
+        }
+      }
+    }
+
+    if (!bankFile) {
+      setBankFileError('Debe subir una foto del comprobante.');
       hasErrors = true;
     }
 
@@ -261,7 +467,15 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
         type: 'bank',
         title: `Cuenta Bancaria ${bankBanco}`,
         subtitle: `CBU/IBAN: ${bankCbuIban}`,
-      });
+        bankTitular,
+        bankBanco,
+        bankPais,
+        bankMoneda,
+        bankCbuIban,
+        bankTab,
+        bankFile,
+        bankFileUri,
+      }, result.metodoPago ? String(result.metodoPago.identificador) : undefined);
       // Clear form & file
       setBankFile(null);
       setBankFileUri(null);
@@ -280,21 +494,52 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     setCardCvvError('');
 
     let hasErrors = false;
+    
     if (!cardNumero || !cardNumero.trim()) {
       setCardNumeroError('El número de tarjeta es obligatorio.');
       hasErrors = true;
+    } else {
+      const cleanNum = cardNumero.replace(/[\s-]/g, '');
+      if (!/^\d+$/.test(cleanNum)) {
+        setCardNumeroError('El número de tarjeta debe contener solo números.');
+        hasErrors = true;
+      } else if (cleanNum.length !== 16) {
+        setCardNumeroError('El número de tarjeta debe tener exactamente 16 dígitos.');
+        hasErrors = true;
+      }
     }
+
     if (!cardTitular || !cardTitular.trim()) {
       setCardTitularError('El titular de la tarjeta es obligatorio.');
       hasErrors = true;
+    } else if (/\d/.test(cardTitular)) {
+      setCardTitularError('El nombre del titular no puede contener números.');
+      hasErrors = true;
     }
+
     if (!cardVencimiento || !cardVencimiento.trim()) {
       setCardVencimientoError('La fecha de vencimiento es obligatoria.');
       hasErrors = true;
+    } else {
+      const vencRegex = /^(0[1-9]|1[0-2])\/?([0-9]{2})$/;
+      if (!vencRegex.test(cardVencimiento.trim())) {
+        setCardVencimientoError('El formato de vencimiento debe ser MM/YY.');
+        hasErrors = true;
+      }
     }
+
     if (!cardCvv || !cardCvv.trim()) {
       setCardCvvError('El CVV es obligatorio.');
       hasErrors = true;
+    } else {
+      const cleanCvv = cardCvv.trim();
+      if (!/^\d+$/.test(cleanCvv)) {
+        setCardCvvError('El CVV debe contener solo números.');
+        hasErrors = true;
+      } else if (cleanCvv.length !== 3) {
+        setCardCvvError('El CVV debe tener exactamente 3 dígitos.');
+        hasErrors = true;
+      }
     }
 
     if (hasErrors) {
@@ -326,7 +571,11 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
         type: 'card',
         title: `VISA **** **** **** ${cardNumero.slice(-4)}`,
         subtitle: `Vence: ${cardVencimiento}`,
-      });
+        cardNumero,
+        cardTitular,
+        cardVencimiento,
+        cardCvv,
+      }, result.metodoPago ? String(result.metodoPago.identificador) : undefined);
     } catch (error: any) {
       console.error('Error al registrar tarjeta:', error);
       showAlert('Error', error.message || 'Error al conectar con el servidor.');
@@ -340,22 +589,50 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     setCheckBancoError('');
     setCheckNumeroError('');
     setCheckMontoError('');
+    setCheckFileError('');
 
     let hasErrors = false;
+    
     if (!checkTitular || !checkTitular.trim()) {
       setCheckTitularError('El titular es obligatorio.');
       hasErrors = true;
+    } else if (/\d/.test(checkTitular)) {
+      setCheckTitularError('El nombre del titular no puede contener números.');
+      hasErrors = true;
     }
+
     if (!checkBanco || !checkBanco.trim()) {
       setCheckBancoError('El banco emisor es obligatorio.');
       hasErrors = true;
     }
+
     if (!checkNumero || !checkNumero.trim()) {
       setCheckNumeroError('El número de cheque es obligatorio.');
       hasErrors = true;
+    } else {
+      const cleanNum = checkNumero.trim();
+      if (!/^\d+$/.test(cleanNum)) {
+        setCheckNumeroError('El número de cheque debe contener solo números.');
+        hasErrors = true;
+      } else if (cleanNum.length !== 8) {
+        setCheckNumeroError('El número de cheque debe tener exactamente 8 dígitos.');
+        hasErrors = true;
+      }
     }
+
     if (!checkMonto || !checkMonto.trim()) {
       setCheckMontoError('El monto certificado es obligatorio.');
+      hasErrors = true;
+    } else {
+      const parsedMonto = Number(checkMonto);
+      if (isNaN(parsedMonto) || parsedMonto <= 0) {
+        setCheckMontoError('El monto debe ser un valor numérico positivo.');
+        hasErrors = true;
+      }
+    }
+
+    if (!checkFile) {
+      setCheckFileError('Debe subir una foto del comprobante.');
       hasErrors = true;
     }
 
@@ -405,7 +682,15 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
         type: 'check',
         title: `Cheque Certificado ${checkNumero}`,
         subtitle: `${checkBanco} - Monto: ${checkMonto}`,
-      });
+        checkTitular,
+        checkBanco,
+        checkNumero,
+        checkMonto,
+        checkPais,
+        checkMoneda,
+        checkFile,
+        checkFileUri,
+      }, result.metodoPago ? String(result.metodoPago.identificador) : undefined);
       // Clear form & file
       setCheckFile(null);
       setCheckFileUri(null);
@@ -440,7 +725,14 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
 
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Metodo de Pago</Text>
-            <TouchableOpacity style={styles.addButton} onPress={() => setCurrentView('select')} disabled={isLoading}>
+            <TouchableOpacity 
+              style={styles.addButton} 
+              onPress={() => {
+                clearFormFields();
+                setCurrentView('select');
+              }} 
+              disabled={isLoading}
+            >
               <Text style={styles.addButtonText}>+</Text>
             </TouchableOpacity>
           </View>
@@ -452,17 +744,38 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
           ) : (
             methods.map(m => (
               <View key={m.id} style={styles.methodCard}>
-                <View style={styles.methodIconBox}>
-                  <Text style={styles.methodIconText}>
-                    {m.type === 'card' ? '💳' : m.type === 'bank' ? '🏦' : '📄'}
-                  </Text>
-                </View>
+                {/* Left edit pencil badge */}
+                <TouchableOpacity onPress={() => handleEditPress(m)} style={styles.editButton}>
+                  <SymbolView
+                    tintColor="#FFFFFF"
+                    // @ts-ignore
+                    name={{ ios: 'pencil', android: 'edit', web: 'edit' }}
+                    size={14}
+                  />
+                </TouchableOpacity>
+
+                {/* Card outline icon if card */}
+                {m.type === 'card' && (
+                  <SymbolView
+                    tintColor="#051C2C"
+                    // @ts-ignore
+                    name={{ ios: 'creditcard', android: 'credit_card', web: 'credit_card' }}
+                    size={24}
+                  />
+                )}
+
                 <View style={{ flex: 1 }}>
                   <Text style={styles.methodTitle}>{m.title}</Text>
-                  <Text style={styles.methodSub}>{m.subtitle}</Text>
+                  {!!m.subtitle && <Text style={styles.methodSub}>{m.subtitle}</Text>}
                 </View>
+
                 <TouchableOpacity onPress={() => removeMethod(m.id)} style={styles.removeButton} disabled={isLoading}>
-                  <Text style={styles.removeButtonText}>✕</Text>
+                  <SymbolView
+                    tintColor="#FFFFFF"
+                    // @ts-ignore
+                    name={{ ios: 'xmark', android: 'close', web: 'close' }}
+                    size={14}
+                  />
                 </TouchableOpacity>
               </View>
             ))
@@ -591,6 +904,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     const selectHandler = type === 'bank' ? handleSelectBankFile : handleSelectCheckFile;
     const fileInputRef = type === 'bank' ? fileInputBankRef : fileInputCheckRef;
     const fileChangeHandler = type === 'bank' ? handleBankFileChange : handleCheckFileChange;
+    const fileError = type === 'bank' ? bankFileError : checkFileError;
 
     return (
       <View style={styles.fileUploadSection}>
@@ -608,7 +922,11 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
 
         <View style={styles.fileBoxes}>
           <TouchableOpacity 
-            style={[styles.fileAddBox, fileUri ? styles.fileAddBoxHasImage : null]} 
+            style={[
+              styles.fileAddBox, 
+              fileUri ? styles.fileAddBoxHasImage : null,
+              !!fileError ? { borderColor: '#E30613', borderWidth: 1.5 } : null
+            ]} 
             onPress={selectHandler}
             disabled={isLoading}
           >
@@ -619,12 +937,16 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
             )}
           </TouchableOpacity>
           
-          <View style={styles.fileCardBox}>
+          <View style={[
+            styles.fileCardBox,
+            !!fileError ? { borderColor: '#E30613', borderWidth: 1.5 } : null
+          ]}>
             <Text style={styles.fileCardText}>
               {fileObj ? fileObj.name || 'Comprobante seleccionado' : 'Sin archivo'}
             </Text>
           </View>
         </View>
+        {!!fileError && <Text style={[styles.errorText, { marginTop: 8 }]}>{fileError}</Text>}
       </View>
     );
   };
@@ -946,47 +1268,45 @@ const styles = StyleSheet.create({
   methodCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
+    borderColor: '#E5E5E5',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    gap: 16,
   },
-  methodIconBox: {
-    backgroundColor: '#1E9658',
-    borderRadius: 6,
-    width: 30,
-    height: 30,
+  editButton: {
+    width: 32,
+    height: 32,
+    borderTopLeftRadius: 6,
+    borderBottomLeftRadius: 6,
+    borderTopRightRadius: 16,
+    borderBottomRightRadius: 16,
+    backgroundColor: '#1B8153', // Deep green badge
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 15,
-  },
-  methodIconText: {
-    color: 'white',
-    fontSize: 14,
   },
   methodTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#051C2C',
   },
   methodSub: {
-    fontSize: 11,
-    color: '#666',
+    fontSize: 12,
+    color: '#8A8A8A',
     marginTop: 2,
   },
   removeButton: {
-    backgroundColor: '#D9534F',
-    borderRadius: 15,
-    width: 24,
-    height: 24,
+    width: 32,
+    height: 32,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
+    borderTopRightRadius: 6,
+    borderBottomRightRadius: 6,
+    backgroundColor: '#BD3E4A', // Crimson red badge
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  removeButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 12,
   },
   footer: {
     padding: 20,

@@ -5,6 +5,7 @@ import com.bidowl.auctionplace.entity.Persona;
 import com.bidowl.auctionplace.entity.MetodoPago;
 import com.bidowl.auctionplace.entity.RegistroPendiente;
 import com.bidowl.auctionplace.service.PersonaServiceInterface;
+import com.bidowl.auctionplace.service.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,30 @@ public class PersonaController {
 
     @Autowired
     private PersonaServiceInterface personaService;
+
+    @Autowired
+    private EmailService emailService;
+
+    @PostMapping("/enviar-token")
+    public ResponseEntity<?> enviarToken(@RequestBody Map<String, String> request) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            String email = request.get("email");
+            if (email == null || email.trim().isEmpty()) {
+                throw new Exception("El email es obligatorio.");
+            }
+            
+            String token = String.valueOf((int) (10000 + Math.random() * 90000));
+            emailService.enviarTokenVerificacion(email.trim(), token);
+            
+            response.put("mensaje", "Token enviado exitosamente al correo.");
+            response.put("token", token);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("error", e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
+    }
 
     @PostMapping(value = "/registro/paso1", consumes = { "multipart/form-data" })
     public ResponseEntity<?> registrarPaso1(
@@ -67,12 +92,48 @@ public class PersonaController {
     @PostMapping("/registro/{id}/aprobar")
     public ResponseEntity<?> aprobarRegistro(
             @PathVariable Integer id,
+            @RequestBody(required = false) Map<String, String> requestBody,
             @RequestHeader(value = "Autorizacion", required = false) String autorizacion) {
         Map<String, Object> response = new HashMap<>();
         try {
-            String contrasenaGenerada = personaService.aprobarRegistro(id);
+            String categoria = "COMUN";
+            if (requestBody != null && requestBody.containsKey("categoria")) {
+                categoria = requestBody.get("categoria");
+            }
+            if (categoria == null) {
+                categoria = "COMUN";
+            }
+            categoria = categoria.trim().toUpperCase();
+
+            if (!categoria.equals("COMUN") && !categoria.equals("ESPECIAL") && 
+                !categoria.equals("PLATA") && !categoria.equals("ORO") && 
+                !categoria.equals("PLATINO")) {
+                throw new Exception("Categoría inválida. Las categorías permitidas son: COMUN, ESPECIAL, PLATA, ORO, PLATINO.");
+            }
+
+            String contrasenaGenerada = personaService.aprobarRegistro(id, categoria.toLowerCase());
             response.put("mensaje", "Registro aprobado exitosamente.");
             response.put("contrasenaGenerada", contrasenaGenerada);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("error", e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @PostMapping("/registro/{id}/rechazar")
+    public ResponseEntity<?> rechazarRegistro(
+            @PathVariable Integer id,
+            @RequestBody(required = false) Map<String, String> requestBody,
+            @RequestHeader(value = "Autorizacion", required = false) String autorizacion) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            String motivo = "La documentación de identidad provista no es legible o no coincide con los datos ingresados.";
+            if (requestBody != null && requestBody.containsKey("motivo")) {
+                motivo = requestBody.get("motivo");
+            }
+            personaService.rechazarRegistro(id, motivo);
+            response.put("mensaje", "Registro rechazado exitosamente.");
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("error", e.getMessage());
@@ -208,6 +269,31 @@ public class PersonaController {
                     comprobante);
             response.put("mensaje", "Cheque certificado registrado con éxito.");
             response.put("metodoPago", mp);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("error", e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @GetMapping("/{id}/metodos-pago")
+    public ResponseEntity<?> obtenerMetodosPago(@PathVariable Integer id) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            List<MetodoPago> metodos = personaService.obtenerMetodosPago(id);
+            return ResponseEntity.ok(metodos);
+        } catch (Exception e) {
+            response.put("error", e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @DeleteMapping("/metodo-pago/{metodoPagoId}")
+    public ResponseEntity<?> eliminarMetodoPago(@PathVariable Integer metodoPagoId) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            personaService.eliminarMetodoPago(metodoPagoId);
+            response.put("mensaje", "Método de pago eliminado con éxito.");
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("error", e.getMessage());

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, Pressable, Alert, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, Image, ScrollView, StyleSheet, Pressable, Alert, TouchableOpacity, Platform, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { Stack, Tabs, useRouter } from 'expo-router';
@@ -7,13 +7,15 @@ import { useIsFocused } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
-import PaymentMethodsModal from '@/components/PaymentMethodsModal';
+import { PaymentMethodsScreen } from '@/components/PaymentMethodsScreen';
 import { API_URL } from '@/constants/api';
+import { PasswordScreen } from '@/components/PasswordScreen';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const isFocused = useIsFocused();
   const [isPaymentModalVisible, setIsPaymentModalVisible] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isGuest, setIsGuest] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [photoError, setPhotoError] = useState(false);
@@ -146,6 +148,25 @@ export default function ProfileScreen() {
           </View>
         </ScrollView>
       </SafeAreaView>
+    );
+  }
+
+  if (isChangingPassword) {
+    return (
+      <PasswordScreen
+        userId={currentUser?.identificador}
+        isEditing={true}
+        onBack={() => setIsChangingPassword(false)}
+        onComplete={() => {
+          setIsChangingPassword(false);
+          if (Platform.OS === 'web') {
+            alert('Contraseña actualizada con éxito.');
+          } else {
+            const { Alert } = require('react-native');
+            Alert.alert('Éxito', 'Contraseña actualizada con éxito.');
+          }
+        }}
+      />
     );
   }
 
@@ -329,6 +350,29 @@ export default function ProfileScreen() {
               size={16}
             />
           </TouchableOpacity>
+
+          {currentUser?.contrasenaCambiada && (
+            <TouchableOpacity 
+              style={styles.optionItem}
+              onPress={() => setIsChangingPassword(true)}
+            >
+              <View style={styles.optionLeft}>
+                <SymbolView
+                  tintColor="#8A8A8A"
+                  // @ts-ignore
+                  name={{ ios: 'lock.fill', android: 'lock', web: 'lock' }}
+                  size={20}
+                />
+                <Text style={styles.optionText}>Cambiar Contraseña</Text>
+              </View>
+              <SymbolView
+                tintColor="#8A8A8A"
+                // @ts-ignore
+                name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+                size={16}
+              />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Logout Button */}
@@ -340,10 +384,17 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </ScrollView>
 
-      <PaymentMethodsModal 
+      <Modal
         visible={isPaymentModalVisible}
-        onClose={() => setIsPaymentModalVisible(false)}
-      />
+        animationType="slide"
+        onRequestClose={() => setIsPaymentModalVisible(false)}
+      >
+        <PaymentMethodsScreen 
+          userId={currentUser?.identificador}
+          onBack={() => setIsPaymentModalVisible(false)}
+          onComplete={() => setIsPaymentModalVisible(false)}
+        />
+      </Modal>
     </SafeAreaView>
   );
 }

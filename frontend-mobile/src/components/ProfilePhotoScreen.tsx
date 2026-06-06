@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ActivityIndicator, Image, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../constants/api';
+import * as ImagePicker from 'expo-image-picker';
 
 interface Props {
   userId?: number;
@@ -24,19 +26,39 @@ export function ProfilePhotoScreen({ userId, onBack, onComplete }: Props) {
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<any>(null);
 
-  const handleSelectPhoto = () => {
+  const handleSelectPhoto = async () => {
     if (Platform.OS === 'web') {
       if (fileInputRef.current) {
         fileInputRef.current.click();
       }
     } else {
-      // Simular selección de foto en móvil (usando un placeholder predeterminado)
-      setImageUri('https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150');
-      setSelectedFile({
-        uri: 'mock-uri',
-        name: 'profile.jpg',
-        type: 'image/jpeg',
-      });
+      try {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          showAlert('Permiso Requerido', 'Se necesita acceso a la galería para poder subir una foto.');
+          return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.8,
+        });
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+          const asset = result.assets[0];
+          setImageUri(asset.uri);
+          setSelectedFile({
+            uri: asset.uri,
+            name: asset.fileName || 'profile.jpg',
+            type: asset.mimeType || 'image/jpeg',
+          });
+        }
+      } catch (error: any) {
+        console.error(error);
+        showAlert('Error', 'No se pudo seleccionar la foto.');
+      }
     }
   };
 
@@ -90,6 +112,13 @@ export function ProfilePhotoScreen({ userId, onBack, onComplete }: Props) {
       }
 
       console.log('Foto de perfil subida con éxito:', result);
+      const storedUserStr = await AsyncStorage.getItem('user');
+      if (storedUserStr) {
+        const userObj = JSON.parse(storedUserStr);
+        userObj.foto = 'profile_uploaded';
+        await AsyncStorage.setItem('user', JSON.stringify(userObj));
+      }
+      await AsyncStorage.setItem('registrationStage2Step', 'payment_methods');
       onComplete();
     } catch (error: any) {
       console.error(error);

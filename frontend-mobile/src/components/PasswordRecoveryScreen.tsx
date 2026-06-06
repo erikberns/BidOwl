@@ -1,7 +1,23 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, SafeAreaView, ActivityIndicator, Platform, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, SafeAreaView, ActivityIndicator, Platform, TextInput, Alert } from 'react-native';
 import { API_URL } from '../constants/api';
 import { InputField } from './ui/InputField';
+
+// Helper to show alert on both native and web platforms
+const showAlert = (title: string, message: string, buttons?: { text: string; onPress?: () => void }[]) => {
+  if (Platform.OS === 'web') {
+    console.log(`[Alert] ${title}: ${message}`);
+    alert(`${title}\n\n${message}`);
+    if (buttons && buttons.length > 0) {
+      const actionButton = buttons.find(b => b.onPress);
+      if (actionButton && actionButton.onPress) {
+        actionButton.onPress();
+      }
+    }
+  } else {
+    Alert.alert(title, message, buttons);
+  }
+};
 
 interface Props {
   onBack: () => void;
@@ -87,12 +103,25 @@ export function PasswordRecoveryScreen({ onBack, onComplete }: Props) {
         return;
       }
 
-      const generated = Math.floor(10000 + Math.random() * 90000).toString();
-      setSentToken(generated);
-      console.log('=== PASSWORD RECOVERY TOKEN ===');
-      console.log(`Email: ${email}`);
-      console.log(`Token: ${generated}`);
-      console.log('================================');
+      const tokenResponse = await fetch(`${API_URL}/personas/enviar-token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const tokenResult = await tokenResponse.json();
+
+      if (!tokenResponse.ok) {
+        throw new Error(tokenResult.error || 'Error al enviar el token.');
+      }
+
+      setSentToken(tokenResult.token);
+      showAlert(
+        'Token Enviado',
+        'Se ha enviado un token de validación a tu dirección de correo electrónico. Por favor, revisa tu casilla.',
+        [{ text: 'Entendido' }]
+      );
     } catch (error: any) {
       console.error(error);
       setEmailError(error.message || 'Error al conectar con el servidor.');
@@ -220,11 +249,6 @@ export function PasswordRecoveryScreen({ onBack, onComplete }: Props) {
 
         <View style={styles.tokenSection}>
           <Text style={styles.tokenLabel}>Ingrese el Token recibido</Text>
-          {sentToken && (
-            <Text style={styles.devTokenHelper}>
-              (Desarrollo: Token es {sentToken})
-            </Text>
-          )}
           <View style={styles.tokenContainer}>
             {token.map((digit, index) => (
               <TextInput
