@@ -156,14 +156,33 @@ public class SubastaService {
         
         // Calcular límites basados en el precio base
         BigDecimal precioBase = itemCatalogo.getPrecioBase();
-        BigDecimal pujaMinima = precioBase.multiply(BigDecimal.valueOf(1.01)); // 1%
-        BigDecimal pujaMaxima = precioBase.multiply(BigDecimal.valueOf(1.20)); // 20%
+        String categoria = itemCatalogo.getCatalogo().getSubasta().getCategoria();
+        boolean esCategoriaAlta = "oro".equalsIgnoreCase(categoria) || "platino".equalsIgnoreCase(categoria);
+
+        BigDecimal pujaMinima;
+        BigDecimal pujaMaxima;
 
         // Si hay puja líder, usar eso como referencia
         Optional<Pujo> pujaLider = pujoRepository.findFirstByItemIdentificadorOrderByImporteDesc(iditem);
         if (pujaLider.isPresent()) {
-            pujaMinima = pujaLider.get().getImporte().multiply(BigDecimal.valueOf(1.01)); // 1% más
-            pujaMaxima = pujaLider.get().getImporte().multiply(BigDecimal.valueOf(1.20)); // 20% más
+            BigDecimal montoUltima = pujaLider.get().getImporte();
+            if (esCategoriaAlta) {
+                pujaMinima = montoUltima.add(BigDecimal.valueOf(0.01)); // Solo debe superar la última puja
+                pujaMaxima = null; // Sin límite
+            } else {
+                BigDecimal incrementoMinimo = precioBase.multiply(BigDecimal.valueOf(0.01));
+                BigDecimal incrementoMaximo = precioBase.multiply(BigDecimal.valueOf(0.20));
+                pujaMinima = montoUltima.add(incrementoMinimo);
+                pujaMaxima = montoUltima.add(incrementoMaximo);
+            }
+        } else {
+            // Primera puja
+            pujaMinima = precioBase;
+            if (esCategoriaAlta) {
+                pujaMaxima = null;
+            } else {
+                pujaMaxima = precioBase.add(precioBase.multiply(BigDecimal.valueOf(0.20)));
+            }
         }
 
         LimitesPujaDTO limites = new LimitesPujaDTO();
@@ -192,10 +211,10 @@ public class SubastaService {
 
         // Validar montos contra límites
         LimitesPujaDTO limites = obtenerLimitesPuja(idSubasta, iditem);
-        if (monto.compareTo(limites.getPujaMinima()) < 0) {
+        if (limites.getPujaMinima() != null && monto.compareTo(limites.getPujaMinima()) < 0) {
             throw new IllegalArgumentException("La puja es menor al mínimo permitido: " + limites.getPujaMinima());
         }
-        if (monto.compareTo(limites.getPujaMaxima()) > 0) {
+        if (limites.getPujaMaxima() != null && monto.compareTo(limites.getPujaMaxima()) > 0) {
             throw new IllegalArgumentException("La puja excede el máximo permitido: " + limites.getPujaMaxima());
         }
 
