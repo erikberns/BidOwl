@@ -4,16 +4,27 @@ import Constants from 'expo-constants';
 // Obtiene la IP de la computadora de desarrollo (donde corre Metro) de forma dinámica
 const getLocalIp = (): string => {
   const hostUri = Constants.expoConfig?.hostUri;
+  console.log('[API_URL] hostUri de Expo detectado:', hostUri);
   if (!hostUri) {
-    return '192.168.1.8'; // Fallback a la IP configurada previamente
+    console.log('[API_URL] No se detectó hostUri, usando fallback: 192.168.1.8');
+    return '192.168.1.8';
   }
-  return hostUri.split(':')[0];
+  const ip = hostUri.split(':')[0];
+  // Si la IP detectada es localhost o 127.0.0.1, no servirá para un dispositivo físico externo
+  if (ip === 'localhost' || ip === '127.0.0.1') {
+    console.log('[API_URL] Se detectó localhost/127.0.0.1, usando fallback físico: 192.168.1.8');
+    return '192.168.1.8';
+  }
+  console.log('[API_URL] IP dinámica resuelta con éxito:', ip);
+  return ip;
 };
 
 const LOCAL_IP = getLocalIp();
-
 export const API_URL = Platform.select({
   web: 'http://localhost:8080/api',
   default: `http://${LOCAL_IP}:8080/api`,
 });
+
+console.log('[API_URL] API_URL configurado en:', API_URL);
+
 
