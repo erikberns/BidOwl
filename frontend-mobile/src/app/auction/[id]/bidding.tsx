@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { MOCK_AUCTION_ITEMS } from '@/constants/mockData';
@@ -13,11 +14,30 @@ export default function BiddingScreen() {
   const auctionIdStr = Array.isArray(id) ? id[0] : id || '1';
   const initialItems = MOCK_AUCTION_ITEMS[auctionIdStr] || MOCK_AUCTION_ITEMS['1'];
 
-  // List of items in the collection that the user can cycle through (now inside state)
+  const [isGuest, setIsGuest] = useState<boolean | null>(null);
+
   const [items, setItems] = useState(initialItems);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const currentItem = items[currentIndex];
+
+  useEffect(() => {
+    async function loadGuestStatus() {
+      try {
+        const isGuestStr = await AsyncStorage.getItem('isGuest');
+        setIsGuest(isGuestStr === 'true' || isGuestStr === null);
+      } catch (error) {
+        setIsGuest(true);
+      }
+    }
+    loadGuestStatus();
+  }, []);
+
+  useEffect(() => {
+    if (isGuest) {
+      router.replace('/profile');
+    }
+  }, [isGuest]);
 
   // Bidding Wizard Modal State
   const [bidStep, setBidStep] = useState<'input' | 'confirm' | 'success' | null>(null);
@@ -56,6 +76,10 @@ export default function BiddingScreen() {
   // Get current lead bid
   const leadBid = currentItem.bids.find(b => b.isLead);
   const leadAmount = leadBid ? leadBid.amount : currentItem.basePrice;
+
+  if (isGuest === null) {
+    return null;
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>

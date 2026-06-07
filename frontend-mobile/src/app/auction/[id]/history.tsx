@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { MOCK_AUCTION_ITEMS } from '@/constants/mockData';
 
 export default function BidsHistoryScreen() {
   const { id, itemIndex } = useLocalSearchParams();
+  const [isGuest, setIsGuest] = useState<boolean | null>(null);
   const selectedIndex = itemIndex ? parseInt(itemIndex as string, 10) : 0;
 
   const auctionIdStr = Array.isArray(id) ? id[0] : id || '1';
@@ -17,6 +19,28 @@ export default function BidsHistoryScreen() {
   const currentItem = mockItems[selectedIndex] || mockItems[0];
   const leadBid = currentItem.bids.find(b => b.isLead);
   const leadAmount = leadBid ? leadBid.amount : currentItem.basePrice;
+
+  useEffect(() => {
+    async function loadGuestStatus() {
+      try {
+        const isGuestStr = await AsyncStorage.getItem('isGuest');
+        setIsGuest(isGuestStr === 'true' || isGuestStr === null);
+      } catch (error) {
+        setIsGuest(true);
+      }
+    }
+    loadGuestStatus();
+  }, []);
+
+  useEffect(() => {
+    if (isGuest) {
+      router.replace('/profile');
+    }
+  }, [isGuest]);
+
+  if (isGuest === null) {
+    return null;
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>

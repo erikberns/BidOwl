@@ -40,7 +40,7 @@ export default function CatalogScreen() {
           <SymbolView
             tintColor="#051C2C"
             // @ts-ignore
-            name={{ ios: 'xmark', android: 'close', web: 'close' }}
+            name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_left' }}
             size={22}
           />
         </TouchableOpacity>

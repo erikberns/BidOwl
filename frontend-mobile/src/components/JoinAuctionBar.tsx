@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, useColorScheme } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, View, Text, TouchableOpacity, StyleSheet, Modal, useColorScheme } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface JoinAuctionBarProps {
   auctionId: string;
@@ -13,10 +14,23 @@ export default function JoinAuctionBar({ auctionId, onBack }: JoinAuctionBarProp
   const isDark = false;
   const insets = useSafeAreaInsets();
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isGuest, setIsGuest] = useState<boolean | null>(null);
 
   const activeColor = '#051C2C';
   const backgroundColor = '#FFFFFF';
   const borderColor = '#ECECEC';
+
+  useEffect(() => {
+    async function loadGuestStatus() {
+      try {
+        const isGuestStr = await AsyncStorage.getItem('isGuest');
+        setIsGuest(isGuestStr === 'true' || isGuestStr === null);
+      } catch (error) {
+        setIsGuest(true);
+      }
+    }
+    loadGuestStatus();
+  }, []);
 
   const handleBack = () => {
     if (onBack) {
@@ -24,6 +38,22 @@ export default function JoinAuctionBar({ auctionId, onBack }: JoinAuctionBarProp
     } else {
       router.back();
     }
+  };
+
+  const handleJoinPress = () => {
+    if (isGuest) {
+      Alert.alert(
+        'Acceso requerido',
+        'Debes iniciar sesión para entrar a la subasta.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Ir a perfil', onPress: () => router.push('/profile') },
+        ]
+      );
+      return;
+    }
+
+    setIsModalVisible(true);
   };
 
   return (
@@ -52,11 +82,12 @@ export default function JoinAuctionBar({ auctionId, onBack }: JoinAuctionBarProp
       </TouchableOpacity>
 
       <TouchableOpacity 
-        style={styles.joinBtn}
-        onPress={() => setIsModalVisible(true)}
+        style={[styles.joinBtn, isGuest ? styles.disabledJoinBtn : null]}
+        onPress={handleJoinPress}
         activeOpacity={0.8}
+        disabled={isGuest === true}
       >
-        <Text style={styles.joinBtnText}>Unirse a Subasta</Text>
+        <Text style={[styles.joinBtnText, isGuest ? styles.disabledJoinBtnText : null]}>Unirse a Subasta</Text>
       </TouchableOpacity>
 
       {/* Payment Method Dialog Modal */}
@@ -151,10 +182,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  disabledJoinBtn: {
+    backgroundColor: '#D3D3D3',
+  },
   joinBtnText: {
     color: '#051C2C',
     fontSize: 16,
     fontWeight: '700',
+  },
+  disabledJoinBtnText: {
+    color: '#7A7A7A',
   },
   modalBackdrop: {
     flex: 1,
