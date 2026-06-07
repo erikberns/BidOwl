@@ -70,8 +70,7 @@ public class PersonaService implements PersonaServiceInterface {
 
         if (request.getEmail() != null) {
             String trimmedEmail = request.getEmail().trim();
-            if (personaRepository.findByEmailIgnoreCase(trimmedEmail).isPresent() ||
-                registroPendienteRepository.findByEmailIgnoreCase(trimmedEmail).isPresent()) {
+            if (personaRepository.findByEmailIgnoreCase(trimmedEmail).isPresent()) {
                 throw new Exception("El email ya se encuentra registrado");
             }
         }
@@ -112,10 +111,6 @@ public class PersonaService implements PersonaServiceInterface {
         if (email != null) {
             String trimmedEmail = email.trim();
             if (personaRepository.findByEmailIgnoreCase(trimmedEmail).isPresent()) {
-                throw new Exception("El email ingresado ya está en uso por otra cuenta.");
-            }
-            Optional<RegistroPendiente> existente = registroPendienteRepository.findByEmailIgnoreCase(trimmedEmail);
-            if (existente.isPresent() && !existente.get().getId().equals(id)) {
                 throw new Exception("El email ingresado ya está en uso por otra cuenta.");
             }
         }
@@ -280,6 +275,18 @@ public class PersonaService implements PersonaServiceInterface {
     public MetodoPago registrarTarjeta(Integer personaId, String numero, String titular, String vencimiento, Integer cvv) throws Exception {
         Persona persona = obtenerPorId(personaId);
 
+        // Verificar si la tarjeta ya existe para este usuario
+        List<MetodoPago> metodos = metodoPagoRepository.findByPersonaIdentificador(personaId);
+        String cleanNumero = numero.replaceAll("[\\s-]", "");
+        for (MetodoPago mp : metodos) {
+            if (mp.getTarjetaCredito() != null) {
+                String existingClean = mp.getTarjetaCredito().getNumeroTarjeta().replaceAll("[\\s-]", "");
+                if (existingClean.equals(cleanNumero)) {
+                    throw new Exception("Esta tarjeta de crédito ya se encuentra registrada para este usuario.");
+                }
+            }
+        }
+
         TarjetaCredito tc = new TarjetaCredito();
         tc.setNumeroTarjeta(numero);
         tc.setTitularTarjeta(titular);
@@ -299,6 +306,17 @@ public class PersonaService implements PersonaServiceInterface {
         Persona persona = obtenerPorId(personaId);
         Pais pais = paisRepository.findById(paisId)
                 .orElseThrow(() -> new Exception("País no encontrado"));
+
+        // Verificar si el CBU/IBAN ya existe para este usuario
+        List<MetodoPago> metodos = metodoPagoRepository.findByPersonaIdentificador(personaId);
+        String cleanCbu = cbu.trim();
+        for (MetodoPago mp : metodos) {
+            if (mp.getCuentaBancaria() != null) {
+                if (mp.getCuentaBancaria().getCbuIban().trim().equalsIgnoreCase(cleanCbu)) {
+                    throw new Exception("Esta cuenta bancaria ya se encuentra registrada para este usuario.");
+                }
+            }
+        }
 
         CuentaBancaria cb = new CuentaBancaria();
         cb.setTitularCuenta(titular);
@@ -325,6 +343,17 @@ public class PersonaService implements PersonaServiceInterface {
         Persona persona = obtenerPorId(personaId);
         Pais pais = paisRepository.findById(paisId)
                 .orElseThrow(() -> new Exception("País no encontrado"));
+
+        // Verificar si el cheque ya existe para este usuario
+        List<MetodoPago> metodos = metodoPagoRepository.findByPersonaIdentificador(personaId);
+        String cleanNumero = numeroCheque.trim();
+        for (MetodoPago mp : metodos) {
+            if (mp.getChequeCertificado() != null) {
+                if (mp.getChequeCertificado().getNumeroCheque().trim().equalsIgnoreCase(cleanNumero)) {
+                    throw new Exception("Este cheque certificado ya se encuentra registrado para este usuario.");
+                }
+            }
+        }
 
         ChequeCertificado cc = new ChequeCertificado();
         cc.setTitular(titular);
@@ -385,14 +414,7 @@ public class PersonaService implements PersonaServiceInterface {
     public boolean existeEmail(String email) throws Exception {
         if (email == null) return false;
         String trimmedEmail = email.trim();
-        if (personaRepository.findByEmailIgnoreCase(trimmedEmail).isPresent()) {
-            return true;
-        }
-        Optional<RegistroPendiente> rpOpt = registroPendienteRepository.findByEmailIgnoreCase(trimmedEmail);
-        if (rpOpt.isPresent()) {
-            return !"RECHAZADO".equalsIgnoreCase(rpOpt.get().getEstado());
-        }
-        return false;
+        return personaRepository.findByEmailIgnoreCase(trimmedEmail).isPresent();
     }
 
     @Override

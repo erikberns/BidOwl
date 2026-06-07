@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform, ActivityIndicator, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../constants/api';
 import { SymbolView } from 'expo-symbols';
@@ -48,6 +50,8 @@ const showAlert = (title: string, message: string) => {
     Alert.alert(title, message);
   }
 };
+
+const PaymentLoadingContext = React.createContext({ isLoading: false, availablePaises: [] as any[] });
 
 export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ userId, onBack, onComplete }) => {
   const [currentView, setCurrentView] = useState<'list' | 'select' | 'form_bank' | 'form_card' | 'form_check'>('list');
@@ -123,33 +127,73 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
   const fileInputBankRef = useRef<any>(null);
   const fileInputCheckRef = useRef<any>(null);
 
-  const handleSelectBankFile = () => {
+  const handleSelectBankFile = async () => {
     if (Platform.OS === 'web') {
       if (fileInputBankRef.current) {
         fileInputBankRef.current.click();
       }
     } else {
-      setBankFileUri('https://images.unsplash.com/photo-1554774853-aae0a22c8aa4?w=150');
-      setBankFile({
-        uri: 'mock-uri-bank',
-        name: 'comprobante-banco.jpg',
-        type: 'image/jpeg',
-      });
+      try {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          showAlert('Permiso Requerido', 'Se necesita acceso a la galería para poder subir una foto.');
+          return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: false,
+          quality: 0.8,
+        });
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+          const asset = result.assets[0];
+          setBankFileUri(asset.uri);
+          setBankFile({
+            uri: asset.uri,
+            name: asset.fileName || 'comprobante-banco.jpg',
+            type: asset.mimeType || 'image/jpeg',
+          });
+        }
+      } catch (error: any) {
+        console.error(error);
+        showAlert('Error', 'No se pudo seleccionar el comprobante.');
+      }
     }
   };
 
-  const handleSelectCheckFile = () => {
+  const handleSelectCheckFile = async () => {
     if (Platform.OS === 'web') {
       if (fileInputCheckRef.current) {
         fileInputCheckRef.current.click();
       }
     } else {
-      setCheckFileUri('https://images.unsplash.com/photo-1554774853-aae0a22c8aa4?w=150');
-      setCheckFile({
-        uri: 'mock-uri-check',
-        name: 'comprobante-cheque.jpg',
-        type: 'image/jpeg',
-      });
+      try {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+          showAlert('Permiso Requerido', 'Se necesita acceso a la galería para poder subir una foto.');
+          return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: false,
+          quality: 0.8,
+        });
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+          const asset = result.assets[0];
+          setCheckFileUri(asset.uri);
+          setCheckFile({
+            uri: asset.uri,
+            name: asset.fileName || 'comprobante-cheque.jpg',
+            type: asset.mimeType || 'image/jpeg',
+          });
+        }
+      } catch (error: any) {
+        console.error(error);
+        showAlert('Error', 'No se pudo seleccionar el comprobante.');
+      }
     }
   };
 
@@ -397,7 +441,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       setBankCbuIbanError('El número de cuenta es obligatorio.');
       hasErrors = true;
     } else {
-      const cleanVal = bankCbuIban.trim();
+      const cleanVal = bankCbuIban.trim().replace(/[\s-]/g, '');
       if (bankTab === 'CBU') {
         if (!/^\d+$/.test(cleanVal)) {
           setBankCbuIbanError('El CBU debe contener solo números.');
@@ -412,6 +456,18 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
           hasErrors = true;
         } else if (cleanVal.length < 15 || cleanVal.length > 34) {
           setBankCbuIbanError('El IBAN debe tener entre 15 y 34 caracteres.');
+          hasErrors = true;
+        }
+      }
+
+      if (!hasErrors) {
+        // Validar duplicado local
+        const isDuplicate = methods.some(m => {
+          if (m.type !== 'bank' || !m.bankCbuIban) return false;
+          return m.bankCbuIban.replace(/[\s-]/g, '').toLowerCase() === cleanVal.toLowerCase() && m.id !== editingId;
+        });
+        if (isDuplicate) {
+          setBankCbuIbanError('Esta cuenta bancaria ya está registrada.');
           hasErrors = true;
         }
       }
@@ -506,6 +562,17 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       } else if (cleanNum.length !== 16) {
         setCardNumeroError('El número de tarjeta debe tener exactamente 16 dígitos.');
         hasErrors = true;
+      } else {
+        // Validar duplicado local
+        const isDuplicate = methods.some(m => {
+          if (m.type !== 'card' || !m.cardNumero) return false;
+          const existingClean = m.cardNumero.replace(/[\s-]/g, '');
+          return existingClean === cleanNum && m.id !== editingId;
+        });
+        if (isDuplicate) {
+          setCardNumeroError('Esta tarjeta ya está registrada en tus métodos de pago.');
+          hasErrors = true;
+        }
       }
     }
 
@@ -617,6 +684,16 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       } else if (cleanNum.length !== 8) {
         setCheckNumeroError('El número de cheque debe tener exactamente 8 dígitos.');
         hasErrors = true;
+      } else {
+        // Validar duplicado local
+        const isDuplicate = methods.some(m => {
+          if (m.type !== 'check' || !m.checkNumero) return false;
+          return m.checkNumero.trim() === cleanNum && m.id !== editingId;
+        });
+        if (isDuplicate) {
+          setCheckNumeroError('Este cheque certificado ya está registrado.');
+          hasErrors = true;
+        }
       }
     }
 
@@ -837,66 +914,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     </View>
   );
 
-  const InputField = ({ label, placeholder, value, onChangeText, flex = 1, keyboardType, error, style, ...props }: any) => {
-    const hasError = !!error;
-    return (
-      <View style={{ flex, width: '100%' }}>
-        <View style={[styles.inputContainer, hasError && styles.inputContainerError]}>
-          <Text style={styles.inputLabel}>{label}</Text>
-          <TextInput
-            style={[styles.input, style]}
-            placeholder={placeholder}
-            value={value}
-            onChangeText={onChangeText}
-            placeholderTextColor="#666"
-            keyboardType={keyboardType}
-            editable={!isLoading}
-            {...props}
-          />
-        </View>
-        {hasError && <Text style={styles.errorText}>{error}</Text>}
-      </View>
-    );
-  };
-
-  const CountryDropdownField = ({ label, value, onSelect, isOpen, setIsOpen, flex = 1, error }: any) => {
-    const hasError = !!error;
-    return (
-      <View style={{ flex, zIndex: isOpen ? 1000 : 1, overflow: 'visible', width: '100%' }}>
-        <View style={[styles.inputContainer, hasError && styles.inputContainerError, { overflow: 'visible' }]}>
-          <Text style={styles.inputLabel}>{label}</Text>
-          <TouchableOpacity 
-            style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} 
-            onPress={() => setIsOpen(!isOpen)}
-            disabled={isLoading}
-          >
-            <Text style={{ fontSize: 16, color: '#000' }}>{value}</Text>
-            <Text style={{ fontSize: 12, color: '#666' }}>{isOpen ? '▲' : '▼'}</Text>
-          </TouchableOpacity>
-          
-          {isOpen && (
-            <View style={styles.dropdownMenu}>
-              <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 150, backgroundColor: '#ffffff' }}>
-                {availablePaises.map((item) => (
-                  <TouchableOpacity
-                    key={item.numero}
-                    style={[styles.dropdownItem, { backgroundColor: '#ffffff' }]}
-                    onPress={() => {
-                      onSelect(item.nombre);
-                      setIsOpen(false);
-                    }}
-                  >
-                    <Text style={styles.dropdownItemText}>{item.nombre}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-        </View>
-        {hasError && <Text style={styles.errorText}>{error}</Text>}
-      </View>
-    );
-  };
+  // InputField y CountryDropdownField se movieron al final del archivo para evitar pérdida de foco
 
   const renderFileUpload = (type: 'bank' | 'check') => {
     const fileUri = type === 'bank' ? bankFileUri : checkFileUri;
@@ -1176,13 +1194,23 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     </View>
   );
 
-  switch (currentView) {
-    case 'select': return renderSelectView();
-    case 'form_bank': return renderBankForm();
-    case 'form_card': return renderCardForm();
-    case 'form_check': return renderCheckForm();
-    default: return renderListView();
-  }
+  const renderContent = () => {
+    switch (currentView) {
+      case 'select': return renderSelectView();
+      case 'form_bank': return renderBankForm();
+      case 'form_card': return renderCardForm();
+      case 'form_check': return renderCheckForm();
+      default: return renderListView();
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <PaymentLoadingContext.Provider value={{ isLoading, availablePaises }}>
+        {renderContent()}
+      </PaymentLoadingContext.Provider>
+    </SafeAreaView>
+  );
 };
 
 const styles = StyleSheet.create({
@@ -1193,7 +1221,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 50,
+    paddingTop: 16,
     paddingHorizontal: 20,
     paddingBottom: 15,
     borderBottomWidth: 1,
@@ -1546,3 +1574,67 @@ const styles = StyleSheet.create({
     color: '#333',
   },
 });
+
+const InputField = ({ label, placeholder, value, onChangeText, flex = 1, keyboardType, error, style, ...props }: any) => {
+  const { isLoading } = React.useContext(PaymentLoadingContext);
+  const hasError = !!error;
+  return (
+    <View style={{ flex, width: '100%' }}>
+      <View style={[styles.inputContainer, hasError && styles.inputContainerError]}>
+        <Text style={styles.inputLabel}>{label}</Text>
+        <TextInput
+          style={[styles.input, style]}
+          placeholder={placeholder}
+          value={value}
+          onChangeText={onChangeText}
+          placeholderTextColor="#666"
+          keyboardType={keyboardType}
+          editable={!isLoading}
+          {...props}
+        />
+      </View>
+      {hasError && <Text style={styles.errorText}>{error}</Text>}
+    </View>
+  );
+};
+
+const CountryDropdownField = ({ label, value, onSelect, isOpen, setIsOpen, flex = 1, error }: any) => {
+  const { isLoading, availablePaises } = React.useContext(PaymentLoadingContext);
+  const hasError = !!error;
+  return (
+    <View style={{ flex, zIndex: isOpen ? 1000 : 1, overflow: 'visible', width: '100%' }}>
+      <View style={[styles.inputContainer, hasError && styles.inputContainerError, { overflow: 'visible' }]}>
+        <Text style={styles.inputLabel}>{label}</Text>
+        <TouchableOpacity 
+          style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} 
+          onPress={() => setIsOpen(!isOpen)}
+          disabled={isLoading}
+        >
+          <Text style={{ fontSize: 16, color: '#000' }}>{value}</Text>
+          <Text style={{ fontSize: 12, color: '#666' }}>{isOpen ? '▲' : '▼'}</Text>
+        </TouchableOpacity>
+        
+        {isOpen && (
+          <View style={styles.dropdownMenu}>
+            <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 150, backgroundColor: '#ffffff' }}>
+              {availablePaises.map((item) => (
+                <TouchableOpacity
+                  key={item.numero}
+                  style={[styles.dropdownItem, { backgroundColor: '#ffffff' }]}
+                  onPress={() => {
+                    onSelect(item.nombre);
+                    setIsOpen(false);
+                  }}
+                >
+                  <Text style={styles.dropdownItemText}>{item.nombre}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+      </View>
+      {hasError && <Text style={styles.errorText}>{error}</Text>}
+    </View>
+  );
+};
+

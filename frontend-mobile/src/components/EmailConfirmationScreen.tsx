@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, SafeAreaView, ScrollView, Alert, ActivityIndicator, Platform, Image } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert, ActivityIndicator, Platform, Image, KeyboardAvoidingView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { API_URL } from '../constants/api';
 import { RegisterData } from './RegisterScreen';
 import { InputField } from './ui/InputField';
@@ -36,6 +37,7 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
   const [emailError, setEmailError] = useState('');
   const [tokenError, setTokenError] = useState('');
   const inputRefs = useRef<Array<TextInput | null>>([]);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const handleTokenChange = (text: string, index: number) => {
     const newToken = [...token];
@@ -261,82 +263,99 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
     );
   }
 
+  const isContinueDisabled = isLoading || token.join('').trim() === '';
+
   // Pantalla de Confirmación de Mail (Formulario inicial)
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={onBack} style={styles.backButton} disabled={isLoading}>
-          <Text style={styles.backButtonText}>{'<'}</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>Confirmación de Mail</Text>
-        <View style={styles.placeholderBox} />
-      </View>
-
-      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.sectionTitle}>Vinculemos su mail a su identidad.</Text>
-        <Text style={styles.sectionDescription}>
-          Le enviaremos un mail de confirmacion para poder confirmar su identificacion y poder otorgarle su categoria de BidOwl
-        </Text>
-
-        <InputField
-          label="Email"
-          value={email}
-          onChangeText={(val) => {
-            setEmail(val);
-            if (emailError) setEmailError('');
-          }}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          editable={!isLoading}
-          error={emailError}
-          containerStyle={{ marginBottom: 16 }}
-        />
-
-        <Pressable style={styles.sendMailButton} onPress={handleSendMail} disabled={isLoading}>
-          <Text style={styles.sendMailButtonText}>Mandar Mail</Text>
-        </Pressable>
-
-        <View style={styles.tokenSection}>
-          <Text style={styles.tokenLabel}>Ingrese el Token recibido</Text>
-          <View style={styles.tokenContainer}>
-            {token.map((digit, index) => (
-              <TextInput
-                key={index}
-                ref={(ref) => { inputRefs.current[index] = ref; }}
-                style={[
-                  styles.tokenInput,
-                  !!tokenError && { borderColor: '#E30613', borderWidth: 1.5 }
-                ]}
-                value={digit}
-                onChangeText={(text) => {
-                  handleTokenChange(text.replace(/[^0-9]/g, ''), index);
-                  if (tokenError) setTokenError('');
-                }}
-                onKeyPress={(e) => handleKeyPress(e, index)}
-                keyboardType="numeric"
-                maxLength={1}
-                textAlign="center"
-                editable={!isLoading}
-              />
-            ))}
-          </View>
-          {!!tokenError && <Text style={[styles.errorText, { marginTop: 12 }]}>{tokenError}</Text>}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <View style={styles.header}>
+          <Pressable onPress={onBack} style={styles.backButton} disabled={isLoading}>
+            <Text style={styles.backButtonText}>{'<'}</Text>
+          </Pressable>
+          <Text style={styles.headerTitle}>Confirmación de Mail</Text>
+          <View style={styles.placeholderBox} />
         </View>
-      </ScrollView>
 
-      <View style={styles.footer}>
-        <Pressable 
-          style={[styles.continueButton, isLoading && { opacity: 0.6 }]} 
-          onPress={handleContinue}
-          disabled={isLoading}
+        <ScrollView 
+          ref={scrollViewRef}
+          style={styles.scrollContainer} 
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
         >
-          {isLoading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.continueButtonText}>Continuar</Text>
-          )}
-        </Pressable>
-      </View>
+          <Text style={styles.sectionTitle}>Vinculemos su mail a su identidad.</Text>
+          <Text style={styles.sectionDescription}>
+            Le enviaremos un mail de confirmacion para poder confirmar su identificacion y poder otorgarle su categoria de BidOwl
+          </Text>
+
+          <InputField
+            label="Email"
+            value={email}
+            onChangeText={(val) => {
+              setEmail(val);
+              if (emailError) setEmailError('');
+            }}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            editable={!isLoading}
+            error={emailError}
+            containerStyle={{ marginBottom: 16 }}
+          />
+
+          <Pressable style={styles.sendMailButton} onPress={handleSendMail} disabled={isLoading}>
+            <Text style={styles.sendMailButtonText}>Mandar Mail</Text>
+          </Pressable>
+
+          <View style={styles.tokenSection}>
+            <Text style={styles.tokenLabel}>Ingrese el Token recibido</Text>
+            <View style={styles.tokenContainer}>
+              {token.map((digit, index) => (
+                <TextInput
+                  key={index}
+                  ref={(ref) => { inputRefs.current[index] = ref; }}
+                  style={[
+                    styles.tokenInput,
+                    !!tokenError && { borderColor: '#E30613', borderWidth: 1.5 }
+                  ]}
+                  value={digit}
+                  onChangeText={(text) => {
+                    handleTokenChange(text.replace(/[^0-9]/g, ''), index);
+                    if (tokenError) setTokenError('');
+                  }}
+                  onKeyPress={(e) => handleKeyPress(e, index)}
+                  keyboardType="numeric"
+                  maxLength={1}
+                  textAlign="center"
+                  editable={!isLoading}
+                  onFocus={() => {
+                    setTimeout(() => {
+                      scrollViewRef.current?.scrollToEnd({ animated: true });
+                    }, 100);
+                  }}
+                />
+              ))}
+            </View>
+            {!!tokenError && <Text style={[styles.errorText, { marginTop: 12 }]}>{tokenError}</Text>}
+          </View>
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <Pressable 
+            style={[styles.continueButton, isContinueDisabled && { opacity: 0.5 }]} 
+            onPress={handleContinue}
+            disabled={isContinueDisabled}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.continueButtonText}>Continuar</Text>
+            )}
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -377,7 +396,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 32,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   sectionTitle: {
     fontSize: 24,

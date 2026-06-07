@@ -144,6 +144,33 @@ export default function ProfileScreen() {
               >
                 <Text style={styles.guestLoginButtonText}>Iniciar Sesión</Text>
               </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.guestLoginButton, { marginTop: 12, borderWidth: 0 }]}
+                onPress={async () => {
+                  try {
+                    await AsyncStorage.removeItem('hasSeenOnboarding');
+                    await AsyncStorage.removeItem('hasSeenAuth');
+                    await AsyncStorage.removeItem('user');
+                    await AsyncStorage.removeItem('isGuest');
+                    if (Platform.OS === 'web') {
+                      alert('Onboarding restablecido. Por favor, reinicia la aplicación.');
+                    } else {
+                      Alert.alert(
+                        'Restablecer Tutorial',
+                        'Se ha restablecido el tutorial. Por favor, recarga o reinicia la app para volver a ver el onboarding.',
+                        [{ text: 'Entendido' }]
+                      );
+                    }
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }}
+              >
+                <Text style={[styles.guestLoginButtonText, { color: '#8A8A8A', textDecorationLine: 'underline', fontSize: 14 }]}>
+                  Volver a ver el Onboarding
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
@@ -373,6 +400,45 @@ export default function ProfileScreen() {
               />
             </TouchableOpacity>
           )}
+
+          <TouchableOpacity 
+            style={styles.optionItem}
+            onPress={async () => {
+              try {
+                await AsyncStorage.removeItem('hasSeenOnboarding');
+                await AsyncStorage.removeItem('hasSeenAuth');
+                await AsyncStorage.removeItem('user');
+                await AsyncStorage.removeItem('isGuest');
+                if (Platform.OS === 'web') {
+                  alert('Onboarding y sesión restablecidos. Por favor, reinicia la aplicación.');
+                } else {
+                  Alert.alert(
+                    'Restablecer Aplicación',
+                    'Se han limpiado los datos de la aplicación. Por favor, recarga o reinicia la app para ver el onboarding de nuevo.',
+                    [{ text: 'Entendido' }]
+                  );
+                }
+              } catch (e) {
+                console.error(e);
+              }
+            }}
+          >
+            <View style={styles.optionLeft}>
+              <SymbolView
+                tintColor="#8A8A8A"
+                // @ts-ignore
+                name={{ ios: 'arrow.counterclockwise.circle.fill', android: 'restart_alt', web: 'restart_alt' }}
+                size={20}
+              />
+              <Text style={styles.optionText}>Reiniciar Onboarding y Sesión</Text>
+            </View>
+            <SymbolView
+              tintColor="#8A8A8A"
+              // @ts-ignore
+              name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+              size={16}
+            />
+          </TouchableOpacity>
         </View>
 
         {/* Logout Button */}
@@ -568,7 +634,7 @@ const styles = StyleSheet.create({
   logoutButton: {
     backgroundColor: '#E63946',
     marginHorizontal: 24,
-    marginBottom: BottomTabInset + 20,
+    marginBottom: 24,
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',

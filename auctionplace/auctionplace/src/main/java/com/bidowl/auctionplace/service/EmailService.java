@@ -3,6 +3,7 @@ package com.bidowl.auctionplace.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -11,6 +12,7 @@ public class EmailService {
     @Autowired(required = false)
     private JavaMailSender mailSender;
 
+    @Async
     public void enviarTokenVerificacion(String destinatario, String token) throws Exception {
         System.out.println("====================================================================");
         System.out.println("📧 ENVIANDO TOKEN DE VERIFICACIÓN A: " + destinatario);
@@ -35,6 +37,7 @@ public class EmailService {
         }
     }
 
+    @Async
     public void enviarCredencialesAprobadas(String destinatario, String nombre, String contrasena) throws Exception {
         System.out.println("====================================================================");
         System.out.println("📧 ENVIANDO CREDENCIALES APROBADAS A: " + destinatario);
@@ -60,6 +63,7 @@ public class EmailService {
         }
     }
 
+    @Async
     public void enviarRegistroRechazado(String destinatario, String nombre, String motivo) throws Exception {
         System.out.println("====================================================================");
         System.out.println("📧 ENVIANDO REGISTRO RECHAZADO A: " + destinatario);

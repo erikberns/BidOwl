@@ -1,8 +1,9 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
-import { useColorScheme, View, ActivityIndicator } from 'react-native';
+import { useColorScheme, View, ActivityIndicator, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppTabs from '@/components/app-tabs';
@@ -76,171 +77,262 @@ export default function TabLayout() {
     const interval = setInterval(async () => {
       try {
         const hasSeenAuthStr = await AsyncStorage.getItem('hasSeenAuth');
-        const shouldBeAuth = hasSeenAuthStr === 'true';
-        if (hasSeenAuth !== null && shouldBeAuth !== hasSeenAuth) {
-          setHasSeenAuth(shouldBeAuth);
-        }
-
         const userStr = await AsyncStorage.getItem('user');
-        const userObj = userStr ? JSON.parse(userStr) : null;
-        if (JSON.stringify(userObj) !== JSON.stringify(currentUser)) {
-          setCurrentUser(userObj);
-        }
-
         const redirect = await AsyncStorage.getItem('authRedirect');
+
+        const shouldBeAuth = hasSeenAuthStr === 'true';
+        const userObj = userStr ? JSON.parse(userStr) : null;
+
         if (redirect === 'register') {
           setIsRegistering(true);
+          setHasSeenAuth(shouldBeAuth);
           await AsyncStorage.removeItem('authRedirect');
         } else if (redirect === 'login') {
           setIsLoggingIn(true);
+          setHasSeenAuth(shouldBeAuth);
           await AsyncStorage.removeItem('authRedirect');
+        } else {
+          if (hasSeenAuth !== null && shouldBeAuth !== hasSeenAuth) {
+            setHasSeenAuth(shouldBeAuth);
+          }
+        }
+
+        if (JSON.stringify(userObj) !== JSON.stringify(currentUser)) {
+          setCurrentUser(userObj);
         }
       } catch (e) {}
     }, 1000);
     return () => clearInterval(interval);
   }, [hasSeenAuth, currentUser]);
 
+  const isDarkScreen = !hasSeenAuth && 
+    !isRegistering && 
+    !isLoggingIn && 
+    !isRecoveringPassword && 
+    !isSettingPassword && 
+    !isConfirmingEmail && 
+    !isSettingProfilePhoto && 
+    !isSettingPaymentMethods && 
+    !isCategoryGranted && 
+    !isShowingWelcome &&
+    !isFirstLaunch;
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    
+    async function updateSystemBars() {
+      try {
+        const NavigationBar = require('expo-navigation-bar');
+        // Always force a white bottom navigation bar with dark buttons since all screens have a white bottom
+        await NavigationBar.setBackgroundColorAsync('#FFFFFF');
+        await NavigationBar.setButtonStyleAsync('dark');
+      } catch (e) {
+        console.warn('Failed to update NavigationBar:', e);
+      }
+    }
+    updateSystemBars();
+  }, []);
+
   if (isFirstLaunch === null || hasSeenAuth === null) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
-      </View>
+      <SafeAreaProvider>
+        <ThemeProvider value={DefaultTheme}>
+          <StatusBar style="dark" />
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
+            <ActivityIndicator size="large" />
+          </View>
+        </ThemeProvider>
+      </SafeAreaProvider>
     );
   }
 
-  if (isFirstLaunch) {
-    return <Onboarding onComplete={() => setIsFirstLaunch(false)} />;
-  }
-
-  if (!hasSeenAuth) {
-    if (isSettingPaymentMethods) {
-      return (
-        <PaymentMethodsScreen 
-          userId={currentUser?.identificador}
-          onBack={() => {
-            setIsSettingPaymentMethods(false);
-            setIsSettingProfilePhoto(true);
-          }}
-          onComplete={async () => {
-            await AsyncStorage.removeItem('registrationStage2Status');
-            await AsyncStorage.removeItem('registrationStage2Step');
-            setIsSettingPaymentMethods(false);
-            setIsCategoryGranted(true);
-          }}
-        />
-      );
+  const renderContent = () => {
+    if (isFirstLaunch) {
+      return <Onboarding onComplete={() => setIsFirstLaunch(false)} />;
     }
 
-    if (isCategoryGranted) {
-      return (
-        <CategoryGrantedScreen
-          category={currentUser?.categoria ? currentUser.categoria.toUpperCase() : 'COMÚN'}
-          onContinue={() => {
-            setIsCategoryGranted(false);
-            setIsShowingWelcome(true);
-          }}
-        />
-      );
-    }
+    if (!hasSeenAuth) {
+      if (isSettingPaymentMethods) {
+        return (
+          <PaymentMethodsScreen 
+            userId={currentUser?.identificador}
+            onBack={() => {
+              setIsSettingPaymentMethods(false);
+              setIsSettingProfilePhoto(true);
+            }}
+            onComplete={async () => {
+              await AsyncStorage.removeItem('registrationStage2Status');
+              await AsyncStorage.removeItem('registrationStage2Step');
+              setIsSettingPaymentMethods(false);
+              setIsCategoryGranted(true);
+            }}
+          />
+        );
+      }
 
-    if (isShowingWelcome) {
-      return (
-        <WelcomeScreen
-          onStart={async () => {
-            setIsShowingWelcome(false);
-            await AsyncStorage.setItem('hasSeenAuth', 'true');
-            await AsyncStorage.removeItem('isGuest');
-            setHasSeenAuth(true);
-          }}
-        />
-      );
-    }
+      if (isCategoryGranted) {
+        return (
+          <CategoryGrantedScreen
+            category={currentUser?.categoria ? currentUser.categoria.toUpperCase() : 'COMÚN'}
+            onContinue={() => {
+              setIsCategoryGranted(false);
+              setIsShowingWelcome(true);
+            }}
+          />
+        );
+      }
 
-    if (isSettingProfilePhoto) {
-      return (
-        <ProfilePhotoScreen
-          userId={currentUser?.identificador}
-          onBack={() => {
-            setIsSettingProfilePhoto(false);
-            setIsSettingPassword(true);
-          }}
-          onComplete={() => {
-            setIsSettingProfilePhoto(false);
-            setIsSettingPaymentMethods(true);
-          }}
-        />
-      );
-    }
-
-    if (isSettingPassword) {
-      return (
-        <PasswordScreen 
-          userId={currentUser?.identificador}
-          onBack={() => {
-            setIsSettingPassword(false);
-            setIsLoggingIn(true);
-          }}
-          onComplete={() => {
-            setIsSettingPassword(false);
-            setIsSettingProfilePhoto(true);
-          }}
-        />
-      );
-    }
-
-    if (isConfirmingEmail) {
-      return (
-        <EmailConfirmationScreen 
-          registerData={registerData}
-          onBack={() => {
-            setIsConfirmingEmail(false);
-            setIsRegistering(true);
-          }}
-          onComplete={async () => {
-            setIsConfirmingEmail(false);
-            // Al finalizar el registro, el usuario continúa en la aplicación en modo invitado
-            await AsyncStorage.setItem('hasSeenAuth', 'true');
-            await AsyncStorage.setItem('isGuest', 'true');
-            setHasSeenAuth(true);
-          }}
-        />
-      );
-    }
-
-    if (isRegistering) {
-      return (
-        <RegisterScreen 
-          onBack={async () => {
-            setIsRegistering(false);
-            const isGuestStr = await AsyncStorage.getItem('isGuest');
-            if (isGuestStr === 'true') {
+      if (isShowingWelcome) {
+        return (
+          <WelcomeScreen
+            onStart={async () => {
               await AsyncStorage.setItem('hasSeenAuth', 'true');
+              await AsyncStorage.removeItem('isGuest');
+              setIsShowingWelcome(false);
               setHasSeenAuth(true);
-            }
-          }} 
-          onComplete={(data) => {
-            setRegisterData(data);
-            setIsRegistering(false);
-            setIsConfirmingEmail(true);
-          }} 
-        />
-      );
-    }
+            }}
+          />
+        );
+      }
 
-    if (isLoggingIn) {
-      return (
-        <LoginScreen
-          onBack={async () => {
-            setIsLoggingIn(false);
-            const isGuestStr = await AsyncStorage.getItem('isGuest');
-            if (isGuestStr === 'true') {
+      if (isSettingProfilePhoto) {
+        return (
+          <ProfilePhotoScreen
+            userId={currentUser?.identificador}
+            onBack={() => {
+              setIsSettingProfilePhoto(false);
+              setIsSettingPassword(true);
+            }}
+            onComplete={() => {
+              setIsSettingProfilePhoto(false);
+              setIsSettingPaymentMethods(true);
+            }}
+          />
+        );
+      }
+
+      if (isSettingPassword) {
+        return (
+          <PasswordScreen 
+            userId={currentUser?.identificador}
+            onBack={() => {
+              setIsSettingPassword(false);
+              setIsLoggingIn(true);
+            }}
+            onComplete={() => {
+              setIsSettingPassword(false);
+              setIsSettingProfilePhoto(true);
+            }}
+          />
+        );
+      }
+
+      if (isConfirmingEmail) {
+        return (
+          <EmailConfirmationScreen 
+            registerData={registerData}
+            onBack={() => {
+              setIsConfirmingEmail(false);
+              setIsRegistering(true);
+            }}
+            onComplete={async () => {
               await AsyncStorage.setItem('hasSeenAuth', 'true');
+              await AsyncStorage.setItem('isGuest', 'true');
+              setIsConfirmingEmail(false);
               setHasSeenAuth(true);
-            }
+            }}
+          />
+        );
+      }
+
+      if (isRegistering) {
+        return (
+          <RegisterScreen 
+            onBack={async () => {
+              const isGuestStr = await AsyncStorage.getItem('isGuest');
+              if (isGuestStr === 'true') {
+                await AsyncStorage.setItem('hasSeenAuth', 'true');
+                setIsRegistering(false);
+                setHasSeenAuth(true);
+              } else {
+                setIsRegistering(false);
+              }
+            }} 
+            onComplete={(data) => {
+              setRegisterData(data);
+              setIsRegistering(false);
+              setIsConfirmingEmail(true);
+            }} 
+          />
+        );
+      }
+
+      if (isLoggingIn) {
+        return (
+          <LoginScreen
+            onBack={async () => {
+              const isGuestStr = await AsyncStorage.getItem('isGuest');
+              if (isGuestStr === 'true') {
+                await AsyncStorage.setItem('hasSeenAuth', 'true');
+                setIsLoggingIn(false);
+                setHasSeenAuth(true);
+              } else {
+                setIsLoggingIn(false);
+              }
+            }}
+            onSuccess={async (user, requiereConfiguracion) => {
+              setCurrentUser(user);
+              if (requiereConfiguracion) {
+                setIsLoggingIn(false);
+                setIsSettingPassword(true);
+              } else {
+                await AsyncStorage.setItem('hasSeenAuth', 'true');
+                await AsyncStorage.removeItem('isGuest');
+                setIsLoggingIn(false);
+                setHasSeenAuth(true);
+              }
+            }}
+            onForgotPassword={() => {
+              setRecoverySource('login');
+              setIsLoggingIn(false);
+              setIsRecoveringPassword(true);
+            }}
+          />
+        );
+      }
+
+      if (isRecoveringPassword) {
+        return (
+          <PasswordRecoveryScreen
+            onBack={() => {
+              setIsRecoveringPassword(false);
+              if (recoverySource === 'login') {
+                setIsLoggingIn(true);
+              }
+              setRecoverySource(null);
+            }}
+            onComplete={() => {
+              setIsRecoveringPassword(false);
+              if (recoverySource === 'login') {
+                setIsLoggingIn(true);
+              }
+              setRecoverySource(null);
+            }}
+          />
+        );
+      }
+
+      return (
+        <AuthScreen 
+          onComplete={() => setHasSeenAuth(true)} 
+          onRegister={() => setIsRegistering(true)} 
+          onLogin={() => setIsLoggingIn(true)}
+          onForgotPassword={() => {
+            setRecoverySource('auth');
+            setIsRecoveringPassword(true);
           }}
-          onSuccess={async (user, requiereConfiguracion) => {
+          onLoginSuccess={async (user, requiereConfiguracion) => {
             setCurrentUser(user);
-            setIsLoggingIn(false);
             if (requiereConfiguracion) {
               setIsSettingPassword(true);
             } else {
@@ -249,64 +341,23 @@ export default function TabLayout() {
               setHasSeenAuth(true);
             }
           }}
-          onForgotPassword={() => {
-            setRecoverySource('login');
-            setIsLoggingIn(false);
-            setIsRecoveringPassword(true);
-          }}
-        />
-      );
-    }
-
-    if (isRecoveringPassword) {
-      return (
-        <PasswordRecoveryScreen
-          onBack={() => {
-            setIsRecoveringPassword(false);
-            if (recoverySource === 'login') {
-              setIsLoggingIn(true);
-            }
-            setRecoverySource(null);
-          }}
-          onComplete={() => {
-            setIsRecoveringPassword(false);
-            if (recoverySource === 'login') {
-              setIsLoggingIn(true);
-            }
-            setRecoverySource(null);
-          }}
         />
       );
     }
 
     return (
-      <AuthScreen 
-        onComplete={() => setHasSeenAuth(true)} 
-        onRegister={() => setIsRegistering(true)} 
-        onLogin={() => setIsLoggingIn(true)}
-        onForgotPassword={() => {
-          setRecoverySource('auth');
-          setIsRecoveringPassword(true);
-        }}
-        onLoginSuccess={async (user, requiereConfiguracion) => {
-          setCurrentUser(user);
-          if (requiereConfiguracion) {
-            setIsSettingPassword(true);
-          } else {
-            await AsyncStorage.setItem('hasSeenAuth', 'true');
-            await AsyncStorage.removeItem('isGuest');
-            setHasSeenAuth(true);
-          }
-        }}
-      />
+      <>
+        <AnimatedSplashOverlay />
+        <AppTabs />
+      </>
     );
-  }
+  };
 
   return (
     <SafeAreaProvider>
       <ThemeProvider value={DefaultTheme}>
-        <AnimatedSplashOverlay />
-        <AppTabs />
+        <StatusBar style={isDarkScreen ? 'light' : 'dark'} />
+        {renderContent()}
       </ThemeProvider>
     </SafeAreaProvider>
   );
