@@ -82,11 +82,11 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
       console.log(`Verificando disponibilidad del correo: ${email}`);
       const response = await fetch(`${API_URL}/personas/check-email?email=${encodeURIComponent(email)}`);
       const result = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(result.error || 'Error al verificar disponibilidad del email.');
       }
-      
+
       if (result.existe) {
         setEmailError('El email ingresado ya se encuentra registrado.');
         return;
@@ -122,17 +122,17 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
   const handleContinue = async () => {
     const enteredToken = token.join('');
     setTokenError('');
-    
+
     if (!sentToken) {
       setTokenError('Primero debes solicitar el token presionando "Mandar Mail".');
       return;
     }
-    
+
     if (enteredToken.length < 5) {
       setTokenError('Por favor, complete el token de 5 dígitos.');
       return;
     }
-    
+
     if (enteredToken !== sentToken && enteredToken !== '12345') {
       setTokenError('El token ingresado es incorrecto.');
       return;
@@ -177,7 +177,7 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
       }
 
       console.log('Sending Paso 1 multiform registration to:', `${API_URL}/personas/registro/paso1`);
-      
+
       const step1Response = await fetch(`${API_URL}/personas/registro/paso1`, {
         method: 'POST',
         body: formData,
@@ -215,7 +215,7 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
       }
 
       console.log('Registro completado exitosamente y listo para aprobación.');
-      
+
       // Mostrar pantalla de cuenta en verificación
       setShowStatusScreen(true);
     } catch (error: any) {
@@ -239,14 +239,14 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
         </View>
 
         <View style={styles.statusContent}>
-          <Image 
-            source={require('@/assets/images/shield_owl_icon.png')} 
+          <Image
+            source={require('@/assets/images/logosintexto.png')}
             style={styles.statusIcon}
             resizeMode="contain"
           />
-          
-          <Text style={styles.statusTitle}>Tu cuenta está siendo verificada..</Text>
-          
+
+          <Text style={styles.statusTitle}>Tu cuenta está siendo verificada.</Text>
+
           <Text style={styles.statusDescription}>
             Estamos revisando los datos de tu perfil para habilitar todas las funcionalidades de la plataforma.
             {"\n\n"}
@@ -280,9 +280,9 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
           <View style={styles.placeholderBox} />
         </View>
 
-        <ScrollView 
+        <ScrollView
           ref={scrollViewRef}
-          style={styles.scrollContainer} 
+          style={styles.scrollContainer}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
@@ -343,8 +343,8 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
         </ScrollView>
 
         <View style={styles.footer}>
-          <Pressable 
-            style={[styles.continueButton, isContinueDisabled && { opacity: 0.5 }]} 
+          <Pressable
+            style={[styles.continueButton, isContinueDisabled && { opacity: 0.5 }]}
             onPress={handleContinue}
             disabled={isContinueDisabled}
           >
@@ -504,8 +504,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   statusIcon: {
-    width: 100,
-    height: 100,
+    width: 65,
+    height: 65,
     marginBottom: 40,
   },
   statusTitle: {

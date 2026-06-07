@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, Modal, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Pressable, Modal, TouchableOpacity, ActivityIndicator, Platform, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { MaxContentWidth } from '@/constants/theme';
@@ -190,11 +190,10 @@ export default function PaymentMethodsModal({ visible, onClose }: PaymentMethods
                   <View style={styles.methodContent}>
                     {/* Left edit pencil badge */}
                     <View style={styles.editButton}>
-                      <SymbolView
-                        tintColor="#FFFFFF"
-                        // @ts-ignore
-                        name={{ ios: 'pencil', android: 'edit', web: 'edit' }}
-                        size={14}
+                      <Image
+                        source={require('../../assets/images/editar.png')}
+                        style={styles.buttonImage}
+                        resizeMode="contain"
                       />
                     </View>
                     
@@ -220,12 +219,12 @@ export default function PaymentMethodsModal({ visible, onClose }: PaymentMethods
                   <Pressable
                     onPress={() => removePaymentMethod(method.id)}
                     style={styles.deleteButton}
+                    disabled={isLoading}
                   >
-                    <SymbolView
-                      tintColor="#FFFFFF"
-                      // @ts-ignore
-                      name={{ ios: 'xmark', android: 'close', web: 'close' }}
-                      size={14}
+                    <Image
+                      source={require('../../assets/images/borrar.png')}
+                      style={styles.buttonImage}
+                      resizeMode="contain"
                     />
                   </Pressable>
                 </View>
@@ -316,11 +315,6 @@ const styles = StyleSheet.create({
   editButton: {
     width: 32,
     height: 32,
-    borderTopLeftRadius: 6,
-    borderBottomLeftRadius: 6,
-    borderTopRightRadius: 16,
-    borderBottomRightRadius: 16,
-    backgroundColor: '#1B8153', // Deep green badge
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -342,13 +336,12 @@ const styles = StyleSheet.create({
   deleteButton: {
     width: 32,
     height: 32,
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
-    borderTopRightRadius: 6,
-    borderBottomRightRadius: 6,
-    backgroundColor: '#BD3E4A', // Crimson red badge
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  buttonImage: {
+    width: 20,
+    height: 20,
   },
   addButton: {
     marginHorizontal: 24,

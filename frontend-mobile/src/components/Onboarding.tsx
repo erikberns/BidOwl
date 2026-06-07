@@ -9,22 +9,21 @@ const slides = [
     title: 'Todas las subastas,\nen un solo lugar',
     subtitle: 'Seguí cada puja en vivo y encontrá\noportunidades únicas antes que el resto.',
     buttonText: 'Continuar',
-    // Using a placeholder background color or gradient since we don't have the assets
-    color: '#1a1a1a', 
+    image: require('../../assets/images/onboarding1.png'),
   },
   {
     id: 2,
     title: 'Publicá lo que tenés,\nnosotros hacemos el resto',
     subtitle: 'Subí tus artículos en minutos y dejá\nque compitan por el mejor precio.',
     buttonText: 'Continuar',
-    color: '#2b2b2b',
+    image: require('../../assets/images/onboarding2.png'),
   },
   {
     id: 3,
     title: 'Cuando llega el momento,\ntu oferta decide',
     subtitle: 'Reaccioná en tiempo real, superá a otros\npostores y quedate con lo que querés.',
     buttonText: 'Comenzar',
-    color: '#3c3c3c',
+    image: require('../../assets/images/onboarding3.png'),
     buttonColor: '#B6E64B', // The greenish-yellow in the screenshot
     buttonTextColor: '#000',
   }
@@ -75,9 +74,7 @@ export function Onboarding({ onComplete }: Props) {
       </View>
 
       <View style={styles.imageContainer}>
-        {/* Placeholder for the image. In reality, you would use <Image source={require('...')} /> here */}
-        <View style={[styles.placeholderImage, { backgroundColor: slide.color }]} />
-        <View style={styles.gradientOverlay} />
+        <Image source={slide.image} style={styles.slideImage} resizeMode="cover" />
       </View>
 
       <View style={styles.contentContainer}>
@@ -137,9 +134,10 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
   },
-  placeholderImage: {
+  slideImage: {
     flex: 1,
     width: '100%',
+    height: '100%',
   },
   gradientOverlay: {
     position: 'absolute',

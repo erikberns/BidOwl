@@ -113,9 +113,9 @@ export function AuthScreen({ onComplete, onRegister, onLogin, onLoginSuccess, on
     <View style={styles.container}>
       {/* Top Section */}
       <View style={styles.topSection}>
-        <Image 
-          source={require('../../assets/images/SplashBidOwl.png')} 
-          style={styles.logo} 
+        <Image
+          source={require('../../assets/images/LogoGrande.png')}
+          style={styles.logo}
           resizeMode="contain"
         />
       </View>

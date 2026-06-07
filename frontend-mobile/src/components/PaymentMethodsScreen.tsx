@@ -351,7 +351,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
 
   const clearFormFields = () => {
     setEditingId(null);
-    
+
     setBankTitular('Jose Claudio Godio');
     setBankBanco('Banco Galicia');
     setBankPais('Argentina');
@@ -486,7 +486,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       const finalUserId = await getFinalUserId();
       const selectedPaisObj = availablePaises.find(p => p.nombre.toLowerCase() === bankPais.toLowerCase());
       const paisId = selectedPaisObj ? selectedPaisObj.numero : 54;
-      
+
       const formData = new FormData();
       formData.append('titularCuenta', bankTitular);
       formData.append('nombreBanco', bankBanco);
@@ -550,7 +550,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     setCardCvvError('');
 
     let hasErrors = false;
-    
+
     if (!cardNumero || !cardNumero.trim()) {
       setCardNumeroError('El número de tarjeta es obligatorio.');
       hasErrors = true;
@@ -659,7 +659,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     setCheckFileError('');
 
     let hasErrors = false;
-    
+
     if (!checkTitular || !checkTitular.trim()) {
       setCheckTitularError('El titular es obligatorio.');
       hasErrors = true;
@@ -721,7 +721,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       const finalUserId = await getFinalUserId();
       const selectedPaisObj = availablePaises.find(p => p.nombre.toLowerCase() === checkPais.toLowerCase());
       const paisId = selectedPaisObj ? selectedPaisObj.numero : 54;
-      
+
       const formData = new FormData();
       formData.append('titular', checkTitular);
       formData.append('bancoEmisor', checkBanco);
@@ -802,15 +802,19 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
 
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Metodo de Pago</Text>
-            <TouchableOpacity 
-              style={styles.addButton} 
+            <TouchableOpacity
+              style={styles.addButton}
               onPress={() => {
                 clearFormFields();
                 setCurrentView('select');
-              }} 
+              }}
               disabled={isLoading}
             >
-              <Text style={styles.addButtonText}>+</Text>
+              <Image
+                source={require('../../assets/images/botton de agregar.png')}
+                style={styles.addIconImage}
+                resizeMode="contain"
+              />
             </TouchableOpacity>
           </View>
 
@@ -823,11 +827,10 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
               <View key={m.id} style={styles.methodCard}>
                 {/* Left edit pencil badge */}
                 <TouchableOpacity onPress={() => handleEditPress(m)} style={styles.editButton}>
-                  <SymbolView
-                    tintColor="#FFFFFF"
-                    // @ts-ignore
-                    name={{ ios: 'pencil', android: 'edit', web: 'edit' }}
-                    size={14}
+                  <Image
+                    source={require('../../assets/images/editar.png')}
+                    style={styles.buttonImage}
+                    resizeMode="contain"
                   />
                 </TouchableOpacity>
 
@@ -847,11 +850,10 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
                 </View>
 
                 <TouchableOpacity onPress={() => removeMethod(m.id)} style={styles.removeButton} disabled={isLoading}>
-                  <SymbolView
-                    tintColor="#FFFFFF"
-                    // @ts-ignore
-                    name={{ ios: 'xmark', android: 'close', web: 'close' }}
-                    size={14}
+                  <Image
+                    source={require('../../assets/images/borrar.png')}
+                    style={styles.buttonImage}
+                    resizeMode="contain"
                   />
                 </TouchableOpacity>
               </View>
@@ -927,7 +929,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     return (
       <View style={styles.fileUploadSection}>
         <Text style={styles.fileLabel}>Comprobante</Text>
-        
+
         {Platform.OS === 'web' && (
           <input
             type="file"
@@ -939,22 +941,26 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
         )}
 
         <View style={styles.fileBoxes}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[
-              styles.fileAddBox, 
+              styles.fileAddBox,
               fileUri ? styles.fileAddBoxHasImage : null,
               !!fileError ? { borderColor: '#E30613', borderWidth: 1.5 } : null
-            ]} 
+            ]}
             onPress={selectHandler}
             disabled={isLoading}
           >
             {fileUri ? (
               <Image source={{ uri: fileUri }} style={styles.filePreviewImage} />
             ) : (
-              <Text style={styles.fileAddText}>+</Text>
+              <Image
+                source={require('../../assets/images/borrar.png')}
+                style={styles.buttonImage}
+                resizeMode="contain"
+              />
             )}
           </TouchableOpacity>
-          
+
           <View style={[
             styles.fileCardBox,
             !!fileError ? { borderColor: '#E30613', borderWidth: 1.5 } : null
@@ -974,24 +980,24 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       {renderHeader('Agregar Metodo de Pago', () => setCurrentView('select'), true)}
       <ScrollView style={styles.content}>
         <Text style={styles.mainTitle}>Agregar Cuenta Bancaria.</Text>
-        <InputField 
-          label="Titular" 
-          placeholder="Juan Pérez" 
-          value={bankTitular} 
+        <InputField
+          label="Titular"
+          placeholder="Juan Pérez"
+          value={bankTitular}
           onChangeText={(val: string) => {
             setBankTitular(val);
             if (bankTitularError) setBankTitularError('');
-          }} 
+          }}
           error={bankTitularError}
         />
-        <InputField 
-          label="Banco" 
-          placeholder="Banco Galicia" 
-          value={bankBanco} 
+        <InputField
+          label="Banco"
+          placeholder="Banco Galicia"
+          value={bankBanco}
           onChangeText={(val: string) => {
             setBankBanco(val);
             if (bankBancoError) setBankBancoError('');
-          }} 
+          }}
           error={bankBancoError}
         />
         <View style={[styles.row, { zIndex: isBankDropdownOpen ? 1000 : 1, position: 'relative' }]}>
@@ -999,14 +1005,14 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
           <View style={{ width: 15 }} />
           <InputField label="Moneda" placeholder="AR$" value={bankMoneda} onChangeText={setBankMoneda} />
         </View>
-        <InputField 
-          label="Número de Cuenta" 
-          placeholder="1234567890" 
-          value={bankCbuIban} 
+        <InputField
+          label="Número de Cuenta"
+          placeholder="1234567890"
+          value={bankCbuIban}
           onChangeText={(val: string) => {
             setBankCbuIban(val);
             if (bankCbuIbanError) setBankCbuIbanError('');
-          }} 
+          }}
           error={bankCbuIbanError}
         />
 
@@ -1018,14 +1024,14 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
             <Text style={[styles.tabText, bankTab === 'IBAN' && styles.activeTabText]}>IBAN</Text>
           </TouchableOpacity>
         </View>
-        <InputField 
-          label={bankTab} 
-          placeholder="0720123456789012345678" 
-          value={bankCbuIban} 
+        <InputField
+          label={bankTab}
+          placeholder="0720123456789012345678"
+          value={bankCbuIban}
           onChangeText={(val: string) => {
             setBankCbuIban(val);
             if (bankCbuIbanError) setBankCbuIbanError('');
-          }} 
+          }}
           error={bankCbuIbanError}
         />
 
@@ -1048,7 +1054,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       {renderHeader('Agregar Metodo de Pago', () => setCurrentView('select'), true)}
       <ScrollView style={styles.content}>
         <Text style={styles.mainTitle}>Agregar Tarjeta.</Text>
-        
+
         {/* Mock Card */}
         <View style={styles.mockCard}>
           <View style={styles.mockCardTop}>
@@ -1070,48 +1076,48 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
           </View>
         </View>
 
-        <InputField 
-          label="Numero de Tarjeta" 
-          placeholder="0123 4567 8901 2345" 
-          value={cardNumero} 
+        <InputField
+          label="Numero de Tarjeta"
+          placeholder="0123 4567 8901 2345"
+          value={cardNumero}
           onChangeText={(val: string) => {
             setCardNumero(val);
             if (cardNumeroError) setCardNumeroError('');
-          }} 
-          keyboardType="numeric" 
+          }}
+          keyboardType="numeric"
           error={cardNumeroError}
         />
-        <InputField 
-          label="Nombre de Dueño de Tarjeta" 
-          placeholder="Noman Manzoor" 
-          value={cardTitular} 
+        <InputField
+          label="Nombre de Dueño de Tarjeta"
+          placeholder="Noman Manzoor"
+          value={cardTitular}
           onChangeText={(val: string) => {
             setCardTitular(val);
             if (cardTitularError) setCardTitularError('');
-          }} 
+          }}
           error={cardTitularError}
         />
         <View style={styles.row}>
-          <InputField 
-            label="Fecha Vencimiento" 
-            placeholder="02 / 30" 
-            value={cardVencimiento} 
+          <InputField
+            label="Fecha Vencimiento"
+            placeholder="02 / 30"
+            value={cardVencimiento}
             onChangeText={(val: string) => {
               setCardVencimiento(val);
               if (cardVencimientoError) setCardVencimientoError('');
-            }} 
+            }}
             error={cardVencimientoError}
           />
           <View style={{ width: 15 }} />
-          <InputField 
-            label="CVV" 
-            placeholder="892" 
-            value={cardCvv} 
+          <InputField
+            label="CVV"
+            placeholder="892"
+            value={cardCvv}
             onChangeText={(val: string) => {
               setCardCvv(val);
               if (cardCvvError) setCardCvvError('');
-            }} 
-            keyboardType="numeric" 
+            }}
+            keyboardType="numeric"
             error={cardCvvError}
           />
         </View>
@@ -1133,45 +1139,45 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       {renderHeader('Agregar Metodo de Pago', () => setCurrentView('select'), true)}
       <ScrollView style={styles.content}>
         <Text style={styles.mainTitle}>Agregar Cheque Certificado.</Text>
-        <InputField 
-          label="Titular" 
-          placeholder="Juan Pérez" 
-          value={checkTitular} 
+        <InputField
+          label="Titular"
+          placeholder="Juan Pérez"
+          value={checkTitular}
           onChangeText={(val: string) => {
             setCheckTitular(val);
             if (checkTitularError) setCheckTitularError('');
-          }} 
+          }}
           error={checkTitularError}
         />
-        <InputField 
-          label="Banco Emisor" 
-          placeholder="Banco Nación" 
-          value={checkBanco} 
+        <InputField
+          label="Banco Emisor"
+          placeholder="Banco Nación"
+          value={checkBanco}
           onChangeText={(val: string) => {
             setCheckBanco(val);
             if (checkBancoError) setCheckBancoError('');
-          }} 
+          }}
           error={checkBancoError}
         />
-        <InputField 
-          label="Numero de Cheque" 
-          placeholder="00045821" 
-          value={checkNumero} 
+        <InputField
+          label="Numero de Cheque"
+          placeholder="00045821"
+          value={checkNumero}
           onChangeText={(val: string) => {
             setCheckNumero(val);
             if (checkNumeroError) setCheckNumeroError('');
-          }} 
+          }}
           error={checkNumeroError}
         />
-        <InputField 
-          label="Monto Certificado" 
-          placeholder="1.500.000" 
-          value={checkMonto} 
+        <InputField
+          label="Monto Certificado"
+          placeholder="1.500.000"
+          value={checkMonto}
           onChangeText={(val: string) => {
             setCheckMonto(val);
             if (checkMontoError) setCheckMontoError('');
-          }} 
-          keyboardType="numeric" 
+          }}
+          keyboardType="numeric"
           error={checkMontoError}
         />
         <View style={[styles.row, { zIndex: isCheckDropdownOpen ? 1000 : 1, position: 'relative' }]}>
@@ -1179,7 +1185,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
           <View style={{ width: 15 }} />
           <InputField label="Moneda" placeholder="AR$" value={checkMoneda} onChangeText={setCheckMoneda} />
         </View>
- 
+
         {renderFileUpload('check')}
       </ScrollView>
       <View style={styles.footer}>
@@ -1271,16 +1277,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   addButton: {
-    backgroundColor: '#bcf259',
-    width: 40,
-    height: 30,
-    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  addButtonText: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  addIconImage: {
+    width: 50,
+    height: 32,
   },
   emptyContainer: {
     borderWidth: 1,
@@ -1307,11 +1309,6 @@ const styles = StyleSheet.create({
   editButton: {
     width: 32,
     height: 32,
-    borderTopLeftRadius: 6,
-    borderBottomLeftRadius: 6,
-    borderTopRightRadius: 16,
-    borderBottomRightRadius: 16,
-    backgroundColor: '#1B8153', // Deep green badge
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1328,13 +1325,12 @@ const styles = StyleSheet.create({
   removeButton: {
     width: 32,
     height: 32,
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
-    borderTopRightRadius: 6,
-    borderBottomRightRadius: 6,
-    backgroundColor: '#BD3E4A', // Crimson red badge
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  buttonImage: {
+    width: 25,
+    height: 25,
   },
   footer: {
     padding: 20,
@@ -1605,15 +1601,15 @@ const CountryDropdownField = ({ label, value, onSelect, isOpen, setIsOpen, flex 
     <View style={{ flex, zIndex: isOpen ? 1000 : 1, overflow: 'visible', width: '100%' }}>
       <View style={[styles.inputContainer, hasError && styles.inputContainerError, { overflow: 'visible' }]}>
         <Text style={styles.inputLabel}>{label}</Text>
-        <TouchableOpacity 
-          style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]} 
+        <TouchableOpacity
+          style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
           onPress={() => setIsOpen(!isOpen)}
           disabled={isLoading}
         >
           <Text style={{ fontSize: 16, color: '#000' }}>{value}</Text>
           <Text style={{ fontSize: 12, color: '#666' }}>{isOpen ? '▲' : '▼'}</Text>
         </TouchableOpacity>
-        
+
         {isOpen && (
           <View style={styles.dropdownMenu}>
             <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 150, backgroundColor: '#ffffff' }}>
