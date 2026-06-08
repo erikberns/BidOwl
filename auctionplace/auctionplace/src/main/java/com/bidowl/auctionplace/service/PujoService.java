@@ -82,6 +82,17 @@ public class PujoService {
             if (importe.compareTo(precioBase) < 0) {
                 throw new Exception("La oferta inicial debe ser al menos el precio base de $" + precioBase);
             }
+            
+            String catSubasta = item.getCatalogo().getSubasta().getCategoria();
+            boolean esCategoriaAlta = "oro".equalsIgnoreCase(catSubasta) || "platino".equalsIgnoreCase(catSubasta);
+            
+            if (!esCategoriaAlta) {
+                BigDecimal incrementoMaximo = precioBase.multiply(BigDecimal.valueOf(0.20));
+                BigDecimal pujaMaximaPermitida = precioBase.add(incrementoMaximo);
+                if (importe.compareTo(pujaMaximaPermitida) > 0) {
+                    throw new Exception("La oferta inicial no puede superar el precio base más el 20% ($" + pujaMaximaPermitida + ")");
+                }
+            }
         }
 
         // Registrar la puja

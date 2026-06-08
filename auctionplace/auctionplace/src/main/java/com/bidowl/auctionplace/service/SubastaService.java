@@ -30,9 +30,6 @@ public class SubastaService {
     private ClienteRepository clienteRepository;
 
     @Autowired
-    private MetodoPagoRepository metodoPagoRepository;
-
-    @Autowired
     private PujoRepository pujoRepository;
 
     public List<Subasta> obtenerTodas() {
@@ -63,19 +60,13 @@ public class SubastaService {
                                 ") es inferior a la categoría requerida para esta subasta (" + subasta.getCategoria() + ").");
         }
 
-        // 2. Validar que tenga al menos un método de pago
-        List<MetodoPago> pagos = metodoPagoRepository.findByPersonaIdentificador(clienteId);
-        if (pagos.isEmpty()) {
-            throw new IllegalStateException("Debes registrar al menos un medio de pago verificado antes de unirte a una subasta.");
-        }
-
-        // 3. Si ya es asistente, retornar existente (la lógica de creación se centraliza)
+        // 2. Si ya es asistente, retornar existente (la lógica de creación se centraliza)
         Optional<Asistente> existente = asistenteRepository.findByClienteIdentificadorAndSubastaIdentificador(clienteId, subastaId);
         if (existente.isPresent()) {
             return existente.get();
         }
 
-        // 4. Crear asistente
+        // 3. Crear asistente
         Asistente nuevoAsistente = new Asistente();
         nuevoAsistente.setCliente(cliente);
         nuevoAsistente.setSubasta(subasta);
@@ -147,20 +138,8 @@ public class SubastaService {
                     dto.setIdpersona(puja.getAsistente().getCliente().getIdentificador().toString());
                     dto.setNombre(puja.getAsistente().getCliente().getNombre());
                     dto.setMonto(puja.getImporte());
-                    // Se utiliza la columna 'fecha_hora' de la tabla 'pujos'
-                    if (puja.getFechaHora() != null) {
-                        long minutes = java.time.temporal.ChronoUnit.MINUTES.between(puja.getFechaHora(), LocalDateTime.now());
-                        if (minutes < 1) {
-                            dto.setHace("hace segundos");
-                        } else if (minutes < 60) {
-                            dto.setHace("hace " + minutes + " min");
-                        } else {
-                            long hours = java.time.temporal.ChronoUnit.HOURS.between(puja.getFechaHora(), LocalDateTime.now());
-                            dto.setHace("hace " + hours + " h");
-                        }
-                    } else {
-                        dto.setHace("N/A");
-                    }
+                    // Como la tabla 'pujos' no tiene columna de fecha/hora en la base de datos, siempre mostramos N/A
+                    dto.setHace("N/A");
                     return dto;
                 })
                 .collect(Collectors.toList());
@@ -177,14 +156,33 @@ public class SubastaService {
         
         // Calcular límites basados en el precio base
         BigDecimal precioBase = itemCatalogo.getPrecioBase();
-        BigDecimal pujaMinima = precioBase.multiply(BigDecimal.valueOf(1.01)); // 1%
-        BigDecimal pujaMaxima = precioBase.multiply(BigDecimal.valueOf(1.20)); // 20%
+        String categoria = itemCatalogo.getCatalogo().getSubasta().getCategoria();
+        boolean esCategoriaAlta = "oro".equalsIgnoreCase(categoria) || "platino".equalsIgnoreCase(categoria);
+
+        BigDecimal pujaMinima;
+        BigDecimal pujaMaxima;
 
         // Si hay puja líder, usar eso como referencia
         Optional<Pujo> pujaLider = pujoRepository.findFirstByItemIdentificadorOrderByImporteDesc(iditem);
         if (pujaLider.isPresent()) {
-            pujaMinima = pujaLider.get().getImporte().multiply(BigDecimal.valueOf(1.01)); // 1% más
-            pujaMaxima = pujaLider.get().getImporte().multiply(BigDecimal.valueOf(1.20)); // 20% más
+            BigDecimal montoUltima = pujaLider.get().getImporte();
+            if (esCategoriaAlta) {
+                pujaMinima = montoUltima.add(BigDecimal.valueOf(0.01)); // Solo debe superar la última puja
+                pujaMaxima = null; // Sin límite
+            } else {
+                BigDecimal incrementoMinimo = precioBase.multiply(BigDecimal.valueOf(0.01));
+                BigDecimal incrementoMaximo = precioBase.multiply(BigDecimal.valueOf(0.20));
+                pujaMinima = montoUltima.add(incrementoMinimo);
+                pujaMaxima = montoUltima.add(incrementoMaximo);
+            }
+        } else {
+            // Primera puja
+            pujaMinima = precioBase;
+            if (esCategoriaAlta) {
+                pujaMaxima = null;
+            } else {
+                pujaMaxima = precioBase.add(precioBase.multiply(BigDecimal.valueOf(0.20)));
+            }
         }
 
         LimitesPujaDTO limites = new LimitesPujaDTO();
@@ -211,28 +209,12 @@ public class SubastaService {
             throw new IllegalStateException("La subasta no existe o no está abierta");
         }
 
-        // Validar método de pago
-        if (idMetodoPago == null || idMetodoPago.isEmpty()) {
-            throw new IllegalArgumentException("Debe proporcionar un método de pago");
-        }
-
-        Integer metodoPagoId;
-        try {
-            metodoPagoId = Integer.parseInt(idMetodoPago);
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("ID de método de pago inválido");
-        }
-
-        if (!metodoPagoRepository.existsById(metodoPagoId)) {
-            throw new java.util.NoSuchElementException("Método de pago no encontrado");
-        }
-
         // Validar montos contra límites
         LimitesPujaDTO limites = obtenerLimitesPuja(idSubasta, iditem);
-        if (monto.compareTo(limites.getPujaMinima()) < 0) {
+        if (limites.getPujaMinima() != null && monto.compareTo(limites.getPujaMinima()) < 0) {
             throw new IllegalArgumentException("La puja es menor al mínimo permitido: " + limites.getPujaMinima());
         }
-        if (monto.compareTo(limites.getPujaMaxima()) > 0) {
+        if (limites.getPujaMaxima() != null && monto.compareTo(limites.getPujaMaxima()) > 0) {
             throw new IllegalArgumentException("La puja excede el máximo permitido: " + limites.getPujaMaxima());
         }
 
@@ -245,7 +227,6 @@ public class SubastaService {
         puja.setItem(itemCatalogo);
         puja.setImporte(monto);
         puja.setGanador("no");
-        puja.setFechaHora(LocalDateTime.now());
 
         Pujo pujaSaved = pujoRepository.save(puja);
 
@@ -364,13 +345,6 @@ public class SubastaService {
             return resultado;
         }
 
-        // Validar que tenga al menos un método de pago
-        List<MetodoPago> metodos = metodoPagoRepository.findByPersonaIdentificador(clienteId);
-        if (metodos.isEmpty()) {
-            resultado.setPuedeUnirse(false);
-            resultado.setMotivoRechazo("Debes registrar al menos un método de pago verificado");
-            return resultado;
-        }
 
         resultado.setPuedeUnirse(true);
         resultado.setMotivoRechazo(null);
@@ -419,9 +393,6 @@ public class SubastaService {
                     // Validaciones de elegibilidad (se podrían mover aquí también si se desea)
                     if (getCategoryRank(cliente.getCategoriaCliente()) < getCategoryRank(subasta.getCategoria())) {
                         throw new IllegalArgumentException("Categoría de cliente insuficiente.");
-                    }
-                    if (metodoPagoRepository.findByPersonaIdentificador(clienteId).isEmpty()) {
-                        throw new IllegalStateException("Se requiere un método de pago.");
                     }
 
                     Asistente nuevoAsistente = new Asistente();
