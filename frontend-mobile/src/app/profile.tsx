@@ -3,7 +3,7 @@ import { View, Text, Image, ScrollView, StyleSheet, Pressable, Alert, TouchableO
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { Stack, Tabs, useRouter } from 'expo-router';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused } from 'expo-router/react-navigation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';

@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, Stack, Tabs } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused } from 'expo-router/react-navigation';
 
 import { AuctionCard } from '@/components/AuctionCard';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -262,5 +262,3 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
 });
-
-
