@@ -24,6 +24,7 @@ import { API_URL } from '@/constants/api';
 export default function PublishScreen() {
   const router = useRouter();
   const isFocused = useIsFocused();
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [articleName, setArticleName] = useState('');
   const [articleDescription, setArticleDescription] = useState('');
   const [creatorName, setCreatorName] = useState('');
@@ -141,7 +142,7 @@ export default function PublishScreen() {
       const json = await res.json().catch(() => ({}));
       if (res.ok) {
         hideAppModal();
-        showAppModal('Solicitud enviada', 'La solicitud se envió correctamente.', () => router.back());
+        setIsSubmitted(true);
       } else {
         hideAppModal();
         const msg = json?.error || json?.mensaje || 'Error al crear la solicitud';
@@ -153,6 +154,42 @@ export default function PublishScreen() {
       showAppModal('Error', 'No se pudo enviar la solicitud. Intenta nuevamente.');
     }
   };
+
+  if (isSubmitted) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.headerBar}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Text style={styles.backButtonText}>‹</Text>
+          </TouchableOpacity>
+          <ThemedText style={styles.headerTitle}>Solicitar Subasta de Articulo</ThemedText>
+          <View style={styles.backButtonPlaceholder} />
+        </View>
+
+        <View style={styles.successContainer}>
+          <Image 
+            source={require('@/assets/images/logosintexto.png')} 
+            style={styles.successLogo} 
+            resizeMode="contain"
+          />
+          <Text style={styles.successTitle}>Su solicitud sera{'\n'}revisada por nuestro{'\n'}equipo.</Text>
+          <Text style={styles.successSubtitle}>
+            Tu solicitud ya está en proceso.{'\n'}Nuestro equipo la analizará para asegurarse de que todo esté listo y puedas avanzar con confianza dentro de la plataforma.
+          </Text>
+        </View>
+
+        <View style={styles.successFooter}>
+          <TouchableOpacity
+            style={styles.successButton}
+            activeOpacity={0.8}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.successButtonText}>Entendido</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -532,6 +569,46 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   submitButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#051C2C',
+  },
+  successContainer: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 40,
+  },
+  successLogo: {
+    width: 60,
+    height: 60,
+    marginBottom: 32,
+  },
+  successTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#051C2C',
+    lineHeight: 34,
+    marginBottom: 16,
+  },
+  successSubtitle: {
+    fontSize: 14,
+    color: '#8A8A8A',
+    lineHeight: 22,
+    fontWeight: '400',
+  },
+  successFooter: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    paddingTop: 20,
+  },
+  successButton: {
+    backgroundColor: '#BEE757',
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    width: '100%',
+  },
+  successButtonText: {
     fontSize: 16,
     fontWeight: '700',
     color: '#051C2C',
