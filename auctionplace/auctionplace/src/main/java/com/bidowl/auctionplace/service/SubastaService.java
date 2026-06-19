@@ -265,8 +265,18 @@ public class SubastaService {
         dto.setTitulo(s.getTitulo() != null ? s.getTitulo() : "Subasta " + s.getIdentificador());
         dto.setDescripcion(s.getDescripcion());
         dto.setImagenPortada("/api/subastas/" + s.getIdentificador() + "/foto");
-        dto.setRematador(s.getSubastador() != null ? s.getSubastador().getNombre() : "Rematador Desconocido");
+        String nombreRematador = "Rematador Desconocido";
+        if (s.getSubastador() != null) {
+            String nom = s.getSubastador().getNombre() != null ? s.getSubastador().getNombre() : "";
+            String ape = s.getSubastador().getApellido() != null ? s.getSubastador().getApellido() : "";
+            nombreRematador = (nom + " " + ape).trim();
+            if (nombreRematador.isEmpty()) {
+                nombreRematador = "Rematador Desconocido";
+            }
+        }
+        dto.setRematador(nombreRematador);
         dto.setUbicacion(s.getUbicacion() != null ? s.getUbicacion() : "Por definir");
+        dto.setDireccionDetallada(s.getDireccionDetallada() != null ? s.getDireccionDetallada() : "Ubicado en la dirección indicada por la organización de remates.");
         dto.setFecha(s.getFecha() != null ? s.getFecha().toString() : "");
         dto.setHora(s.getHora() != null ? s.getHora().toString() : "");
         dto.setCategoria(s.getCategoria());
@@ -297,6 +307,20 @@ public class SubastaService {
                         imagen = "/api/productos/" + item.getProducto().getIdentificador() + "/foto";
                     }
                     preview.setImagen(imagen);
+
+                    String duenioNombre = "Dueño Desconocido";
+                    String desc = "";
+                    if (item.getProducto() != null) {
+                        if (item.getProducto().getDuenio() != null) {
+                            String nom = item.getProducto().getDuenio().getNombre() != null ? item.getProducto().getDuenio().getNombre() : "";
+                            String ape = item.getProducto().getDuenio().getApellido() != null ? item.getProducto().getDuenio().getApellido() : "";
+                            duenioNombre = (nom + " " + ape).trim();
+                        }
+                        desc = item.getProducto().getDescripcion() != null ? item.getProducto().getDescripcion() : item.getProducto().getDescripcionCatalogo();
+                    }
+                    preview.setDuenioNombre(duenioNombre);
+                    preview.setDescripcion(desc);
+
                     return preview;
                 })
                 .collect(Collectors.toList());
@@ -338,6 +362,20 @@ public class SubastaService {
                         imagen = "/api/productos/" + item.getProducto().getIdentificador() + "/foto";
                     }
                     dto.setImagen(imagen);
+
+                    String duenioNombre = "Dueño Desconocido";
+                    String desc = "";
+                    if (item.getProducto() != null) {
+                        if (item.getProducto().getDuenio() != null) {
+                            String nom = item.getProducto().getDuenio().getNombre() != null ? item.getProducto().getDuenio().getNombre() : "";
+                            String ape = item.getProducto().getDuenio().getApellido() != null ? item.getProducto().getDuenio().getApellido() : "";
+                            duenioNombre = (nom + " " + ape).trim();
+                        }
+                        desc = item.getProducto().getDescripcion() != null ? item.getProducto().getDescripcion() : item.getProducto().getDescripcionCatalogo();
+                    }
+                    dto.setDuenioNombre(duenioNombre);
+                    dto.setDescripcion(desc);
+
                     return dto;
                 })
                 .collect(Collectors.toList());

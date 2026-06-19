@@ -1,14 +1,73 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs } from 'expo-router';
 
+import JoinAuctionBar from '@/components/JoinAuctionBar';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { MOCK_AUCTIONS, MOCK_AUCTION_ITEMS } from '@/constants/mockData';
 import { API_URL } from '@/constants/api';
 
 const { width } = Dimensions.get('window');
+
+// Helper to resolve Image URLs
+const getImageUrl = (path: string) => {
+  if (!path) return null;
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return { uri: path };
+  }
+  const baseUrl = API_URL.replace('/api', '');
+  return { uri: baseUrl + path };
+};
+
+// Helper to format prices
+const formatPrice = (value: number | string) => {
+  if (value === undefined || value === null) return '';
+  const num = typeof value === 'number' ? value : parseFloat(value.toString().replace(/[^0-9.]/g, ''));
+  if (isNaN(num)) return value.toString();
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " ARS";
+};
+
+// Helper to parse dates from API or Mock
+function parseAuctionDateTime(dateStr: string, timeStr: string): Date {
+  try {
+    if (!dateStr) return new Date();
+    const cleanDate = dateStr.replace(/\s+/g, '');
+    const cleanTime = timeStr ? timeStr.split(' ')[0].replace(/\s+/g, '') : "00:00";
+
+    const dateParts = cleanDate.split('/');
+    if (dateParts.length === 3) {
+      const day = parseInt(dateParts[0], 10);
+      const month = parseInt(dateParts[1], 10) - 1;
+      const year = parseInt(dateParts[2], 10);
+
+      const timeParts = cleanTime.split(':');
+      const hours = timeParts[0] ? parseInt(timeParts[0], 10) : 0;
+      const minutes = timeParts[1] ? parseInt(timeParts[1], 10) : 0;
+      const seconds = timeParts[2] ? parseInt(timeParts[2], 10) : 0;
+
+      return new Date(year, month, day, hours, minutes, seconds);
+    }
+
+    const isoParts = cleanDate.split('-');
+    if (isoParts.length === 3) {
+      const year = parseInt(isoParts[0], 10);
+      const month = parseInt(isoParts[1], 10) - 1;
+      const day = parseInt(isoParts[2], 10);
+
+      const timeParts = cleanTime.split(':');
+      const hours = timeParts[0] ? parseInt(timeParts[0], 10) : 0;
+      const minutes = timeParts[1] ? parseInt(timeParts[1], 10) : 0;
+      const seconds = timeParts[2] ? parseInt(timeParts[2], 10) : 0;
+
+      return new Date(year, month, day, hours, minutes, seconds);
+    }
+  } catch (e) {
+    console.error("Error parsing date-time:", e);
+  }
+  return new Date();
+}
 
 export default function AuctionDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -17,6 +76,17 @@ export default function AuctionDetailScreen() {
   const [auctionDetail, setAuctionDetail] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Carousel Modal State
+  const [isCarouselVisible, setIsCarouselVisible] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  // Timer Countdown State
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [auctionState, setAuctionState] = useState<'pending' | 'active' | 'ended'>('pending');
+
+  // Description truncation state
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     async function loadDetail() {
@@ -35,9 +105,10 @@ export default function AuctionDetailScreen() {
             id: mock.id,
             titulo: mock.title,
             descripcion: mock.description,
-            imagenPortada: null, // will fallback to mock image
+            imagenPortada: null,
             rematador: mock.auctioneer,
             ubicacion: mock.location,
+            direccionDetallada: "Ubicado en la dirección indicada por la organización de remates.",
             fecha: mock.date,
             hora: mock.time,
             categoria: mock.category,
@@ -47,6 +118,8 @@ export default function AuctionDetailScreen() {
               nombre: item.title,
               valorBase: parseFloat(item.basePrice.replace(/[^0-9]/g, '')),
               imagen: null,
+              duenioNombre: item.owner,
+              descripcion: item.details
             }))
           });
         }
@@ -62,6 +135,7 @@ export default function AuctionDetailScreen() {
           imagenPortada: null,
           rematador: mock.auctioneer,
           ubicacion: mock.location,
+          direccionDetallada: "Ubicado en la dirección indicada por la organización de remates.",
           fecha: mock.date,
           hora: mock.time,
           categoria: mock.category,
@@ -71,6 +145,8 @@ export default function AuctionDetailScreen() {
             nombre: item.title,
             valorBase: parseFloat(item.basePrice.replace(/[^0-9]/g, '')),
             imagen: null,
+            duenioNombre: item.owner,
+            descripcion: item.details
           }))
         });
       } finally {
@@ -79,6 +155,50 @@ export default function AuctionDetailScreen() {
     }
     loadDetail();
   }, [auctionIdStr]);
+
+  // Update Countdown Timer
+  useEffect(() => {
+    if (!auctionDetail || !auctionDetail.fecha) return;
+
+    const startDate = parseAuctionDateTime(auctionDetail.fecha, auctionDetail.hora);
+    // Standard duration of 24 hours
+    const endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+
+    const updateTimer = () => {
+      const now = new Date();
+      let targetDate = startDate;
+      let state: 'pending' | 'active' | 'ended' = 'pending';
+
+      if (now.getTime() < startDate.getTime()) {
+        state = 'pending';
+        targetDate = startDate;
+      } else if (now.getTime() >= startDate.getTime() && now.getTime() < endDate.getTime()) {
+        state = 'active';
+        targetDate = endDate;
+      } else {
+        state = 'ended';
+      }
+
+      setAuctionState(state);
+
+      if (state === 'ended') {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        return;
+      }
+
+      const diff = targetDate.getTime() - now.getTime();
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      setTimeLeft({ days, hours, minutes, seconds });
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [auctionDetail]);
 
   if (loading) {
     return (
@@ -95,26 +215,32 @@ export default function AuctionDetailScreen() {
   const previews = detail.previsualizacionitems || [];
   const categoryLabel = (detail.categoria || 'comun').toUpperCase();
 
-  const heroImageSource = detail.imagenPortada
-    ? { uri: API_URL.replace('/api', '') + detail.imagenPortada }
+  const coverImage = detail.imagenPortada
+    ? getImageUrl(detail.imagenPortada)
     : require('@/assets/images/rolling_stone_auction.png');
+
+  // Setup list of images for the carousel (cover + items)
+  const collectionImages = [
+    coverImage,
+    ...previews.map((item: any) => item.imagen ? getImageUrl(item.imagen) : require('@/assets/images/rolling_stone_auction.png'))
+  ];
+
+  // Timer UI state configuration
+  let stateTitle = "Subasta Activa";
+  let stateColor = "#2E9F64"; // Green
+
+  if (auctionState === 'pending') {
+    stateTitle = "Próxima Subasta";
+    stateColor = "#E79E2E"; // Orange
+  } else if (auctionState === 'ended') {
+    stateTitle = "Subasta Finalizada";
+    stateColor = "#8A8A8A"; // Gray
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
       <Tabs.Screen options={{ headerShown: false }} />
-      {/* Floating Back Button */}
-      <TouchableOpacity 
-        style={styles.floatingBackButton} 
-        onPress={() => router.back()}
-      >
-        <SymbolView
-          tintColor="#fff"
-          // @ts-ignore
-          name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_left' }}
-          size={24}
-        />
-      </TouchableOpacity>
 
       <ScrollView 
         style={styles.scrollView} 
@@ -122,15 +248,22 @@ export default function AuctionDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Hero Image Section */}
-        <View style={styles.imageContainer}>
+        <TouchableOpacity 
+          style={styles.imageContainer} 
+          activeOpacity={0.9}
+          onPress={() => {
+            setCurrentImageIndex(0);
+            setIsCarouselVisible(true);
+          }}
+        >
           <Image 
-            source={heroImageSource} 
+            source={coverImage} 
             style={styles.heroImage} 
           />
           <View style={styles.imageBadge}>
-            <Text style={styles.imageBadgeText}>1 / {previews.length || 1}</Text>
+            <Text style={styles.imageBadgeText}>1 / {collectionImages.length}</Text>
           </View>
-        </View>
+        </TouchableOpacity>
 
         {/* Title Block */}
         <View style={styles.titleSection}>
@@ -152,31 +285,31 @@ export default function AuctionDetailScreen() {
 
         <View style={styles.divider} />
 
-        {/* Active Auction Section */}
+        {/* Dynamic Timer Section */}
         <View style={styles.activeAuctionSection}>
-          <Text style={styles.activeAuctionTitle}>Subasta Activa</Text>
+          <Text style={[styles.activeAuctionTitle, { color: stateColor }]}>{stateTitle}</Text>
           
           <View style={styles.timerRow}>
             <View style={styles.timerBox}>
-              <Text style={styles.timerNumber}>0</Text>
+              <Text style={styles.timerNumber}>{timeLeft.days}</Text>
               <Text style={styles.timerLabel}>Dias</Text>
             </View>
             <Text style={styles.timerColon}>:</Text>
             
             <View style={styles.timerBox}>
-              <Text style={styles.timerNumber}>2</Text>
+              <Text style={styles.timerNumber}>{timeLeft.hours}</Text>
               <Text style={styles.timerLabel}>Hrs.</Text>
             </View>
             <Text style={styles.timerColon}>:</Text>
 
             <View style={styles.timerBox}>
-              <Text style={styles.timerNumber}>33</Text>
+              <Text style={styles.timerNumber}>{timeLeft.minutes}</Text>
               <Text style={styles.timerLabel}>Min.</Text>
             </View>
             <Text style={styles.timerColon}>:</Text>
 
             <View style={styles.timerBox}>
-              <Text style={styles.timerNumber}>51</Text>
+              <Text style={styles.timerNumber}>{timeLeft.seconds}</Text>
               <Text style={styles.timerLabel}>Seg.</Text>
             </View>
           </View>
@@ -202,20 +335,36 @@ export default function AuctionDetailScreen() {
         <View style={styles.detailsSection}>
           <Text style={styles.sectionHeading}>Detalles de la Subasta</Text>
           <Text style={styles.detailsText}>
-            {detail.descripcion}
+            {(() => {
+              const text = detail.descripcion || '';
+              const maxChars = 150;
+              if (text.length <= maxChars || isExpanded) {
+                return text;
+              }
+              return text.substring(0, maxChars) + '...';
+            })()}
           </Text>
-          <TouchableOpacity style={styles.showMoreButton}>
-            <Text style={styles.showMoreText}>Mostrar Más {'>'}</Text>
-          </TouchableOpacity>
+          {(detail.descripcion || '').length > 150 && (
+            <TouchableOpacity 
+              style={styles.showMoreButton}
+              onPress={() => setIsExpanded(!isExpanded)}
+            >
+              <Text style={styles.showMoreText}>
+                {isExpanded ? 'Mostrar Menos <' : 'Mostrar Más >'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.divider} />
 
-        {/* Location Section */}
+        {/* Location Section (Two lines format) */}
         <View style={styles.locationSection}>
           <Text style={styles.sectionHeading}>Ubicación de la Subasta</Text>
-          <Text style={styles.locationTitle}>{detail.ubicacion}</Text>
-          <Text style={styles.locationText}>Ubicado en la dirección indicada por la organización de remates.</Text>
+          <Text style={styles.locationTitle}>
+            {detail.ubicacion}{!detail.ubicacion.toLowerCase().includes('argentina') ? ', Argentina' : ''}
+          </Text>
+          <Text style={styles.locationText}>{detail.direccionDetallada}</Text>
         </View>
 
         <View style={styles.divider} />
@@ -229,7 +378,7 @@ export default function AuctionDetailScreen() {
           <View style={styles.catalogItemsList}>
             {previews.map((item: any, idx: number) => {
               const itemImageSource = item.imagen
-                ? { uri: API_URL.replace('/api', '') + item.imagen }
+                ? getImageUrl(item.imagen)
                 : require('@/assets/images/rolling_stone_auction.png');
               return (
                 <View key={item.iditem} style={styles.itemCard}>
@@ -240,7 +389,7 @@ export default function AuctionDetailScreen() {
                   <View style={styles.itemInfo}>
                     <Text style={styles.itemNumber}>{idx + 1}º Articulo</Text>
                     <Text style={styles.itemTitle}>{item.nombre}</Text>
-                    <Text style={styles.itemPrice}>Valor Base: ${item.valorBase}</Text>
+                    <Text style={styles.itemPrice}>Valor Base: {formatPrice(item.valorBase)}</Text>
                   </View>
                 </View>
               );
@@ -268,6 +417,56 @@ export default function AuctionDetailScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Image Viewer / Carousel Modal */}
+      <Modal
+        visible={isCarouselVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsCarouselVisible(false)}
+      >
+        <View style={styles.modalCarouselBackdrop}>
+          {/* Close button */}
+          <TouchableOpacity 
+            style={styles.modalCarouselCloseButton} 
+            onPress={() => setIsCarouselVisible(false)}
+          >
+            <Text style={styles.modalCarouselCloseText}>✕</Text>
+          </TouchableOpacity>
+
+          {/* Swipeable Horizontal ScrollView */}
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onScroll={(event) => {
+              const slideWidth = event.nativeEvent.layoutMeasurement.width;
+              const offset = event.nativeEvent.contentOffset.x;
+              const index = Math.round(offset / slideWidth);
+              setCurrentImageIndex(index);
+            }}
+            scrollEventThrottle={16}
+            style={styles.modalCarouselScroll}
+          >
+            {collectionImages.map((img, index) => (
+              <View key={index} style={styles.modalCarouselSlide}>
+                <Image 
+                  source={img} 
+                  style={styles.modalCarouselImage} 
+                  resizeMode="contain" 
+                />
+              </View>
+            ))}
+          </ScrollView>
+
+          {/* Page Indicator */}
+          <View style={styles.modalCarouselIndicator}>
+            <Text style={styles.modalCarouselIndicatorText}>
+              {currentImageIndex + 1} / {collectionImages.length}
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -288,18 +487,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#051C2C',
-  },
-  floatingBackButton: {
-    position: 'absolute',
-    top: 48,
-    left: 20,
-    zIndex: 10,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   scrollView: {
     flex: 1,
@@ -390,7 +577,6 @@ const styles = StyleSheet.create({
   activeAuctionTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#2E9F64',
     marginBottom: 16,
   },
   timerRow: {
@@ -569,5 +755,56 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#051C2C',
     textDecorationLine: 'underline',
+  },
+  // Carousel Modal Styles
+  modalCarouselBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCarouselCloseButton: {
+    position: 'absolute',
+    top: 48,
+    right: 24,
+    zIndex: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCarouselCloseText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  modalCarouselScroll: {
+    width: width,
+    flex: 1,
+  },
+  modalCarouselSlide: {
+    width: width,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCarouselImage: {
+    width: width,
+    height: '80%',
+  },
+  modalCarouselIndicator: {
+    position: 'absolute',
+    bottom: 48,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  modalCarouselIndicatorText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -131,12 +132,15 @@ public class DataInitializer implements CommandLineRunner {
 
         Subastador subastadorDefault = subastadorRepository.findAll().get(0);
 
-        // 5. Inicializar Subastas (en fecha > 10 días en el futuro por restricción SQL)
+        // 5. Inicializar Subastas (una activa y otra a punto de iniciar)
         if (subastaRepository.count() == 0) {
-            // Subasta 1
+            LocalDateTime now = LocalDateTime.now();
+
+            // Subasta 1: Activa (inició hace 2 horas)
+            LocalDateTime subasta1Start = now.minusHours(2);
             Subasta subasta1 = new Subasta();
-            subasta1.setFecha(LocalDate.now().plusDays(15));
-            subasta1.setHora(LocalTime.of(18, 30));
+            subasta1.setFecha(subasta1Start.toLocalDate());
+            subasta1.setHora(subasta1Start.toLocalTime().withNano(0));
             subasta1.setEstado("abierta");
             subasta1.setSubastador(subastadorDefault);
             subasta1.setUbicacion("Pilar, Buenos Aires");
@@ -147,12 +151,14 @@ public class DataInitializer implements CommandLineRunner {
             subasta1.setTitulo("Subasta de Colección Original \"Rolling Stone\"");
             subasta1.setDescripcion("Presentamos una oportunidad excepcional para acceder a una cuidada selección de ejemplares originales de una de las revistas más influyentes en la historia de la música, el entretenimiento y la cultura contemporánea. Esta colección reúne ediciones emblemáticas que capturan momentos únicos de la historia del rock.");
             subasta1.setFoto(rollingStoneBytes);
+            subasta1.setDireccionDetallada("Ubicado en Manuel Belgrano 501, Villa Morra.");
             subastaRepository.save(subasta1);
 
-            // Subasta 2
+            // Subasta 2: Próxima a iniciar (inicia en 10 minutos)
+            LocalDateTime subasta2Start = now.plusMinutes(10);
             Subasta subasta2 = new Subasta();
-            subasta2.setFecha(LocalDate.now().plusDays(20));
-            subasta2.setHora(LocalTime.of(19, 0));
+            subasta2.setFecha(subasta2Start.toLocalDate());
+            subasta2.setHora(subasta2Start.toLocalTime().withNano(0));
             subasta2.setEstado("abierta");
             subasta2.setSubastador(subastadorDefault);
             subasta2.setUbicacion("Tigre, Buenos Aires");
@@ -163,6 +169,7 @@ public class DataInitializer implements CommandLineRunner {
             subasta2.setTitulo("Colección Vintage Guitarras Gibson & Fender");
             subasta2.setDescripcion("Una venta exclusiva de instrumentos vintage cuidadosamente seleccionados por luthiers profesionales. Esta colección cuenta con piezas históricas de las dos marcas más icónicas en el mundo de las guitarras eléctricas, Gibson y Fender, que definieron el sonido de generaciones.");
             subasta2.setFoto(rollingStoneBytes);
+            subasta2.setDireccionDetallada("Ubicado en Av. de las Naciones 123, Tigre.");
             subastaRepository.save(subasta2);
         }
 

@@ -51,10 +51,14 @@ public class Subasta {
     @Column(table = "subastas_datos_adicionales", name = "titulo", length = 250, nullable = false)
     private String titulo;
 
-    @Column(table = "subastas_datos_adicionales", name = "descripcion", columnDefinition = "VARCHAR(MAX)")
+    @Column(table = "subastas_datos_adicionales", name = "descripcion", columnDefinition = "TEXT")
     private String descripcion;
 
     @Lob
     @Column(table = "subastas_datos_adicionales", name = "foto", columnDefinition = "LONGBLOB")
     private byte[] foto;
+
+    @Column(table = "subastas_datos_adicionales", name = "direccion_detallada", length = 350)
+    private String direccionDetallada;
 }
+

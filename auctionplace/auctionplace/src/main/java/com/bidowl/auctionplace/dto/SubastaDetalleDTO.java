@@ -11,6 +11,7 @@ public class SubastaDetalleDTO {
     private String imagenPortada;
     private String rematador;
     private String ubicacion;
+    private String direccionDetallada;
     private String fecha;
     private String hora;
     private String categoria;

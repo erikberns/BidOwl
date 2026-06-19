@@ -9,4 +9,6 @@ public class ItemPreviewDTO {
     private String nombre;
     private BigDecimal valorBase;
     private String imagen;
+    private String duenioNombre;
+    private String descripcion;
 }

@@ -46,6 +46,6 @@ public class Producto {
     @Column(table = "productos_datos_adicionales", name = "nombre", length = 250, nullable = false)
     private String nombre;
 
-    @Column(table = "productos_datos_adicionales", name = "descripcion", columnDefinition = "VARCHAR(MAX)")
+    @Column(table = "productos_datos_adicionales", name = "descripcion", columnDefinition = "TEXT")
     private String descripcion;
 }

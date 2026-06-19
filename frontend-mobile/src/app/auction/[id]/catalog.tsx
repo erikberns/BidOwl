@@ -9,6 +9,24 @@ import { API_URL } from '@/constants/api';
 
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 
+// Helper to resolve Image URLs
+const getImageUrl = (path: string) => {
+  if (!path) return null;
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return { uri: path };
+  }
+  const baseUrl = API_URL.replace('/api', '');
+  return { uri: baseUrl + path };
+};
+
+// Helper to format prices
+const formatPrice = (value: number | string) => {
+  if (value === undefined || value === null) return '';
+  const num = typeof value === 'number' ? value : parseFloat(value.toString().replace(/[^0-9.]/g, ''));
+  if (isNaN(num)) return value.toString();
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " ARS";
+};
+
 export default function CatalogScreen() {
   const { id } = useLocalSearchParams();
   const auctionIdStr = Array.isArray(id) ? id[0] : id || '1';
@@ -33,7 +51,7 @@ export default function CatalogScreen() {
     id: item.iditem || item.id || String(idx),
     number: `${idx + 1}º`,
     title: item.nombre || item.title,
-    price: item.valorBase !== undefined ? `${item.valorBase} ARS` : item.basePrice,
+    price: formatPrice(item.valorBase),
     imagen: item.imagen,
   }));
 
@@ -68,7 +86,7 @@ export default function CatalogScreen() {
         <View style={styles.itemsList}>
           {mockItems.map((item) => {
             const itemImageSource = item.imagen
-              ? { uri: API_URL.replace('/api', '') + item.imagen }
+              ? getImageUrl(item.imagen)
               : require('@/assets/images/rolling_stone_auction.png');
             return (
               <View key={item.id} style={styles.itemCard}>
