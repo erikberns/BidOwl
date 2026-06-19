@@ -221,6 +221,18 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     }
   };
 
+  const handleRemoveFile = (type: 'bank' | 'check') => {
+    if (type === 'bank') {
+      setBankFile(null);
+      setBankFileUri(null);
+      setBankFileError('');
+    } else {
+      setCheckFile(null);
+      setCheckFileUri(null);
+      setCheckFileError('');
+    }
+  };
+
   const [availablePaises, setAvailablePaises] = useState<any[]>([
     { numero: 54, nombre: 'Argentina' },
     { numero: 598, nombre: 'Uruguay' },
@@ -229,6 +241,12 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
   ]);
   const [isBankDropdownOpen, setIsBankDropdownOpen] = useState(false);
   const [isCheckDropdownOpen, setIsCheckDropdownOpen] = useState(false);
+  const [isBankCurrencyDropdownOpen, setIsBankCurrencyDropdownOpen] = useState(false);
+  const [isCheckCurrencyDropdownOpen, setIsCheckCurrencyDropdownOpen] = useState(false);
+  const currencyOptions = [
+    { value: 'Pesos', label: 'Pesos' },
+    { value: 'Dólares', label: 'Dólares' }
+  ];
 
   useEffect(() => {
     async function loadPaises() {
@@ -473,11 +491,6 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       }
     }
 
-    if (!bankFile) {
-      setBankFileError('Debe subir una foto del comprobante.');
-      hasErrors = true;
-    }
-
     if (hasErrors) {
       return;
     }
@@ -492,7 +505,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       formData.append('nombreBanco', bankBanco);
       formData.append('paisId', paisId.toString());
       formData.append('cbuIban', bankCbuIban);
-      formData.append('moneda', bankMoneda.toLowerCase() === 'ar$' ? 'pesos' : bankMoneda.toLowerCase());
+      formData.append('moneda', bankMoneda.toLowerCase().includes('d') ? 'dolares' : 'pesos');
 
       if (bankFile) {
         if (Platform.OS === 'web') {
@@ -728,7 +741,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       formData.append('numeroCheque', checkNumero);
       formData.append('monto', checkMonto);
       formData.append('paisId', paisId.toString());
-      formData.append('moneda', checkMoneda.toLowerCase() === 'ar$' ? 'pesos' : checkMoneda.toLowerCase());
+      formData.append('moneda', checkMoneda.toLowerCase().includes('d') ? 'dolares' : 'pesos');
 
       if (checkFile) {
         if (Platform.OS === 'web') {
@@ -953,24 +966,36 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
             {fileUri ? (
               <Image source={{ uri: fileUri }} style={styles.filePreviewImage} />
             ) : (
-              <Image
-                source={require('../../assets/images/borrar.png')}
-                style={styles.buttonImage}
-                resizeMode="contain"
-              />
+              <Text style={styles.fileAddText}>+</Text>
             )}
           </TouchableOpacity>
 
-          <View style={[
-            styles.fileCardBox,
-            !!fileError ? { borderColor: '#E30613', borderWidth: 1.5 } : null
-          ]}>
-            <Text style={styles.fileCardText}>
-              {fileObj ? fileObj.name || 'Comprobante seleccionado' : 'Sin archivo'}
-            </Text>
+          <View style={styles.fileCardColumn}>
+            <View style={[styles.fileCardBox, fileUri ? styles.fileCardBoxWithImage : null]}> 
+              <Text style={styles.fileCardText} numberOfLines={2} ellipsizeMode="tail">
+                {fileObj ? fileObj.name || 'Archivo seleccionado' : 'Sin archivo'}
+              </Text>
+            </View>
+            {fileUri && type === 'check' && (
+              <View style={styles.fileActionRow}>
+                <TouchableOpacity
+                  style={styles.fileActionButton}
+                  onPress={selectHandler}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.fileActionButtonText}>Cambiar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.fileActionButton, styles.fileActionButtonDelete]}
+                  onPress={() => handleRemoveFile(type)}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.fileActionButtonText}>Eliminar</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </View>
-        {!!fileError && <Text style={[styles.errorText, { marginTop: 8 }]}>{fileError}</Text>}
       </View>
     );
   };
@@ -1000,10 +1025,17 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
           }}
           error={bankBancoError}
         />
-        <View style={[styles.row, { zIndex: isBankDropdownOpen ? 1000 : 1, position: 'relative' }]}>
+        <View style={[styles.row, { zIndex: isBankDropdownOpen || isBankCurrencyDropdownOpen ? 1000 : 1, position: 'relative' }]}> 
           <CountryDropdownField label="País" value={bankPais} onSelect={setBankPais} isOpen={isBankDropdownOpen} setIsOpen={setIsBankDropdownOpen} />
           <View style={{ width: 15 }} />
-          <InputField label="Moneda" placeholder="AR$" value={bankMoneda} onChangeText={setBankMoneda} />
+          <CurrencyDropdownField
+            label="Moneda"
+            value={bankMoneda}
+            onSelect={setBankMoneda}
+            isOpen={isBankCurrencyDropdownOpen}
+            setIsOpen={setIsBankCurrencyDropdownOpen}
+            options={currencyOptions}
+          />
         </View>
         <InputField
           label="Número de Cuenta"
@@ -1034,8 +1066,6 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
           }}
           error={bankCbuIbanError}
         />
-
-        {renderFileUpload('bank')}
       </ScrollView>
       <View style={styles.footer}>
         <TouchableOpacity style={styles.acceptButton} onPress={handleAddBank} disabled={isLoading}>
@@ -1180,10 +1210,17 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
           keyboardType="numeric"
           error={checkMontoError}
         />
-        <View style={[styles.row, { zIndex: isCheckDropdownOpen ? 1000 : 1, position: 'relative' }]}>
+<View style={[styles.row, { zIndex: isCheckDropdownOpen || isCheckCurrencyDropdownOpen ? 1000 : 1, position: 'relative' }]}> 
           <CountryDropdownField label="País" value={checkPais} onSelect={setCheckPais} isOpen={isCheckDropdownOpen} setIsOpen={setIsCheckDropdownOpen} />
           <View style={{ width: 15 }} />
-          <InputField label="Moneda" placeholder="AR$" value={checkMoneda} onChangeText={setCheckMoneda} />
+          <CurrencyDropdownField
+            label="Moneda"
+            value={checkMoneda}
+            onSelect={setCheckMoneda}
+            isOpen={isCheckCurrencyDropdownOpen}
+            setIsOpen={setIsCheckCurrencyDropdownOpen}
+            options={currencyOptions}
+          />
         </View>
 
         {renderFileUpload('check')}
@@ -1484,14 +1521,61 @@ const styles = StyleSheet.create({
     fontSize: 30,
     color: '#333',
   },
+  fileCardColumn: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
   fileCardBox: {
     borderWidth: 1,
     borderColor: '#E0E0E0',
     borderRadius: 8,
-    width: '50%',
+    width: '100%',
     height: 80,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 10,
+  },
+  fileCardBoxWithImage: {
+    alignItems: 'flex-start',
+  },
+  filePreviewImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+    resizeMode: 'cover',
+  },
+  fileAddText: {
+    fontSize: 30,
+    color: '#333',
+  },
+  fileActionRow: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  fileActionButton: {
+    backgroundColor: '#001b2a',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  fileActionButtonDelete: {
+    backgroundColor: '#E30613',
+  },
+  fileActionButtonText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  filePreviewImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+    resizeMode: 'cover',
+  },
+  fileCardText: {
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   fileCardText: {
     fontSize: 14,
@@ -1623,6 +1707,46 @@ const CountryDropdownField = ({ label, value, onSelect, isOpen, setIsOpen, flex 
                   }}
                 >
                   <Text style={styles.dropdownItemText}>{item.nombre}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+      </View>
+      {hasError && <Text style={styles.errorText}>{error}</Text>}
+    </View>
+  );
+};
+
+const CurrencyDropdownField = ({ label, value, onSelect, isOpen, setIsOpen, options, flex = 1, error }: any) => {
+  const { isLoading } = React.useContext(PaymentLoadingContext);
+  const hasError = !!error;
+  return (
+    <View style={{ flex, zIndex: isOpen ? 1000 : 1, overflow: 'visible', width: '100%' }}>
+      <View style={[styles.inputContainer, hasError && styles.inputContainerError, { overflow: 'visible' }]}>
+        <Text style={styles.inputLabel}>{label}</Text>
+        <TouchableOpacity
+          style={[styles.input, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}
+          onPress={() => setIsOpen(!isOpen)}
+          disabled={isLoading}
+        >
+          <Text style={{ fontSize: 16, color: '#000' }}>{value}</Text>
+          <Text style={{ fontSize: 12, color: '#666' }}>{isOpen ? '▲' : '▼'}</Text>
+        </TouchableOpacity>
+
+        {isOpen && (
+          <View style={styles.dropdownMenu}>
+            <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 150, backgroundColor: '#ffffff' }}>
+              {options.map((item: any) => (
+                <TouchableOpacity
+                  key={item.value}
+                  style={[styles.dropdownItem, { backgroundColor: '#ffffff' }]}
+                  onPress={() => {
+                    onSelect(item.value);
+                    setIsOpen(false);
+                  }}
+                >
+                  <Text style={styles.dropdownItemText}>{item.label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
