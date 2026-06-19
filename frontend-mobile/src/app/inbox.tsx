@@ -19,7 +19,6 @@ export default function InboxScreen() {
   const [activeBids, setActiveBids] = React.useState<any[]>([]);
   const [activeAuctions, setActiveAuctions] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [expandedNotifIds, setExpandedNotifIds] = React.useState<string[]>(['1', '2']);
   const [showInspectionResult, setShowInspectionResult] = React.useState(false);
   const [showOfferDetails, setShowOfferDetails] = React.useState(false);
   const [showPaymentSelection, setShowPaymentSelection] = React.useState(false);
