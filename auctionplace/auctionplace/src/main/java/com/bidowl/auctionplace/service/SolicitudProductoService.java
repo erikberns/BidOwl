@@ -11,6 +11,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.springframework.jdbc.core.JdbcTemplate;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 
 @Service
 public class SolicitudProductoService {
@@ -23,6 +26,15 @@ public class SolicitudProductoService {
 
     @Autowired
     private PersonaRepository personaRepository;
+
+    @Autowired
+    private ClienteRepository clienteRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Autowired
     private EmpleadoRepository empleadoRepository;
@@ -53,7 +65,26 @@ public class SolicitudProductoService {
 
         Optional<Duenio> duenioOpt = duenioRepository.findById(creadorId);
         if (duenioOpt.isEmpty()) {
-            throw new Exception("El usuario debe ser un dueño para crear solicitudes");
+            // Verificar si es cliente
+            Optional<Cliente> clienteOpt = clienteRepository.findById(creadorId);
+            if (clienteOpt.isEmpty()) {
+                throw new Exception("El usuario debe ser un cliente validado para crear solicitudes");
+            }
+            
+            // Promover el cliente a dueño insertando el registro en la tabla duenios
+            // Spring Boot nombra las columnas en snake_case por defecto.
+            jdbcTemplate.update(
+                "INSERT INTO duenios (identificador, verificacion_financiera, verificacion_judicial, calificacion_riesgo) VALUES (?, 'no', 'no', 1)",
+                creadorId
+            );
+            
+            // Limpiar caché de JPA para forzar recarga de la entidad correcta
+            entityManager.clear();
+            
+            duenioOpt = duenioRepository.findById(creadorId);
+            if (duenioOpt.isEmpty()) {
+                throw new Exception("Error al promover el usuario a dueño.");
+            }
         }
 
         // Validar campos obligatorios

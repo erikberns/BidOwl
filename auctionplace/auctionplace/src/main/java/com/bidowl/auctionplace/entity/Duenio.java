@@ -13,7 +13,7 @@ import lombok.AllArgsConstructor;
 @EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
 @AllArgsConstructor
-public class Duenio extends Persona {
+public class Duenio extends Cliente {
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "numeroPais")
@@ -30,5 +30,5 @@ public class Duenio extends Persona {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "verificador")
-    private Empleado verificador;
+    private Empleado verificadorDuenio;
 }
