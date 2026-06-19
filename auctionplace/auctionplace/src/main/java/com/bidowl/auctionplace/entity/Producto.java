@@ -8,6 +8,7 @@ import java.time.LocalDate;
 
 @Entity
 @Table(name = "productos")
+@SecondaryTable(name = "productos_datos_adicionales", pkJoinColumns = @PrimaryKeyJoinColumn(name = "identificador"))
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -41,4 +42,10 @@ public class Producto {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "seguro")
     private Seguro seguro;
+
+    @Column(table = "productos_datos_adicionales", name = "nombre", length = 250, nullable = false)
+    private String nombre;
+
+    @Column(table = "productos_datos_adicionales", name = "descripcion", columnDefinition = "VARCHAR(MAX)")
+    private String descripcion;
 }

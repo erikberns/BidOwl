@@ -75,6 +75,21 @@ public class SubastaController {
         return ResponseEntity.ok(subastaService.obtenerCatalogo(id));
     }
 
+    @GetMapping("/{id}/foto")
+    public ResponseEntity<byte[]> obtenerFotoSubasta(@PathVariable Integer id) {
+        try {
+            byte[] foto = subastaService.obtenerFotoSubastaBytes(id);
+            if (foto == null) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok()
+                    .contentType(org.springframework.http.MediaType.IMAGE_JPEG)
+                    .body(foto);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @PostMapping("/{id}/unirse")
     public ResponseEntity<?> unirse(
             @PathVariable Integer id,

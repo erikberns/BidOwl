@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Arrays;
+import java.util.List;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -37,8 +38,27 @@ public class DataInitializer implements CommandLineRunner {
     @Autowired
     private ItemCatalogoRepository itemCatalogoRepository;
 
+    @Autowired
+    private FotoRepository fotoRepository;
+
     @Override
     public void run(String... args) throws Exception {
+        // Cargar recursos de imágenes locales
+        byte[] rollingStoneBytes = null;
+        byte[] avatarBytes = null;
+        try {
+            var resourceStream1 = getClass().getResourceAsStream("/rolling_stone_auction.png");
+            if (resourceStream1 != null) {
+                rollingStoneBytes = resourceStream1.readAllBytes();
+            }
+            var resourceStream2 = getClass().getResourceAsStream("/auctioneer_avatar.png");
+            if (resourceStream2 != null) {
+                avatarBytes = resourceStream2.readAllBytes();
+            }
+        } catch (Exception e) {
+            System.err.println("[DataInitializer] Error al cargar recursos de imágenes: " + e.getMessage());
+        }
+
         // 1. Inicializar Países
         if (paisRepository.count() == 0) {
             Pais argentina = new Pais(54, "Argentina", "ARG", "Buenos Aires", "Argentina", "Español");
@@ -91,11 +111,11 @@ public class DataInitializer implements CommandLineRunner {
 
         Duenio duenioDefault = duenioRepository.findAll().get(0);
 
-        // 4. Inicializar Subastador por Defecto
+        // 4. Inicializar Subastador por Defecto (Agustin Blanco Vocos)
         if (subastadorRepository.count() == 0) {
             Subastador subastador = new Subastador();
-            subastador.setNombre("Jorge");
-            subastador.setApellido("Martillero");
+            subastador.setNombre("Agustin");
+            subastador.setApellido("Blanco Vocos");
             subastador.setDocumento("22111333");
             subastador.setEmail("jorge.subastas@bidowl.com");
             subastador.setContrasena("martillero123");
@@ -105,78 +125,224 @@ public class DataInitializer implements CommandLineRunner {
             subastador.setPais(paisDefault);
             subastador.setMatricula("MAT-8947-C");
             subastador.setRegion("Buenos Aires");
+            subastador.setFoto(avatarBytes);
             subastadorRepository.save(subastador);
         }
 
         Subastador subastadorDefault = subastadorRepository.findAll().get(0);
 
-        // 5. Inicializar Subasta (en fecha > 10 días en el futuro por restricción SQL)
+        // 5. Inicializar Subastas (en fecha > 10 días en el futuro por restricción SQL)
         if (subastaRepository.count() == 0) {
-            Subasta subasta = new Subasta();
-            subasta.setFecha(LocalDate.now().plusDays(15));
-            subasta.setHora(LocalTime.of(18, 0));
-            subasta.setEstado("abierta"); // abierta para que se puedan unir a pujar
-            subasta.setSubastador(subastadorDefault);
-            subasta.setUbicacion("Salón Gran Owl, Buenos Aires");
-            subasta.setCapacidadAsistentes(150);
-            subasta.setTieneDeposito("si");
-            subasta.setSeguridadPropia("si");
-            subasta.setCategoria("comun");
-            subastaRepository.save(subasta);
+            // Subasta 1
+            Subasta subasta1 = new Subasta();
+            subasta1.setFecha(LocalDate.now().plusDays(15));
+            subasta1.setHora(LocalTime.of(18, 30));
+            subasta1.setEstado("abierta");
+            subasta1.setSubastador(subastadorDefault);
+            subasta1.setUbicacion("Pilar, Buenos Aires");
+            subasta1.setCapacidadAsistentes(150);
+            subasta1.setTieneDeposito("si");
+            subasta1.setSeguridadPropia("si");
+            subasta1.setCategoria("comun");
+            subasta1.setTitulo("Subasta de Colección Original \"Rolling Stone\"");
+            subasta1.setDescripcion("Presentamos una oportunidad excepcional para acceder a una cuidada selección de ejemplares originales de una de las revistas más influyentes en la historia de la música, el entretenimiento y la cultura contemporánea. Esta colección reúne ediciones emblemáticas que capturan momentos únicos de la historia del rock.");
+            subasta1.setFoto(rollingStoneBytes);
+            subastaRepository.save(subasta1);
+
+            // Subasta 2
+            Subasta subasta2 = new Subasta();
+            subasta2.setFecha(LocalDate.now().plusDays(20));
+            subasta2.setHora(LocalTime.of(19, 0));
+            subasta2.setEstado("abierta");
+            subasta2.setSubastador(subastadorDefault);
+            subasta2.setUbicacion("Tigre, Buenos Aires");
+            subasta2.setCapacidadAsistentes(150);
+            subasta2.setTieneDeposito("si");
+            subasta2.setSeguridadPropia("si");
+            subasta2.setCategoria("comun");
+            subasta2.setTitulo("Colección Vintage Guitarras Gibson & Fender");
+            subasta2.setDescripcion("Una venta exclusiva de instrumentos vintage cuidadosamente seleccionados por luthiers profesionales. Esta colección cuenta con piezas históricas de las dos marcas más icónicas en el mundo de las guitarras eléctricas, Gibson y Fender, que definieron el sonido de generaciones.");
+            subasta2.setFoto(rollingStoneBytes);
+            subastaRepository.save(subasta2);
         }
 
-        Subasta subastaDefault = subastaRepository.findAll().get(0);
+        List<Subasta> subastas = subastaRepository.findAll();
+        Subasta subasta1 = subastas.get(0);
+        Subasta subasta2 = subastas.size() > 1 ? subastas.get(1) : subasta1;
 
-        // 6. Inicializar Catálogo de Subasta y Artículos
+        // 6. Inicializar Catálogos de Subasta
         if (catalogoRepository.count() == 0) {
-            Catalogo catalogo = new Catalogo();
-            catalogo.setDescripcion("Catálogo de Arte y Coleccionables Históricos");
-            catalogo.setSubasta(subastaDefault);
-            catalogo.setResponsable(empleadoDefault);
-            catalogoRepository.save(catalogo);
+            Catalogo catalogo1 = new Catalogo();
+            catalogo1.setDescripcion("Catálogo de Arte y Coleccionables Históricos");
+            catalogo1.setSubasta(subasta1);
+            catalogo1.setResponsable(empleadoDefault);
+            catalogoRepository.save(catalogo1);
+
+            if (subastas.size() > 1) {
+                Catalogo catalogo2 = new Catalogo();
+                catalogo2.setDescripcion("Catálogo de Guitarras Legendarias");
+                catalogo2.setSubasta(subasta2);
+                catalogo2.setResponsable(empleadoDefault);
+                catalogoRepository.save(catalogo2);
+            }
         }
 
-        Catalogo catalogoDefault = catalogoRepository.findAll().get(0);
+        List<Catalogo> catalogos = catalogoRepository.findAll();
+        Catalogo catalogo1 = catalogos.get(0);
+        Catalogo catalogo2 = catalogos.size() > 1 ? catalogos.get(1) : catalogo1;
 
         // 7. Inicializar Productos y asociarlos al Catálogo como Ítems
         if (productoRepository.count() == 0) {
-            // Producto 1
-            Producto p1 = new Producto();
-            p1.setFecha(LocalDate.now());
-            p1.setDisponible("si");
-            p1.setDescripcionCatalogo("Juego de té inglés de porcelana, 18 piezas. Año 1910.");
-            p1.setDescripcionCompleta("https://bidowl-media.s3.amazonaws.com/docs/juego-te-porcelana.pdf");
-            p1.setRevisor(empleadoDefault);
-            p1.setDuenio(duenioDefault);
-            productoRepository.save(p1);
+            // --- PRODUCTOS SUBASTA 1 ---
+            // Producto 1.1
+            Producto p1_1 = new Producto();
+            p1_1.setFecha(LocalDate.now());
+            p1_1.setDisponible("si");
+            p1_1.setDescripcionCatalogo("Juego de té inglés de porcelana, 18 piezas. Año 1910.");
+            p1_1.setDescripcionCompleta("https://bidowl-media.s3.amazonaws.com/docs/juego-te-porcelana.pdf");
+            p1_1.setRevisor(empleadoDefault);
+            p1_1.setDuenio(duenioDefault);
+            p1_1.setNombre("Juego de Té Inglés Antiguo");
+            p1_1.setDescripcion("Hermoso juego de té de porcelana inglesa del año 1910 con finos detalles de oro pintados a mano. Consta de 18 piezas.");
+            productoRepository.save(p1_1);
+            saveProductPhoto(p1_1, rollingStoneBytes);
 
-            // Producto 2
-            Producto p2 = new Producto();
-            p2.setFecha(LocalDate.now());
-            p2.setDisponible("si");
-            p2.setDescripcionCatalogo("Pintura al óleo sobre lienzo 'El Atardecer de BidOwl', artista local.");
-            p2.setDescripcionCompleta("https://bidowl-media.s3.amazonaws.com/docs/atardecer-bidowl.pdf");
-            p2.setRevisor(empleadoDefault);
-            p2.setDuenio(duenioDefault);
-            productoRepository.save(p2);
+            // Producto 1.2
+            Producto p1_2 = new Producto();
+            p1_2.setFecha(LocalDate.now());
+            p1_2.setDisponible("si");
+            p1_2.setDescripcionCatalogo("Pintura al óleo sobre lienzo 'El Atardecer de BidOwl', artista local.");
+            p1_2.setDescripcionCompleta("https://bidowl-media.s3.amazonaws.com/docs/atardecer-bidowl.pdf");
+            p1_2.setRevisor(empleadoDefault);
+            p1_2.setDuenio(duenioDefault);
+            p1_2.setNombre("Óleo 'El Atardecer de BidOwl'");
+            p1_2.setDescripcion("Obra original pintada al óleo sobre lienzo de lino por el artista local. Captura la serenidad de una tarde otoñal.");
+            productoRepository.save(p1_2);
+            saveProductPhoto(p1_2, rollingStoneBytes);
 
-            // Ítem Catálogo 1
-            ItemCatalogo item1 = new ItemCatalogo();
-            item1.setCatalogo(catalogoDefault);
-            item1.setProducto(p1);
-            item1.setPrecioBase(BigDecimal.valueOf(10000)); // Precio base de la demo (10,000)
-            item1.setComision(BigDecimal.valueOf(1000));
-            item1.setSubastado("no");
-            itemCatalogoRepository.save(item1);
+            // Producto 1.3
+            Producto p1_3 = new Producto();
+            p1_3.setFecha(LocalDate.now());
+            p1_3.setDisponible("si");
+            p1_3.setDescripcionCatalogo("Disco de Platino firmado por Mick Jagger y Keith Richards en 1978.");
+            p1_3.setDescripcionCompleta("https://bidowl-media.s3.amazonaws.com/docs/disco-platino-1978.pdf");
+            p1_3.setRevisor(empleadoDefault);
+            p1_3.setDuenio(duenioDefault);
+            p1_3.setNombre("Disco de Platino Firmado 1978");
+            p1_3.setDescripcion("Premio oficial de disco de platino otorgado por ventas récord en 1978. Autografiado individualmente por Mick Jagger, Keith Richards, y Ron Wood.");
+            productoRepository.save(p1_3);
+            saveProductPhoto(p1_3, rollingStoneBytes);
 
-            // Ítem Catálogo 2
-            ItemCatalogo item2 = new ItemCatalogo();
-            item2.setCatalogo(catalogoDefault);
-            item2.setProducto(p2);
-            item2.setPrecioBase(BigDecimal.valueOf(15000));
-            item2.setComision(BigDecimal.valueOf(1500));
-            item2.setSubastado("no");
-            itemCatalogoRepository.save(item2);
+            // Producto 1.4
+            Producto p1_4 = new Producto();
+            p1_4.setFecha(LocalDate.now());
+            p1_4.setDisponible("si");
+            p1_4.setDescripcionCatalogo("Baquetas originales de madera usadas en concierto por Charlie Watts.");
+            p1_4.setDescripcionCompleta("https://bidowl-media.s3.amazonaws.com/docs/baquetas-watts.pdf");
+            p1_4.setRevisor(empleadoDefault);
+            p1_4.setDuenio(duenioDefault);
+            p1_4.setNombre("Baquetas Usadas de Charlie Watts");
+            p1_4.setDescripcion("Un par de baquetas originales de madera usadas en concierto por Charlie Watts durante los años 80, firmadas por el legendario baterista.");
+            productoRepository.save(p1_4);
+            saveProductPhoto(p1_4, rollingStoneBytes);
+
+            // Producto 1.5
+            Producto p1_5 = new Producto();
+            p1_5.setFecha(LocalDate.now());
+            p1_5.setDisponible("si");
+            p1_5.setDescripcionCatalogo("Póster promocional original de la gira norteamericana de la banda en 1975.");
+            p1_5.setDescripcionCompleta("https://bidowl-media.s3.amazonaws.com/docs/poster-1975.pdf");
+            p1_5.setRevisor(empleadoDefault);
+            p1_5.setDuenio(duenioDefault);
+            p1_5.setNombre("Póster de Gira de 1975 Enmarcado");
+            p1_5.setDescripcion("Póster promocional original de la gira norteamericana de la banda en 1975, enmarcado con cristal protector UV.");
+            productoRepository.save(p1_5);
+            saveProductPhoto(p1_5, rollingStoneBytes);
+
+            // --- PRODUCTOS SUBASTA 2 ---
+            // Producto 2.1
+            Producto p2_1 = new Producto();
+            p2_1.setFecha(LocalDate.now());
+            p2_1.setDisponible("si");
+            p2_1.setDescripcionCatalogo("Gibson Les Paul Custom 1968 Ebony.");
+            p2_1.setDescripcionCompleta("https://bidowl-media.s3.amazonaws.com/docs/gibson-1968.pdf");
+            p2_1.setRevisor(empleadoDefault);
+            p2_1.setDuenio(duenioDefault);
+            p2_1.setNombre("Gibson Les Paul Custom 1968");
+            p2_1.setDescripcion("Modelo histórico reedición 1968 con pastillas humbucker originales. Acabado Ebony de alto brillo en impecable estado de conservación.");
+            productoRepository.save(p2_1);
+            saveProductPhoto(p2_1, rollingStoneBytes);
+
+            // Producto 2.2
+            Producto p2_2 = new Producto();
+            p2_2.setFecha(LocalDate.now());
+            p2_2.setDisponible("si");
+            p2_2.setDescripcionCatalogo("Fender Stratocaster Sunburst 1962.");
+            p2_2.setDescripcionCompleta("https://bidowl-media.s3.amazonaws.com/docs/fender-1962.pdf");
+            p2_2.setRevisor(empleadoDefault);
+            p2_2.setDuenio(duenioDefault);
+            p2_2.setNombre("Fender Stratocaster Sunburst 1962");
+            p2_2.setDescripcion("Cuerpo de aliso original con mástil de arce y diapasón de palisandro. Todo el cableado y micrófonos son de época.");
+            productoRepository.save(p2_2);
+            saveProductPhoto(p2_2, rollingStoneBytes);
+
+            // Producto 2.3
+            Producto p2_3 = new Producto();
+            p2_3.setFecha(LocalDate.now());
+            p2_3.setDisponible("si");
+            p2_3.setDescripcionCatalogo("Gibson SG Standard Cherry 1971.");
+            p2_3.setDescripcionCompleta("https://bidowl-media.s3.amazonaws.com/docs/gibson-sg-1971.pdf");
+            p2_3.setRevisor(empleadoDefault);
+            p2_3.setDuenio(duenioDefault);
+            p2_3.setNombre("Gibson SG Standard Cherry 1971");
+            p2_3.setDescripcion("Modelo clásico Cherry Red con trémolo Bigsby original. Una guitarra muy resonante con trastes originales en excelente estado.");
+            productoRepository.save(p2_3);
+            saveProductPhoto(p2_3, rollingStoneBytes);
+
+            // Producto 2.4
+            Producto p2_4 = new Producto();
+            p2_4.setFecha(LocalDate.now());
+            p2_4.setDisponible("si");
+            p2_4.setDescripcionCatalogo("Fender Telecaster Butterscotch 1952.");
+            p2_4.setDescripcionCompleta("https://bidowl-media.s3.amazonaws.com/docs/fender-tele-1952.pdf");
+            p2_4.setRevisor(empleadoDefault);
+            p2_4.setDuenio(duenioDefault);
+            p2_4.setNombre("Fender Telecaster Butterscotch 1952");
+            p2_4.setDescripcion("La legendaria \"Blackguard\" Telecaster en acabado Butterscotch Blonde. Todo un ícono del rock y el country vintage.");
+            productoRepository.save(p2_4);
+            saveProductPhoto(p2_4, rollingStoneBytes);
+
+            // --- ITEMS DE CATÁLOGO SUBASTA 1 ---
+            saveItemCatalogo(catalogo1, p1_1, 1000000);
+            saveItemCatalogo(catalogo1, p1_2, 850000);
+            saveItemCatalogo(catalogo1, p1_3, 500000);
+            saveItemCatalogo(catalogo1, p1_4, 300000);
+            saveItemCatalogo(catalogo1, p1_5, 150000);
+
+            // --- ITEMS DE CATÁLOGO SUBASTA 2 ---
+            saveItemCatalogo(catalogo2, p2_1, 2500000);
+            saveItemCatalogo(catalogo2, p2_2, 3000000);
+            saveItemCatalogo(catalogo2, p2_3, 1800000);
+            saveItemCatalogo(catalogo2, p2_4, 4000000);
         }
+    }
+
+    private void saveProductPhoto(Producto producto, byte[] photoBytes) {
+        if (photoBytes != null) {
+            Foto foto = new Foto();
+            foto.setProducto(producto);
+            foto.setFoto(photoBytes);
+            fotoRepository.save(foto);
+        }
+    }
+
+    private void saveItemCatalogo(Catalogo catalogo, Producto producto, long precioBaseValue) {
+        ItemCatalogo item = new ItemCatalogo();
+        item.setCatalogo(catalogo);
+        item.setProducto(producto);
+        item.setPrecioBase(BigDecimal.valueOf(precioBaseValue));
+        item.setComision(BigDecimal.valueOf(precioBaseValue * 0.1));
+        item.setSubastado("no");
+        itemCatalogoRepository.save(item);
     }
 }

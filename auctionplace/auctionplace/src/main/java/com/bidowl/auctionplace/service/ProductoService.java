@@ -25,6 +25,9 @@ public class ProductoService {
     @Autowired
     private SeguroRepository seguroRepository;
 
+    @Autowired
+    private FotoRepository fotoRepository;
+
     /**
      * Obtiene todos los productos
      */
@@ -231,6 +234,17 @@ public class ProductoService {
             dto.setSeguroNumeroPoliza(producto.getSeguro().getNroPoliza());
         }
         
+        dto.setNombre(producto.getNombre());
+        dto.setDescripcion(producto.getDescripcion());
+        
         return dto;
+    }
+
+    public byte[] obtenerPrimerFotoBytes(Integer productoId) {
+        List<Foto> fotos = fotoRepository.findByProductoId(productoId);
+        if (fotos != null && !fotos.isEmpty()) {
+            return fotos.get(0).getFoto();
+        }
+        return null;
     }
 }

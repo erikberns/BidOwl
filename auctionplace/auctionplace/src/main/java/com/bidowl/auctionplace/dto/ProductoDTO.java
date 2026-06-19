@@ -20,4 +20,6 @@ public class ProductoDTO {
     private Integer duenioId;
     private String duenioNombre;
     private String seguroNumeroPoliza;
+    private String nombre;
+    private String descripcion;
 }

@@ -4,17 +4,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, Stack, Tabs } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useIsFocused } from 'expo-router/react-navigation';
+import { useIsFocused } from '@react-navigation/native';
 
 import { AuctionCard } from '@/components/AuctionCard';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { MOCK_AUCTIONS } from '@/constants/mockData';
+import { API_URL } from '@/constants/api';
 
 export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = React.useState('');
   const isFocused = useIsFocused();
   const [isGuest, setIsGuest] = React.useState(true);
   const [username, setUsername] = React.useState('Invitado');
+  const [auctions, setAuctions] = React.useState<any[]>([]);
 
   React.useEffect(() => {
     if (isFocused) {
@@ -39,12 +41,35 @@ export default function HomeScreen() {
     }
   }, [isFocused]);
 
-  const filteredAuctions = MOCK_AUCTIONS.filter(item => {
+  React.useEffect(() => {
+    if (isFocused) {
+      async function loadAuctions() {
+        try {
+          const res = await fetch(`${API_URL}/subastas?pagina=1&limite=100`);
+          if (res.ok) {
+            const data = await res.json();
+            setAuctions(data);
+          } else {
+            setAuctions(MOCK_AUCTIONS);
+          }
+        } catch (e) {
+          console.error('[HomeScreen] Error loading auctions:', e);
+          setAuctions(MOCK_AUCTIONS);
+        }
+      }
+      loadAuctions();
+    }
+  }, [isFocused]);
+
+  const filteredAuctions = auctions.filter(item => {
     const query = searchQuery.toLowerCase();
+    const titulo = item.titulo || item.title || '';
+    const categoria = item.categoria || item.category || '';
+    const ubicacion = item.ubicacion || item.location || '';
     return (
-      item.title.toLowerCase().includes(query) ||
-      item.category.toLowerCase().includes(query) ||
-      item.location.toLowerCase().includes(query)
+      titulo.toLowerCase().includes(query) ||
+      categoria.toLowerCase().includes(query) ||
+      ubicacion.toLowerCase().includes(query)
     );
   });
 
@@ -103,19 +128,24 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.horizontalScrollContent}
             >
-              {filteredAuctions.map(item => (
-                <AuctionCard
-                  key={`active-${item.id}`}
-                  title={item.title}
-                  image={item.image}
-                  category={item.category}
-                  itemCount={item.itemCount}
-                  location={item.location}
-                  date={item.date}
-                  time={item.time}
-                  onPress={() => router.push(('/auction/' + item.id) as any)}
-                />
-              ))}
+              {filteredAuctions.map(item => {
+                const imageSource = item.imagenPortada
+                  ? { uri: API_URL.replace('/api', '') + item.imagenPortada }
+                  : require('@/assets/images/rolling_stone_auction.png');
+                return (
+                  <AuctionCard
+                    key={`active-${item.id}`}
+                    title={item.titulo || item.title}
+                    image={imageSource}
+                    category={item.categoria || item.category}
+                    itemCount={item.cantidaditems !== undefined ? item.cantidaditems : item.itemCount}
+                    location={item.ubicacion || item.location}
+                    date={item.fecha || item.date}
+                    time={item.hora || item.time}
+                    onPress={() => router.push(('/auction/' + item.id) as any)}
+                  />
+                );
+              })}
             </ScrollView>
           </View>
         ) : null}
@@ -129,19 +159,24 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.horizontalScrollContent}
             >
-              {filteredAuctions.map(item => (
-                <AuctionCard
-                  key={`upcoming-${item.id}`}
-                  title={item.title}
-                  image={item.image}
-                  category={item.category}
-                  itemCount={item.itemCount}
-                  location={item.location}
-                  date={item.date}
-                  time={item.time}
-                  onPress={() => router.push(('/auction/' + item.id) as any)}
-                />
-              ))}
+              {filteredAuctions.map(item => {
+                const imageSource = item.imagenPortada
+                  ? { uri: API_URL.replace('/api', '') + item.imagenPortada }
+                  : require('@/assets/images/rolling_stone_auction.png');
+                return (
+                  <AuctionCard
+                    key={`upcoming-${item.id}`}
+                    title={item.titulo || item.title}
+                    image={imageSource}
+                    category={item.categoria || item.category}
+                    itemCount={item.cantidaditems !== undefined ? item.cantidaditems : item.itemCount}
+                    location={item.ubicacion || item.location}
+                    date={item.fecha || item.date}
+                    time={item.hora || item.time}
+                    onPress={() => router.push(('/auction/' + item.id) as any)}
+                  />
+                );
+              })}
             </ScrollView>
           </View>
         ) : (

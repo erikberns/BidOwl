@@ -262,10 +262,14 @@ public class SubastaService {
         Subasta s = subasta.get();
         SubastaDetalleDTO dto = new SubastaDetalleDTO();
         dto.setId(s.getIdentificador().toString());
-        dto.setTitulo("Subasta " + s.getIdentificador());
+        dto.setTitulo(s.getTitulo() != null ? s.getTitulo() : "Subasta " + s.getIdentificador());
+        dto.setDescripcion(s.getDescripcion());
+        dto.setImagenPortada("/api/subastas/" + s.getIdentificador() + "/foto");
         dto.setRematador(s.getSubastador() != null ? s.getSubastador().getNombre() : "Rematador Desconocido");
         dto.setUbicacion(s.getUbicacion() != null ? s.getUbicacion() : "Por definir");
         dto.setFecha(s.getFecha() != null ? s.getFecha().toString() : "");
+        dto.setHora(s.getHora() != null ? s.getHora().toString() : "");
+        dto.setCategoria(s.getCategoria());
 
         // Obtener items
         List<ItemCatalogo> items = itemCatalogoRepository.findByCatalogoSubastaIdentificador(idSubasta);
@@ -277,10 +281,22 @@ public class SubastaService {
                 .map(item -> {
                     ItemPreviewDTO preview = new ItemPreviewDTO();
                     preview.setIditem(item.getIdentificador().toString());
-                    String nombreProducto = item.getProducto() != null ? item.getProducto().getDescripcionCatalogo() : "Item" + item.getIdentificador();
+                    String nombreProducto = "Item " + item.getIdentificador();
+                    if (item.getProducto() != null) {
+                        if (item.getProducto().getNombre() != null && !item.getProducto().getNombre().isEmpty()) {
+                            nombreProducto = item.getProducto().getNombre();
+                        } else if (item.getProducto().getDescripcionCatalogo() != null && !item.getProducto().getDescripcionCatalogo().isEmpty()) {
+                            nombreProducto = item.getProducto().getDescripcionCatalogo();
+                        }
+                    }
                     preview.setNombre(nombreProducto);
                     preview.setValorBase(item.getPrecioBase());
-                    preview.setImagen("https://via.placeholder.com/200x150?text=" + nombreProducto);
+                    
+                    String imagen = "https://via.placeholder.com/200x150?text=" + nombreProducto;
+                    if (item.getProducto() != null) {
+                        imagen = "/api/productos/" + item.getProducto().getIdentificador() + "/foto";
+                    }
+                    preview.setImagen(imagen);
                     return preview;
                 })
                 .collect(Collectors.toList());
@@ -306,13 +322,30 @@ public class SubastaService {
                 .map(item -> {
                     ItemCatalogoDTO dto = new ItemCatalogoDTO();
                     dto.setIditem(item.getIdentificador().toString());
-                    String nombreProducto = item.getProducto() != null ? item.getProducto().getDescripcionCatalogo() : "Item" + item.getIdentificador();
+                    String nombreProducto = "Item " + item.getIdentificador();
+                    if (item.getProducto() != null) {
+                        if (item.getProducto().getNombre() != null && !item.getProducto().getNombre().isEmpty()) {
+                            nombreProducto = item.getProducto().getNombre();
+                        } else if (item.getProducto().getDescripcionCatalogo() != null && !item.getProducto().getDescripcionCatalogo().isEmpty()) {
+                            nombreProducto = item.getProducto().getDescripcionCatalogo();
+                        }
+                    }
                     dto.setNombre(nombreProducto);
                     dto.setValorBase(item.getPrecioBase());
-                    dto.setImagen("https://via.placeholder.com/200x150?text=" + nombreProducto);
+                    
+                    String imagen = "https://via.placeholder.com/200x150?text=" + nombreProducto;
+                    if (item.getProducto() != null) {
+                        imagen = "/api/productos/" + item.getProducto().getIdentificador() + "/foto";
+                    }
+                    dto.setImagen(imagen);
                     return dto;
                 })
                 .collect(Collectors.toList());
+    }
+
+    public byte[] obtenerFotoSubastaBytes(Integer subastaId) {
+        Optional<Subasta> subasta = subastaRepository.findById(subastaId);
+        return subasta.map(Subasta::getFoto).orElse(null);
     }
 
     /**

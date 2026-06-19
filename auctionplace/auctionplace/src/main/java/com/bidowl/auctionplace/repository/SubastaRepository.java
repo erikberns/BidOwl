@@ -16,11 +16,13 @@ public interface SubastaRepository extends JpaRepository<Subasta, Integer> {
 
     @Query("SELECT new com.bidowl.auctionplace.dto.SubastaPublicaDTO(" +
            "  s.identificador, " +
-           "  concat('Subasta ', s.identificador), " +
+           "  coalesce(s.titulo, concat('Subasta ', s.identificador)), " +
            "  s.fecha, " +
+           "  s.hora, " +
+           "  s.ubicacion, " +
            "  s.categoria, " +
            "  (SELECT count(i) FROM ItemCatalogo i WHERE i.catalogo.subasta = s), " +
-           "  concat('https://via.placeholder.com/200x150?text=Subasta', s.identificador)" +
+           "  concat('/api/subastas/', s.identificador, '/foto')" +
            ") FROM Subasta s " +
            "WHERE (:estado IS NULL OR s.estado = :estado) " +
            "AND (:categoria IS NULL OR s.categoria = :categoria)")

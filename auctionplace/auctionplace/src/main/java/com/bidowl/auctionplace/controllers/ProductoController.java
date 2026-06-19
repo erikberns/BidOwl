@@ -147,6 +147,21 @@ public class ProductoController {
         }
     }
 
+    @GetMapping("/{id}/foto")
+    public ResponseEntity<byte[]> obtenerFotoProducto(@PathVariable Integer id) {
+        try {
+            byte[] foto = productoService.obtenerPrimerFotoBytes(id);
+            if (foto == null) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok()
+                    .contentType(org.springframework.http.MediaType.IMAGE_JPEG)
+                    .body(foto);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     /**
      * Método auxiliar para crear respuestas de error consistentes
      */

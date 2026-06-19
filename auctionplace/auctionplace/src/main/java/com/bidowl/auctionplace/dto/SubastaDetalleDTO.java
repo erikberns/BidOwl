@@ -7,9 +7,13 @@ import java.util.List;
 public class SubastaDetalleDTO {
     private String id;
     private String titulo;
+    private String descripcion;
+    private String imagenPortada;
     private String rematador;
     private String ubicacion;
     private String fecha;
+    private String hora;
+    private String categoria;
     private Integer cantidadTotalitems;
     private List<ItemPreviewDTO> previsualizacionitems;
 }

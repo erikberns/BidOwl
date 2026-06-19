@@ -9,6 +9,7 @@ import java.time.LocalTime;
 
 @Entity
 @Table(name = "subastas")
+@SecondaryTable(name = "subastas_datos_adicionales", pkJoinColumns = @PrimaryKeyJoinColumn(name = "identificador"))
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -46,4 +47,14 @@ public class Subasta {
 
     @Column(name = "categoria", length = 10)
     private String categoria = "comun"; // "comun", "especial", "plata", "oro", "platino"
+
+    @Column(table = "subastas_datos_adicionales", name = "titulo", length = 250, nullable = false)
+    private String titulo;
+
+    @Column(table = "subastas_datos_adicionales", name = "descripcion", columnDefinition = "VARCHAR(MAX)")
+    private String descripcion;
+
+    @Lob
+    @Column(table = "subastas_datos_adicionales", name = "foto", columnDefinition = "LONGBLOB")
+    private byte[] foto;
 }

@@ -1,4 +1,4 @@
-﻿create table paises(
+create table paises(
 	numero int not null,
 	nombre varchar(250) not null,
 	nombreCorto varchar(250) null,
@@ -252,6 +252,27 @@ create table registro_de_subasta_datos_adicionales(
 	constraint pk_rds_datos_adicionales primary key (identificador),
 	constraint fk_rds_datos_adicionales_rds foreign key (identificador) references registroDeSubasta(identificador),
 	constraint fk_rds_datos_adicionales_metodoPago foreign key (metodoPago) references metodoPago(identificador)
+)
+go
+
+-- Tabla secundaria para datos adicionales de subastas (titulo, descripcion, foto)
+create table subastas_datos_adicionales(
+	identificador int not null,
+	titulo varchar(250) not null,
+	descripcion varchar(max) null,
+	foto varbinary(max) null,
+	constraint pk_subastas_datos_adicionales primary key (identificador),
+	constraint fk_subastas_datos_adicionales_subastas foreign key (identificador) references subastas(identificador)
+)
+go
+
+-- Tabla secundaria para datos adicionales de productos (nombre, descripcion)
+create table productos_datos_adicionales(
+	identificador int not null,
+	nombre varchar(250) not null,
+	descripcion varchar(max) null,
+	constraint pk_productos_datos_adicionales primary key (identificador),
+	constraint fk_productos_datos_adicionales_productos foreign key (identificador) references productos(identificador)
 )
 go
 

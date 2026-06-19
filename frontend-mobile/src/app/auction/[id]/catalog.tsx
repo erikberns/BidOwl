@@ -16,18 +16,25 @@ export default function CatalogScreen() {
 
   useEffect(() => {
     async function loadItems() {
-      const res = await fetch(`${API_URL}/subastas/${id}/catalogo`);
-      const data = await res.json();
-      setItems(data);
+      try {
+        const res = await fetch(`${API_URL}/subastas/${id}/catalogo`);
+        if (res.ok) {
+          const data = await res.json();
+          setItems(data);
+        }
+      } catch (e) {
+        console.error('[CatalogScreen] Error fetching catalog:', e);
+      }
     }
     loadItems();
   }, [id]);
 
-  const mockItems = items.map(item => ({
-    id: item.id,
-    number: `${item.index}º`,
-    title: item.title,
-    price: item.basePrice,
+  const mockItems = items.map((item, idx) => ({
+    id: item.iditem || item.id || String(idx),
+    number: `${idx + 1}º`,
+    title: item.nombre || item.title,
+    price: item.valorBase !== undefined ? `${item.valorBase} ARS` : item.basePrice,
+    imagen: item.imagen,
   }));
 
   return (
@@ -59,19 +66,24 @@ export default function CatalogScreen() {
 
         {/* Item Cards List */}
         <View style={styles.itemsList}>
-          {mockItems.map((item) => (
-            <View key={item.id} style={styles.itemCard}>
-              <Image 
-                source={require('@/assets/images/rolling_stone_auction.png')} 
-                style={styles.itemThumbnail} 
-              />
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemNumber}>{item.number} Articulo</Text>
-                <Text style={styles.itemTitle}>{item.title}</Text>
-                <Text style={styles.itemPrice}>Valor Base: {item.price}</Text>
+          {mockItems.map((item) => {
+            const itemImageSource = item.imagen
+              ? { uri: API_URL.replace('/api', '') + item.imagen }
+              : require('@/assets/images/rolling_stone_auction.png');
+            return (
+              <View key={item.id} style={styles.itemCard}>
+                <Image 
+                  source={itemImageSource} 
+                  style={styles.itemThumbnail} 
+                />
+                <View style={styles.itemInfo}>
+                  <Text style={styles.itemNumber}>{item.number} Articulo</Text>
+                  <Text style={styles.itemTitle}>{item.title}</Text>
+                  <Text style={styles.itemPrice}>Valor Base: {item.price}</Text>
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       </ScrollView>
 

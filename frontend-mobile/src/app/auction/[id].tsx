@@ -1,28 +1,103 @@
-import React from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs } from 'expo-router';
 
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { MOCK_AUCTIONS, MOCK_AUCTION_ITEMS } from '@/constants/mockData';
+import { API_URL } from '@/constants/api';
 
 const { width } = Dimensions.get('window');
 
 export default function AuctionDetailScreen() {
   const { id } = useLocalSearchParams();
-
   const auctionIdStr = Array.isArray(id) ? id[0] : id || '1';
-  const auction = MOCK_AUCTIONS.find(a => a.id === auctionIdStr) || MOCK_AUCTIONS[0];
-  const items = MOCK_AUCTION_ITEMS[auctionIdStr] || MOCK_AUCTION_ITEMS['1'];
 
-  // Slice first 3 items for the teaser
-  const mockItems = items.slice(0, 3).map(item => ({
-    id: item.id,
-    number: `${item.index}º`,
-    title: item.title,
-    price: item.basePrice,
-  }));
+  const [auctionDetail, setAuctionDetail] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadDetail() {
+      try {
+        setLoading(true);
+        const res = await fetch(`${API_URL}/subastas/${auctionIdStr}?detalle=true`);
+        if (res.ok) {
+          const data = await res.json();
+          setAuctionDetail(data);
+          setError(null);
+        } else {
+          // Fallback to mock data if not found in backend
+          const mock = MOCK_AUCTIONS.find(a => a.id === auctionIdStr) || MOCK_AUCTIONS[0];
+          const mockItems = MOCK_AUCTION_ITEMS[mock.id] || MOCK_AUCTION_ITEMS['1'];
+          setAuctionDetail({
+            id: mock.id,
+            titulo: mock.title,
+            descripcion: mock.description,
+            imagenPortada: null, // will fallback to mock image
+            rematador: mock.auctioneer,
+            ubicacion: mock.location,
+            fecha: mock.date,
+            hora: mock.time,
+            categoria: mock.category,
+            cantidadTotalitems: mock.itemCount,
+            previsualizacionitems: mockItems.slice(0, 3).map(item => ({
+              iditem: item.id,
+              nombre: item.title,
+              valorBase: parseFloat(item.basePrice.replace(/[^0-9]/g, '')),
+              imagen: null,
+            }))
+          });
+        }
+      } catch (err) {
+        console.error('[AuctionDetailScreen] Error fetching details:', err);
+        // Fallback on network error
+        const mock = MOCK_AUCTIONS.find(a => a.id === auctionIdStr) || MOCK_AUCTIONS[0];
+        const mockItems = MOCK_AUCTION_ITEMS[mock.id] || MOCK_AUCTION_ITEMS['1'];
+        setAuctionDetail({
+          id: mock.id,
+          titulo: mock.title,
+          descripcion: mock.description,
+          imagenPortada: null,
+          rematador: mock.auctioneer,
+          ubicacion: mock.location,
+          fecha: mock.date,
+          hora: mock.time,
+          categoria: mock.category,
+          cantidadTotalitems: mock.itemCount,
+          previsualizacionitems: mockItems.slice(0, 3).map(item => ({
+            iditem: item.id,
+            nombre: item.title,
+            valorBase: parseFloat(item.basePrice.replace(/[^0-9]/g, '')),
+            imagen: null,
+          }))
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadDetail();
+  }, [auctionIdStr]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <Tabs.Screen options={{ headerShown: false }} />
+        <ActivityIndicator size="large" color="#051C2C" />
+        <Text style={styles.loadingText}>Cargando subasta...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  const detail = auctionDetail || {};
+  const previews = detail.previsualizacionitems || [];
+  const categoryLabel = (detail.categoria || 'comun').toUpperCase();
+
+  const heroImageSource = detail.imagenPortada
+    ? { uri: API_URL.replace('/api', '') + detail.imagenPortada }
+    : require('@/assets/images/rolling_stone_auction.png');
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -49,29 +124,29 @@ export default function AuctionDetailScreen() {
         {/* Hero Image Section */}
         <View style={styles.imageContainer}>
           <Image 
-            source={require('@/assets/images/rolling_stone_auction.png')} 
+            source={heroImageSource} 
             style={styles.heroImage} 
           />
           <View style={styles.imageBadge}>
-            <Text style={styles.imageBadgeText}>1 / 27</Text>
+            <Text style={styles.imageBadgeText}>1 / {previews.length || 1}</Text>
           </View>
         </View>
 
         {/* Title Block */}
         <View style={styles.titleSection}>
-          <Text style={styles.mainTitle}>{auction.title}</Text>
+          <Text style={styles.mainTitle}>{detail.titulo}</Text>
           
           <View style={styles.badgeRow}>
             <View style={styles.categoryBadge}>
-              <Text style={styles.categoryBadgeText}>{auction.category.split(' · ')[1] || 'COMÚN'}</Text>
+              <Text style={styles.categoryBadgeText}>{categoryLabel}</Text>
             </View>
-            <TouchableOpacity>
-              <Text style={styles.articlesLink}>{auction.itemCount} Artículos Totales</Text>
+            <TouchableOpacity onPress={() => router.push(`/auction/${auctionIdStr}/catalog` as any)}>
+              <Text style={styles.articlesLink}>{detail.cantidadTotalitems} Artículos Totales</Text>
             </TouchableOpacity>
           </View>
 
           <Text style={styles.locationDateTime}>
-            {auction.location} · <Text style={styles.boldText}>{auction.date}</Text> · <Text style={styles.boldText}>{auction.time}</Text>
+            {detail.ubicacion} · <Text style={styles.boldText}>{detail.fecha}</Text> · <Text style={styles.boldText}>{detail.hora}</Text>
           </Text>
         </View>
 
@@ -113,10 +188,10 @@ export default function AuctionDetailScreen() {
         <View style={styles.auctioneerSection}>
           <View style={styles.auctioneerTextContainer}>
             <Text style={styles.sectionHeading}>Esta subasta sera rematada por</Text>
-            <Text style={styles.auctioneerName}>{auction.auctioneer}</Text>
+            <Text style={styles.auctioneerName}>{detail.rematador}</Text>
           </View>
           <Image 
-            source={auction.auctioneerAvatar} 
+            source={require('@/assets/images/auctioneer_avatar.png')} 
             style={styles.avatarImage} 
           />
         </View>
@@ -127,7 +202,7 @@ export default function AuctionDetailScreen() {
         <View style={styles.detailsSection}>
           <Text style={styles.sectionHeading}>Detalles de la Subasta</Text>
           <Text style={styles.detailsText}>
-            {auction.description}
+            {detail.descripcion}
           </Text>
           <TouchableOpacity style={styles.showMoreButton}>
             <Text style={styles.showMoreText}>Mostrar Más {'>'}</Text>
@@ -139,8 +214,8 @@ export default function AuctionDetailScreen() {
         {/* Location Section */}
         <View style={styles.locationSection}>
           <Text style={styles.sectionHeading}>Ubicación de la Subasta</Text>
-          <Text style={styles.locationTitle}>Pilar, Buenos Aires, Argentina</Text>
-          <Text style={styles.locationText}>Ubicado en Manuel Belgrano 501, Villa Morra.</Text>
+          <Text style={styles.locationTitle}>{detail.ubicacion}</Text>
+          <Text style={styles.locationText}>Ubicado en la dirección indicada por la organización de remates.</Text>
         </View>
 
         <View style={styles.divider} />
@@ -148,28 +223,33 @@ export default function AuctionDetailScreen() {
         {/* Catalog Section */}
         <View style={styles.catalogSection}>
           <Text style={styles.sectionHeading}>Catalogo de Artículos</Text>
-          <Text style={styles.catalogSubheading}>Está conformado por {auction.itemCount} artículos en total.</Text>
+          <Text style={styles.catalogSubheading}>Está conformado por {detail.cantidadTotalitems} artículos en total.</Text>
 
           {/* Catalog Items */}
           <View style={styles.catalogItemsList}>
-            {mockItems.map((item) => (
-              <View key={item.id} style={styles.itemCard}>
-                <Image 
-                  source={require('@/assets/images/rolling_stone_auction.png')} 
-                  style={styles.itemThumbnail} 
-                />
-                <View style={styles.itemInfo}>
-                  <Text style={styles.itemNumber}>{item.number} Articulo</Text>
-                  <Text style={styles.itemTitle}>{item.title}</Text>
-                  <Text style={styles.itemPrice}>Valor Base: {item.price}</Text>
+            {previews.map((item: any, idx: number) => {
+              const itemImageSource = item.imagen
+                ? { uri: API_URL.replace('/api', '') + item.imagen }
+                : require('@/assets/images/rolling_stone_auction.png');
+              return (
+                <View key={item.iditem} style={styles.itemCard}>
+                  <Image 
+                    source={itemImageSource} 
+                    style={styles.itemThumbnail} 
+                  />
+                  <View style={styles.itemInfo}>
+                    <Text style={styles.itemNumber}>{idx + 1}º Articulo</Text>
+                    <Text style={styles.itemTitle}>{item.nombre}</Text>
+                    <Text style={styles.itemPrice}>Valor Base: ${item.valorBase}</Text>
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </View>
 
           <TouchableOpacity 
             style={styles.fullCatalogButton}
-            onPress={() => router.push((`/auction/${id}/catalog`) as any)}
+            onPress={() => router.push((`/auction/${auctionIdStr}/catalog`) as any)}
           >
             <Text style={styles.fullCatalogButtonText}>Mostrar el Catalogo Entero</Text>
           </TouchableOpacity>
@@ -183,7 +263,7 @@ export default function AuctionDetailScreen() {
             name={{ ios: 'play.tv', android: 'live_tv', web: 'tv' }}
             size={18}
           />
-          <TouchableOpacity style={styles.liveStreamLink}>
+          <TouchableOpacity style={styles.liveStreamLink} onPress={() => router.push(`/auction/${auctionIdStr}/catalog` as any)}>
             <Text style={styles.liveStreamText}>Mira la subasta en vivo y en directo</Text>
           </TouchableOpacity>
         </View>
@@ -196,6 +276,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#051C2C',
   },
   floatingBackButton: {
     position: 'absolute',
