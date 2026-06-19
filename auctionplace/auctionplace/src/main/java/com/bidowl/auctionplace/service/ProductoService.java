@@ -28,6 +28,9 @@ public class ProductoService {
     @Autowired
     private FotoRepository fotoRepository;
 
+    @Autowired
+    private NotificacionRepository notificacionRepository;
+
     /**
      * Obtiene todos los productos
      */
@@ -191,6 +194,18 @@ public class ProductoService {
         Producto producto = productoOptional.get();
         producto.setDisponible("si");
         Producto actualizado = productoRepository.save(producto);
+        
+        if (producto.getDuenio() != null) {
+            Notificacion notificacion = new Notificacion();
+            notificacion.setPersonaId(producto.getDuenio().getIdentificador());
+            notificacion.setTitulo("Artículo aceptado");
+            notificacion.setCuerpo("Su artículo '" + (producto.getDescripcionCompleta() != null ? producto.getDescripcionCompleta() : "ID " + producto.getIdentificador()) + "' ha pasado la inspección y está disponible.");
+            notificacion.setAccion("show_offer_details");
+            notificacion.setLeida(false);
+            notificacion.setFecha(java.time.LocalDateTime.now());
+            notificacionRepository.save(notificacion);
+        }
+
         return convertToDTO(actualizado);
     }
 
@@ -205,6 +220,18 @@ public class ProductoService {
         Producto producto = productoOptional.get();
         producto.setDisponible("no");
         Producto actualizado = productoRepository.save(producto);
+
+        if (producto.getDuenio() != null) {
+            Notificacion notificacion = new Notificacion();
+            notificacion.setPersonaId(producto.getDuenio().getIdentificador());
+            notificacion.setTitulo("Artículo rechazado");
+            notificacion.setCuerpo("Su artículo '" + (producto.getDescripcionCompleta() != null ? producto.getDescripcionCompleta() : "ID " + producto.getIdentificador()) + "' ha sido marcado como no disponible.");
+            notificacion.setAccion("show_inspection_request");
+            notificacion.setLeida(false);
+            notificacion.setFecha(java.time.LocalDateTime.now());
+            notificacionRepository.save(notificacion);
+        }
+
         return convertToDTO(actualizado);
     }
 
