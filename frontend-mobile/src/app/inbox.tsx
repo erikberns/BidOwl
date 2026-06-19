@@ -25,7 +25,10 @@ export default function InboxScreen() {
     { id: 'pm_1', type: 'card', name: 'VISA **** **** **** 2345' },
     { id: 'pm_2', type: 'bank', name: 'Cuenta Bancaria Galicia' },
   ];
-  const [selectedPayment, setSelectedPayment] = React.useState(paymentMethods[0].id);
+  const bankPaymentMethods = paymentMethods.filter(method => method.type === 'bank');
+  const [selectedPayment, setSelectedPayment] = React.useState(
+    bankPaymentMethods.length > 0 ? bankPaymentMethods[0].id : paymentMethods[0].id
+  );
 
   const [selectedLocation, setSelectedLocation] = React.useState({
     latitude: -34.6037, // Default a Buenos Aires
@@ -494,21 +497,15 @@ export default function InboxScreen() {
             <Text style={styles.offerTitle}>Seleccione donde se{'\n'}depositara la comisión.</Text>
             
             <View style={styles.paymentOptionsContainer}>
-              {paymentMethods.map(method => (
+              {bankPaymentMethods.map(method => (
                 <TouchableOpacity 
                   key={method.id}
                   style={[styles.paymentOption, selectedPayment === method.id && styles.paymentOptionSelected]} 
                   onPress={() => setSelectedPayment(method.id)}
                 >
                   <View style={styles.paymentOptionLeft}>
-                    {method.type === 'card' && (
-                      /* @ts-ignore */
-                      <SymbolView name={{ ios: 'creditcard', android: 'credit_card', web: 'credit_card' }} size={24} tintColor="#051C2C" style={styles.paymentIcon} />
-                    )}
-                    {method.type === 'bank' && (
-                      /* @ts-ignore */
-                      <SymbolView name={{ ios: 'building.columns', android: 'account_balance', web: 'account_balance' }} size={24} tintColor="#051C2C" style={styles.paymentIcon} />
-                    )}
+                    {/* @ts-ignore */}
+                    <SymbolView name={{ ios: 'building.columns', android: 'account_balance', web: 'account_balance' }} size={24} tintColor="#051C2C" style={styles.paymentIcon} />
                     <Text style={styles.paymentOptionText}>{method.name}</Text>
                   </View>
                   <View style={[styles.radioCircle, selectedPayment === method.id && styles.radioCircleSelected]}>

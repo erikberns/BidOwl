@@ -3,77 +3,74 @@ import { View, Text, Image, ScrollView, StyleSheet, TextInput, TouchableOpacity 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, Stack, Tabs } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 
 import { AuctionCard } from '@/components/AuctionCard';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { MOCK_AUCTIONS } from '@/constants/mockData';
+import { API_URL } from '@/constants/api';
 
-const CATEGORIES = ['COMÚN', 'ESPECIAL', 'PLATA', 'ORO', 'PLATINO'];
+const CATEGORIES = ['COMUN', 'ESPECIAL', 'PLATA', 'ORO', 'PLATINO'];
+
+function normalizeCategory(value: string) {
+  return value
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '');
+}
 
 export default function ExploreScreen() {
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [selectedCategory, setSelectedCategory] = React.useState('COMÚN');
+  const [selectedCategory, setSelectedCategory] = React.useState('COMUN');
+  const [auctions, setAuctions] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const isFocused = useIsFocused();
 
-  // Static mock data for visual demonstration
-  const mockAuctions = [
-    {
-      id: '1',
-      title: 'Subasta de Colección Original Rolling Stone',
-      image: require('@/assets/images/rolling_stone_auction.png'),
-      category: 'COMÚN',
-      itemCount: 5,
-      location: 'Pilar',
-      date: '15 / 4 / 2026',
-      time: '18:30 UDT-3',
-    },
-    {
-      id: '2',
-      title: 'Colección Vintage Guitarras Gibson & Fender',
-      image: require('@/assets/images/rolling_stone_auction.png'),
-      category: 'ESPECIAL',
-      itemCount: 8,
-      location: 'San Isidro',
-      date: '18 / 4 / 2026',
-      time: '20:00 UDT-3',
-    },
-    {
-      id: '3',
-      title: 'Colección de Monedas Raras del Siglo XIX',
-      image: require('@/assets/images/rolling_stone_auction.png'),
-      category: 'PLATA',
-      itemCount: 12,
-      location: 'La Plata',
-      date: '20 / 4 / 2026',
-      time: '19:00 UDT-3',
-    },
-    {
-      id: '4',
-      title: 'Joyas de Oro Antiguas - Herencia Familiar',
-      image: require('@/assets/images/rolling_stone_auction.png'),
-      category: 'ORO',
-      itemCount: 15,
-      location: 'Recoleta',
-      date: '22 / 4 / 2026',
-      time: '17:30 UDT-3',
-    },
-    {
-      id: '5',
-      title: 'Colección Platino - Piezas Exclusivas',
-      image: require('@/assets/images/rolling_stone_auction.png'),
-      category: 'PLATINO',
-      itemCount: 6,
-      location: 'Puerto Madero',
-      date: '25 / 4 / 2026',
-      time: '21:00 UDT-3',
-    },
-  ];
+  React.useEffect(() => {
+    if (isFocused) {
+      async function loadAuctions() {
+        setLoading(true);
+        setError(null);
 
-  const filteredAuctions = mockAuctions.filter(item => {
-    const matchesQuery = searchQuery === '' || 
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.location.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesCategory = item.category === selectedCategory;
-    
+        try {
+          const res = await fetch(`${API_URL}/subastas?pagina=1&limite=100`);
+
+          if (res.ok) {
+            const data = await res.json();
+            setAuctions(data);
+          } else {
+            setError('No se pudieron cargar las subastas.');
+            setAuctions(MOCK_AUCTIONS);
+          }
+        } catch (e) {
+          console.error('[ExploreScreen] Error loading auctions:', e);
+          setError('No se pudo conectar con el servidor.');
+          setAuctions(MOCK_AUCTIONS);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      loadAuctions();
+    }
+  }, [isFocused]);
+
+  const filteredAuctions = auctions.filter(item => {
+    const query = searchQuery.toLowerCase();
+    const titulo = item.titulo || item.title || '';
+    const categoria = item.categoria || item.category || '';
+    const ubicacion = item.ubicacion || item.location || '';
+
+    const matchesQuery =
+      query === '' ||
+      titulo.toLowerCase().includes(query) ||
+      ubicacion.toLowerCase().includes(query) ||
+      normalizeCategory(categoria).includes(query);
+
+    const matchesCategory = normalizeCategory(categoria) === normalizeCategory(selectedCategory);
+
     return matchesQuery && matchesCategory;
   });
 
@@ -143,7 +140,7 @@ export default function ExploreScreen() {
                     selectedCategory === category && styles.filterTextActive,
                   ]}
                 >
-                  {category}
+                  {category === 'COMUN' ? 'COMÚN' : category}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -151,7 +148,11 @@ export default function ExploreScreen() {
         </View>
 
         {/* Nuestras Subastas Section */}
-        {filteredAuctions.length > 0 ? (
+        {loading ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.loadingText}>Cargando subastas...</Text>
+          </View>
+        ) : filteredAuctions.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Nuestras subastas.</Text>
             <ScrollView 
@@ -159,19 +160,25 @@ export default function ExploreScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.horizontalScrollContent}
             >
-              {filteredAuctions.map(item => (
-                <AuctionCard
-                  key={`auction-${item.id}`}
-                  title={item.title}
-                  image={item.image}
-                  category={item.category}
-                  itemCount={item.itemCount}
-                  location={item.location}
-                  date={item.date}
-                  time={item.time}
-                  onPress={() => router.push(('/auction/' + item.id) as any)}
-                />
-              ))}
+              {filteredAuctions.map(item => {
+                const imageSource = item.imagenPortada
+                  ? { uri: API_URL.replace('/api', '') + item.imagenPortada }
+                  : require('@/assets/images/rolling_stone_auction.png');
+
+                return (
+                  <AuctionCard
+                    key={`auction-${item.id}`}
+                    title={item.titulo || item.title}
+                    image={imageSource}
+                    category={item.categoria || item.category}
+                    itemCount={item.cantidaditems !== undefined ? item.cantidaditems : item.itemCount}
+                    location={item.ubicacion || item.location}
+                    date={item.fecha || item.date}
+                    time={item.hora || item.time}
+                    onPress={() => router.push(('/auction/' + item.id) as any)}
+                  />
+                );
+              })}
             </ScrollView>
           </View>
         ) : (
@@ -182,8 +189,10 @@ export default function ExploreScreen() {
               name={{ ios: 'magnifyingglass.circle', android: 'search', web: 'search' }}
               size={48}
             />
-            <Text style={styles.emptyTextTitle}>Sin resultados</Text>
-            <Text style={styles.emptyTextSub}>No encontramos subastas que coincidan con tu búsqueda.</Text>
+            <Text style={styles.emptyTextTitle}>{error ? 'Error al cargar subastas' : 'Sin resultados'}</Text>
+            <Text style={styles.emptyTextSub}>
+              {error || 'No encontramos subastas que coincidan con tu búsqueda.'}
+            </Text>
           </View>
         )}
       </ScrollView>
@@ -303,6 +312,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingVertical: 80,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#051C2C',
   },
   emptyTextTitle: {
     fontSize: 18,
