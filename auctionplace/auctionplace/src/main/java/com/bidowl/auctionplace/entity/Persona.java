@@ -58,14 +58,17 @@ public class Persona {
 
     @Lob
     @Column(name = "foto", columnDefinition="LONGBLOB")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private byte[] foto;
 
     @Lob
     @Column(table = "personas_documentos_fotos", name = "foto_frente", columnDefinition="LONGBLOB")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private byte[] fotoFrente;
 
     @Lob
     @Column(table = "personas_documentos_fotos", name = "foto_dorso", columnDefinition="LONGBLOB")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private byte[] fotoDorso;
 
     @Column(table = "personas_estadisticas", name = "rematesAsistidos", nullable = false)

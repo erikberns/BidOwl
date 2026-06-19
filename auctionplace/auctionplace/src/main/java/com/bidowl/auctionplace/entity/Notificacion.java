@@ -17,7 +17,7 @@ public class Notificacion {
     @Column(nullable = false, length = 250)
     private String titulo;
 
-    @Column(columnDefinition = "varchar(max)", nullable = false)
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String cuerpo;
 
     @Column(length = 50)

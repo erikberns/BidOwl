@@ -42,6 +42,9 @@ public class SolicitudProductoService {
     @Autowired
     private DuenioRepository duenioRepository;
 
+    @Autowired
+    private NotificacionRepository notificacionRepository;
+
     /**
      * Crear una nueva solicitud de artículo (usa tabla productos)
      * POST /api/solicitudes-items
@@ -130,6 +133,16 @@ public class SolicitudProductoService {
                 }
             }
         }
+
+        // Generate notification
+        Notificacion notificacion = new Notificacion();
+        notificacion.setPersonaId(creadorId);
+        notificacion.setTitulo("Solicitud de artículo recibida");
+        notificacion.setCuerpo("Su solicitud del artículo '" + nombre + "' ha sido recibida y está en proceso de revisión.");
+        notificacion.setAccion("show_inspection_request");
+        notificacion.setLeida(false);
+        notificacion.setFecha(java.time.LocalDateTime.now());
+        notificacionRepository.save(notificacion);
 
         Map<String, Object> respuesta = new HashMap<>();
         respuesta.put("idSolicitud", productoGuardado.getIdentificador().toString());
