@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs } from 'expo-router';
@@ -80,6 +80,33 @@ export default function AuctionDetailScreen() {
   // Carousel Modal State
   const [isCarouselVisible, setIsCarouselVisible] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  // Joining and Payment State
+  const [hasJoined, setHasJoined] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const paymentMethods = [
+    { id: 'pm_1', type: 'card', name: 'VISA **** **** **** 2345' },
+    { id: 'pm_2', type: 'bank', name: 'Cuenta Bancaria Galicia' },
+  ];
+  const [selectedPayment, setSelectedPayment] = useState(paymentMethods[0].id);
+
+  const confirmPaymentAndJoin = () => {
+    setShowPaymentModal(false);
+    setHasJoined(true);
+  };
+
+  const [showBidModal, setShowBidModal] = useState(false);
+  const [bidAmount, setBidAmount] = useState('1.200.000');
+
+  const handleBidAmountChange = (text: string) => {
+    const numericValue = text.replace(/[^0-9]/g, '');
+    if (!numericValue) {
+      setBidAmount('');
+      return;
+    }
+    const formatted = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    setBidAmount(formatted);
+  };
 
   // Timer Countdown State
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -268,19 +295,8 @@ export default function AuctionDetailScreen() {
         {/* Title Block */}
         <View style={styles.titleSection}>
           <Text style={styles.mainTitle}>{detail.titulo}</Text>
-          
-          <View style={styles.badgeRow}>
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryBadgeText}>{categoryLabel}</Text>
-            </View>
-            <TouchableOpacity onPress={() => router.push(`/auction/${auctionIdStr}/catalog` as any)}>
-              <Text style={styles.articlesLink}>{detail.cantidadTotalitems} Artículos Totales</Text>
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.locationDateTime}>
-            {detail.ubicacion} · <Text style={styles.boldText}>{detail.fecha}</Text> · <Text style={styles.boldText}>{detail.hora}</Text>
-          </Text>
+          <Text style={styles.baseValueText}>{formatPrice(1000000)}</Text>
+          <Text style={styles.baseValueLabel}>Valor Base</Text>
         </View>
 
         <View style={styles.divider} />
@@ -320,8 +336,8 @@ export default function AuctionDetailScreen() {
         {/* Auctioneer Section */}
         <View style={styles.auctioneerSection}>
           <View style={styles.auctioneerTextContainer}>
-            <Text style={styles.sectionHeading}>Esta subasta sera rematada por</Text>
-            <Text style={styles.auctioneerName}>{detail.rematador}</Text>
+            <Text style={styles.sectionHeading}>Dueño actual del{'\n'}articulo de subasta</Text>
+            <Text style={styles.auctioneerName}>Agustin Blanco Vocos</Text>
           </View>
           <Image 
             source={require('@/assets/images/auctioneer_avatar.png')} 
@@ -358,65 +374,92 @@ export default function AuctionDetailScreen() {
 
         <View style={styles.divider} />
 
-        {/* Location Section (Two lines format) */}
-        <View style={styles.locationSection}>
-          <Text style={styles.sectionHeading}>Ubicación de la Subasta</Text>
-          <Text style={styles.locationTitle}>
-            {detail.ubicacion}{!detail.ubicacion.toLowerCase().includes('argentina') ? ', Argentina' : ''}
-          </Text>
-          <Text style={styles.locationText}>{detail.direccionDetallada}</Text>
-        </View>
-
-        <View style={styles.divider} />
-
-        {/* Catalog Section */}
-        <View style={styles.catalogSection}>
-          <Text style={styles.sectionHeading}>Catalogo de Artículos</Text>
-          <Text style={styles.catalogSubheading}>Está conformado por {detail.cantidadTotalitems} artículos en total.</Text>
-
-          {/* Catalog Items */}
-          <View style={styles.catalogItemsList}>
-            {previews.map((item: any, idx: number) => {
-              const itemImageSource = item.imagen
-                ? getImageUrl(item.imagen)
-                : require('@/assets/images/rolling_stone_auction.png');
-              return (
-                <View key={item.iditem} style={styles.itemCard}>
-                  <Image 
-                    source={itemImageSource} 
-                    style={styles.itemThumbnail} 
-                  />
-                  <View style={styles.itemInfo}>
-                    <Text style={styles.itemNumber}>{idx + 1}º Articulo</Text>
-                    <Text style={styles.itemTitle}>{item.nombre}</Text>
-                    <Text style={styles.itemPrice}>Valor Base: {formatPrice(item.valorBase)}</Text>
+        {/* Dynamic Bidding/Join Section */}
+        {hasJoined ? (
+          <View style={styles.biddingSection}>
+            <Text style={styles.sectionHeading}>Historial de Pujas</Text>
+            
+            <View style={styles.bidList}>
+              {/* Lead Bid */}
+              <View style={[styles.bidCard, styles.bidCardLeader]}>
+                <View style={styles.bidCardLeft}>
+                  <Image source={require('@/assets/images/auctioneer_avatar.png')} style={styles.bidAvatar} />
+                  <View>
+                    <Text style={styles.bidName}>Erik Berna</Text>
+                    <Text style={styles.bidTime}>Hace 4 minutos</Text>
                   </View>
                 </View>
-              );
-            })}
+                <View style={styles.bidCardRight}>
+                  <Text style={styles.bidLeaderLabel}>Puja Lider</Text>
+                  <Text style={styles.bidLeaderAmount}>1.155.000 AR$</Text>
+                </View>
+              </View>
+
+              {/* Other Bids */}
+              <View style={styles.bidCard}>
+                <View style={styles.bidCardLeft}>
+                  <Image source={require('@/assets/images/auctioneer_avatar.png')} style={styles.bidAvatar} />
+                  <View>
+                    <Text style={styles.bidName}>Erik Berna</Text>
+                    <Text style={styles.bidTime}>Hace 4 minutos</Text>
+                  </View>
+                </View>
+                <View style={styles.bidCardRight}>
+                  <Text style={styles.bidAmount}>1.155.000 AR$</Text>
+                </View>
+              </View>
+              <View style={styles.bidCard}>
+                <View style={styles.bidCardLeft}>
+                  <Image source={require('@/assets/images/auctioneer_avatar.png')} style={styles.bidAvatar} />
+                  <View>
+                    <Text style={styles.bidName}>Erik Berna</Text>
+                    <Text style={styles.bidTime}>Hace 4 minutos</Text>
+                  </View>
+                </View>
+                <View style={styles.bidCardRight}>
+                  <Text style={styles.bidAmount}>1.155.000 AR$</Text>
+                </View>
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.fullHistoryButton}>
+              <Text style={styles.fullHistoryButtonText}>Mostrar Historial Completo</Text>
+            </TouchableOpacity>
           </View>
-
-          <TouchableOpacity 
-            style={styles.fullCatalogButton}
-            onPress={() => router.push((`/auction/${auctionIdStr}/catalog`) as any)}
-          >
-            <Text style={styles.fullCatalogButtonText}>Mostrar el Catalogo Entero</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Live Stream Footer Link */}
-        <View style={styles.footerSection}>
-          <SymbolView
-            tintColor="#051C2C"
-            // @ts-ignore
-            name={{ ios: 'play.tv', android: 'live_tv', web: 'tv' }}
-            size={18}
-          />
-          <TouchableOpacity style={styles.liveStreamLink} onPress={() => router.push(`/auction/${auctionIdStr}/catalog` as any)}>
-            <Text style={styles.liveStreamText}>Mira la subasta en vivo y en directo</Text>
-          </TouchableOpacity>
-        </View>
+        ) : (
+          <View style={styles.lockSection}>
+            <SymbolView name={{ ios: 'lock.fill', android: 'lock', web: 'lock' }} size={48} tintColor="#E5E5E5" />
+            <Text style={styles.lockTitle}>Modo Espectador</Text>
+            <Text style={styles.lockSubtitle}>
+              Debes unirte a la subasta para poder pujar y ver el historial en vivo.
+            </Text>
+          </View>
+        )}
       </ScrollView>
+
+      {/* Sticky Footer */}
+      <View style={styles.stickyFooter}>
+        <TouchableOpacity style={styles.footerBackButton} onPress={() => router.back()}>
+          {/* @ts-ignore */}
+          <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#fff" />
+        </TouchableOpacity>
+        
+        {hasJoined ? (
+          <>
+            <TouchableOpacity style={styles.footerBidButton} onPress={() => setShowBidModal(true)}>
+              <Text style={styles.footerBidButtonText}>Pujar</Text>
+            </TouchableOpacity>
+            <View style={styles.footerAmountContainer}>
+              <Text style={styles.footerAmountText}>$1.155.000 AR$</Text>
+              <Text style={styles.footerAmountLabel}>Monto de Puja Lider</Text>
+            </View>
+          </>
+        ) : (
+          <TouchableOpacity style={styles.footerJoinButton} onPress={() => setShowPaymentModal(true)}>
+            <Text style={styles.footerJoinButtonText}>Unirme a la Subasta</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* Image Viewer / Carousel Modal */}
       <Modal
@@ -464,6 +507,96 @@ export default function AuctionDetailScreen() {
             <Text style={styles.modalCarouselIndicatorText}>
               {currentImageIndex + 1} / {collectionImages.length}
             </Text>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Payment Selection Modal */}
+      <Modal visible={showPaymentModal} animationType="slide" presentationStyle="fullScreen">
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowPaymentModal(false)} style={styles.modalBackButton}>
+              {/* @ts-ignore */}
+              <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
+            </TouchableOpacity>
+            <Text style={styles.modalHeaderTitle}>Unirse a Subasta</Text>
+            <View style={{ width: 40 }} />
+          </View>
+          
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            <Text style={styles.modalTitle}>Seleccione el método{'\n'}de pago a utilizar.</Text>
+            <Text style={styles.modalSubtitle}>Este método se usará para procesar tu puja en caso de que ganes la subasta.</Text>
+            
+            <View style={styles.paymentOptionsContainer}>
+              {paymentMethods.map(method => (
+                <TouchableOpacity 
+                  key={method.id}
+                  style={[styles.paymentOption, selectedPayment === method.id && styles.paymentOptionSelected]} 
+                  onPress={() => setSelectedPayment(method.id)}
+                >
+                  <View style={styles.paymentOptionLeft}>
+                    {method.type === 'card' && (
+                      /* @ts-ignore */
+                      <SymbolView name={{ ios: 'creditcard', android: 'credit_card', web: 'credit_card' }} size={24} tintColor="#051C2C" style={styles.paymentIcon} />
+                    )}
+                    {method.type === 'bank' && (
+                      /* @ts-ignore */
+                      <SymbolView name={{ ios: 'building.columns', android: 'account_balance', web: 'account_balance' }} size={24} tintColor="#051C2C" style={styles.paymentIcon} />
+                    )}
+                    <Text style={styles.paymentOptionText}>{method.name}</Text>
+                  </View>
+                  <View style={[styles.radioCircle, selectedPayment === method.id && styles.radioCircleSelected]}>
+                    {selectedPayment === method.id && <View style={styles.radioInnerCircle} />}
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+          
+          <View style={styles.modalFooter}>
+            <TouchableOpacity style={styles.modalButton} onPress={confirmPaymentAndJoin}>
+              <Text style={styles.modalButtonText}>Confirmar y Unirse</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Bid Modal */}
+      <Modal visible={showBidModal} transparent animationType="fade">
+        <View style={styles.bidModalBackdrop}>
+          <View style={styles.bidModalContent}>
+            <View style={styles.bidModalHeader}>
+              <TouchableOpacity onPress={() => setShowBidModal(false)}>
+                {/* @ts-ignore */}
+                <SymbolView name={{ ios: 'xmark', android: 'close', web: 'close' }} size={24} tintColor="#051C2C" />
+              </TouchableOpacity>
+              <Text style={styles.bidModalTitle}>Realizar Puja</Text>
+              <View style={{ width: 24 }} />
+            </View>
+            
+            <View style={styles.bidModalBody}>
+              <Text style={styles.bidModalLabel}>Ingrese su Monto a Pujar</Text>
+              
+              <View style={styles.bidModalInputContainer}>
+                <TextInput
+                  style={[styles.bidModalInput, { outlineStyle: 'none' } as any]}
+                  value={bidAmount}
+                  onChangeText={handleBidAmountChange}
+                  keyboardType="numeric"
+                  underlineColorAndroid="transparent"
+                  selectionColor="#2E9F64"
+                  cursorColor="#2E9F64"
+                />
+                <Text style={styles.bidModalCurrency}>AR$</Text>
+              </View>
+              
+              <TouchableOpacity 
+                style={styles.bidModalSubmitBtn} 
+                onPress={() => setShowBidModal(false)}
+              >
+                <Text style={styles.bidModalSubmitText}>¡Pujar!</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -524,43 +657,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 16,
+    alignItems: 'center',
   },
   mainTitle: {
     fontSize: 24,
     fontWeight: '800',
     color: '#051C2C',
+    textAlign: 'center',
     lineHeight: 32,
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    marginBottom: 12,
-  },
-  categoryBadge: {
-    backgroundColor: '#BEE757', // Lime yellow
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  categoryBadgeText: {
-    color: '#051C2C',
-    fontSize: 11,
+  baseValueText: {
+    fontSize: 20,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    color: '#2E9F64',
+    marginBottom: 4,
   },
-  articlesLink: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2E9F64', // Green clickable color
-    textDecorationLine: 'underline',
-  },
-  locationDateTime: {
-    fontSize: 14,
-    color: '#666',
-  },
-  boldText: {
+  baseValueLabel: {
+    fontSize: 12,
     fontWeight: '700',
     color: '#051C2C',
   },
@@ -662,99 +776,260 @@ const styles = StyleSheet.create({
     color: '#051C2C',
     textDecorationLine: 'underline',
   },
-  locationSection: {
+  biddingSection: {
     paddingVertical: 20,
     paddingHorizontal: 24,
   },
-  locationTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#051C2C',
-    marginTop: 10,
-    marginBottom: 4,
-  },
-  locationText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  catalogSection: {
-    paddingVertical: 20,
-    paddingHorizontal: 24,
-  },
-  catalogSubheading: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
-    marginBottom: 16,
-  },
-  catalogItemsList: {
+  bidList: {
     gap: 12,
+    marginTop: 16,
     marginBottom: 20,
   },
-  itemCard: {
+  bidCard: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
     borderWidth: 1,
     borderColor: '#E5E5E5',
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 30,
+    backgroundColor: '#fff',
+  },
+  bidCardLeader: {
+    backgroundColor: '#BEE757',
+    borderColor: '#BEE757',
+  },
+  bidCardLeft: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  itemThumbnail: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    marginRight: 16,
+  bidAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
   },
-  itemInfo: {
-    flex: 1,
+  bidName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#051C2C',
   },
-  itemNumber: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#2E9F64',
+  bidTime: {
+    fontSize: 11,
+    color: '#8A8A8A',
+    marginTop: 2,
+  },
+  bidCardRight: {
+    alignItems: 'flex-end',
+  },
+  bidLeaderLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#051C2C',
     marginBottom: 2,
   },
-  itemTitle: {
+  bidLeaderAmount: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#051C2C',
-    marginBottom: 4,
   },
-  itemPrice: {
-    fontSize: 13,
-    color: '#666',
+  bidAmount: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#051C2C',
   },
-  fullCatalogButton: {
+  fullHistoryButton: {
     width: '100%',
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: '#051C2C',
     paddingVertical: 14,
     borderRadius: 8,
     alignItems: 'center',
-    backgroundColor: '#fff',
   },
-  fullCatalogButtonText: {
-    color: '#051C2C',
+  fullHistoryButtonText: {
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '600',
+    color: '#051C2C',
   },
-  footerSection: {
+  stickyFooter: {
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: '#F0F0F0',
-    marginHorizontal: 24,
+    backgroundColor: '#fff',
+    gap: 12,
   },
-  liveStreamLink: {},
-  liveStreamText: {
-    fontSize: 14,
-    fontWeight: '700',
+  footerBackButton: {
+    backgroundColor: '#BA4A5A',
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  footerBidButton: {
+    flex: 1,
+    backgroundColor: '#BEE757',
+    height: 48,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  footerBidButtonText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#051C2C',
+  },
+  footerAmountContainer: {
+    alignItems: 'flex-end',
+  },
+  footerAmountText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#2E9F64',
+  },
+  footerAmountLabel: {
+    fontSize: 11,
+    fontWeight: '800',
     color: '#051C2C',
     textDecorationLine: 'underline',
+  },
+  footerJoinButton: {
+    flex: 1,
+    backgroundColor: '#051C2C',
+    height: 48,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  footerJoinButtonText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  lockSection: {
+    paddingVertical: 40,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lockTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#051C2C',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  lockSubtitle: {
+    fontSize: 14,
+    color: '#8A8A8A',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  modalBackButton: {
+    padding: 8,
+  },
+  modalHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#051C2C',
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#051C2C',
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#8A8A8A',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  paymentOptionsContainer: {
+    marginTop: 8,
+  },
+  paymentOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    marginBottom: 16,
+  },
+  paymentOptionSelected: {
+    borderColor: '#E5E5E5',
+  },
+  paymentOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  paymentIcon: {
+    marginRight: 16,
+  },
+  paymentOptionText: {
+    fontSize: 14,
+    color: '#051C2C',
+    fontWeight: '500',
+  },
+  radioCircle: {
+    height: 24,
+    width: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioCircleSelected: {
+    borderColor: '#BEE757',
+    borderWidth: 2,
+  },
+  radioInnerCircle: {
+    height: 12,
+    width: 12,
+    borderRadius: 6,
+    backgroundColor: '#BEE757',
+  },
+  modalFooter: {
+    padding: 24,
+    paddingBottom: 40,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+  },
+  modalButton: {
+    backgroundColor: '#2E8B57', // Matching the other buttons or #BEE757 based on design (using dark green for action here)
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
   // Carousel Modal Styles
   modalCarouselBackdrop: {
@@ -806,5 +1081,82 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '700',
+  },
+  // Bid Modal Styles
+  bidModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bidModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 24,
+    width: '90%',
+    maxWidth: 360,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+  },
+  bidModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  bidModalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#051C2C',
+  },
+  bidModalBody: {
+    alignItems: 'center',
+  },
+  bidModalLabel: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#051C2C',
+    marginBottom: 16,
+  },
+  bidModalInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'center',
+    marginBottom: 32,
+  },
+  bidModalInput: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#2E9F64', // green color from the screenshot
+    marginRight: 4,
+    textAlign: 'center',
+    padding: 0,
+    margin: 0,
+    includeFontPadding: false,
+    lineHeight: 34,
+    flexShrink: 1,
+    minWidth: 40,
+  },
+  bidModalCurrency: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#2E9F64',
+    includeFontPadding: false,
+    lineHeight: 34,
+  },
+  bidModalSubmitBtn: {
+    backgroundColor: '#BEE757', // green from previous
+    paddingVertical: 16,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+  },
+  bidModalSubmitText: {
+    color: '#051C2C',
+    fontSize: 16,
+    fontWeight: '800',
   },
 });

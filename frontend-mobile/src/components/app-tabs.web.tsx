@@ -41,17 +41,6 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
   const borderColor = '#ECECEC';
 
   const activeRoute = state.routes[state.index];
-  const isAuctionDetail = activeRoute && activeRoute.name === 'auction/[id]';
-
-  if (isAuctionDetail) {
-    const auctionId = activeRoute.params?.id || '1';
-    return (
-      <JoinAuctionBar
-        auctionId={auctionId}
-        onBack={() => router.back()}
-      />
-    );
-  }
 
   // Hide the bottom tab bar completely for all other auction screens (catalog, bidding, history)
   if (activeRoute && activeRoute.name.startsWith('auction')) {
