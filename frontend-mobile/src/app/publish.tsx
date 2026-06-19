@@ -59,7 +59,8 @@ export default function PublishScreen() {
       async function loadGuestStatus() {
         try {
           const isGuestStr = await AsyncStorage.getItem('isGuest');
-          setIsGuest(isGuestStr === 'true' || isGuestStr === null);
+          const userStr = await AsyncStorage.getItem('user');
+          setIsGuest(isGuestStr === 'true' || !userStr);
         } catch {
           setIsGuest(true);
         }
@@ -67,6 +68,18 @@ export default function PublishScreen() {
       loadGuestStatus();
     }
   }, [isFocused]);
+
+  const handleDateChange = (text: string) => {
+    const cleaned = text.replace(/\D/g, '');
+    let formatted = cleaned;
+    if (cleaned.length > 2) {
+      formatted = `${cleaned.slice(0, 2)} / ${cleaned.slice(2)}`;
+    }
+    if (cleaned.length > 4) {
+      formatted = `${cleaned.slice(0, 2)} / ${cleaned.slice(2, 4)} / ${cleaned.slice(4, 8)}`;
+    }
+    setArticleDate(formatted);
+  };
 
   const handleAddImage = async () => {
     try {
@@ -111,30 +124,54 @@ export default function PublishScreen() {
 
     showAppModal('Enviando', 'Enviando solicitud, por favor espere...');
 
+    let apiDate = articleDate;
+    if (articleDate.length === 14) {
+      const parts = articleDate.split(' / ');
+      if (parts.length === 3) {
+        apiDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+      }
+    }
+
     const form = new FormData();
     form.append('nombre', articleName);
     form.append('descripcion', articleDescription);
     form.append('esArteODisenador', JSON.stringify(isArtpiece));
     form.append('nombreCreador', creatorName);
-    form.append('fechaCreacion', articleDate);
+    form.append('fechaCreacion', apiDate);
     form.append('historia', articleHistory);
     form.append('declaracionPropiedad', JSON.stringify(isBelonging));
 
-    images.forEach((uri, idx) => {
+    for (let idx = 0; idx < images.length; idx++) {
+      const uri = images[idx];
       const filename = uri.split('/').pop() || `image_${idx}.jpg`;
       const match = filename.match(/\.([0-9a-z]+)(?:[?#]|$)/i);
       const ext = match ? match[1] : 'jpg';
       const type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
-      // @ts-ignore
-      form.append('imagenes', { uri, name: filename, type });
-    });
+      
+      if (Platform.OS === 'web') {
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        form.append('imagenes', blob, filename);
+      } else {
+        // @ts-ignore
+        form.append('imagenes', { uri, name: filename, type });
+      }
+    }
+
+    let userId = '1';
+    try {
+      const userStr = await AsyncStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        if (user.identificador) userId = String(user.identificador);
+      }
+    } catch (e) {}
 
     try {
       const res = await fetch(`${API_URL}/solicitudes-items`, {
         method: 'POST',
         headers: {
-          // Ajustar header de autorización según implementación real
-          Autorizacion: 'token',
+          Autorizacion: userId,
         },
         body: form,
       });
@@ -145,7 +182,7 @@ export default function PublishScreen() {
         setIsSubmitted(true);
       } else {
         hideAppModal();
-        const msg = json?.error || json?.mensaje || 'Error al crear la solicitud';
+        const msg = json?.message || json?.error || json?.mensaje || 'Error al crear la solicitud';
         showAppModal('Error', String(msg));
       }
     } catch (err) {
@@ -300,7 +337,9 @@ export default function PublishScreen() {
             placeholder="DD / MM / YYYY"
             placeholderTextColor="#999"
             value={articleDate}
-            onChangeText={setArticleDate}
+            onChangeText={handleDateChange}
+            keyboardType="numeric"
+            maxLength={14}
           />
         </View>
 
