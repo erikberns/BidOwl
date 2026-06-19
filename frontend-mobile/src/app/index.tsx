@@ -77,8 +77,8 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <Tabs.Screen options={{ headerShown: false }} />
-      <ScrollView 
-        style={styles.scrollView} 
+      <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -87,9 +87,9 @@ export default function HomeScreen() {
           <Text style={styles.welcomeText}>
             Bienvenido, <Text style={styles.username}>{username}</Text>!
           </Text>
-          <Image 
-            source={require('@/assets/images/SplashBidOwl.png')} 
-            style={styles.logo} 
+          <Image
+            source={require('@/assets/images/SplashBidOwl.png')}
+            style={styles.logo}
           />
         </View>
 
@@ -123,8 +123,8 @@ export default function HomeScreen() {
         {filteredAuctions.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Subastas Activas.</Text>
-            <ScrollView 
-              horizontal 
+            <ScrollView
+              horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.horizontalScrollContent}
             >
@@ -154,8 +154,8 @@ export default function HomeScreen() {
         {filteredAuctions.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Subastas a Punto de Comenzar.</Text>
-            <ScrollView 
-              horizontal 
+            <ScrollView
+              horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.horizontalScrollContent}
             >

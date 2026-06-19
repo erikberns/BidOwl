@@ -276,3 +276,17 @@ create table productos_datos_adicionales(
 )
 go
 
+
+-- Tabla para notificaciones de sistema
+create table notificaciones(
+	identificador int not null identity,
+	persona_id int not null,
+	titulo varchar(250) not null,
+	cuerpo varchar(max) not null,
+	accion varchar(50) null,
+	leida bit not null default 0,
+	fecha datetime not null default getdate(),
+	constraint pk_notificaciones primary key (identificador),
+	constraint fk_notificaciones_personas foreign key (persona_id) references personas(identificador)
+)
+go

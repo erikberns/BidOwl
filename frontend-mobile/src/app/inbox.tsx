@@ -8,10 +8,17 @@ import MapComponent from '@/components/Map';
 
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 
+import { API_URL } from '@/constants/api';
+
 type Tab = 'activos' | 'miSubasta' | 'notificaciones' | 'historial';
 
 export default function InboxScreen() {
   const [activeTab, setActiveTab] = React.useState<Tab>('notificaciones');
+  const [expandedNotifIds, setExpandedNotifIds] = React.useState<string[]>([]);
+  const [notifications, setNotifications] = React.useState<any[]>([]);
+  const [activeBids, setActiveBids] = React.useState<any[]>([]);
+  const [activeAuctions, setActiveAuctions] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
   const [expandedNotifIds, setExpandedNotifIds] = React.useState<string[]>(['1', '2']);
   const [showInspectionResult, setShowInspectionResult] = React.useState(false);
   const [showOfferDetails, setShowOfferDetails] = React.useState(false);
@@ -36,99 +43,56 @@ export default function InboxScreen() {
   });
   const [selectedAddress, setSelectedAddress] = React.useState('');
 
-  // Mock data for notifications
-  const notifications = [
-    {
-      id: '1',
-      title: 'Su solicitud ha sido aceptada.',
-      time: '10 Minutos',
-      body: 'Su solicitud del artículo "Zapatillas de Michael Jordan" ha sido aceptada. Ahora deberá enviar el artículo. Revise la solicitud para saber la ubicación.',
-      buttonText: 'Revisar Solicitud del Articulo',
-      action: 'show_inspection_request',
-    },
-    {
-      id: '2',
-      title: 'Su articulo ha pasado la inspeccion.',
-      time: '10 Minutos',
-      body: 'Cumple con nuestros estándares de calidad y autenticidad, por lo que está listo para avanzar a la siguiente etapa del proceso de subasta.',
-      buttonText: 'Revisar Oferta del Articulo',
-      action: 'show_inspection_result',
-    },
-    {
-      id: '3',
-      title: 'Se devolvera su bien entregado.',
-      time: '2 Horas',
-      body: 'Lamentablemente su artículo no cumple con los estándares mínimos para ser subastado. Póngase en contacto para coordinar la devolución.',
-      buttonText: 'Revisar Oferta del Articulo',
-      action: 'show_inspection_rejected',
-    },
-  ];
+  React.useEffect(() => {
+    async function fetchInboxData() {
+      try {
+        setLoading(true);
+        // Using static personaId = 1 for demo purposes
+        const personaId = 1;
 
-  const toggleNotif = (id: string) => {
-    setExpandedNotifIds(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
-  };
+        const [notifRes, bidsRes, auctionsRes] = await Promise.all([
+          fetch(`${API_URL}/inbox/${personaId}/notificaciones`).catch(() => null),
+          fetch(`${API_URL}/inbox/${personaId}/pujas-activas`).catch(() => null),
+          fetch(`${API_URL}/inbox/${personaId}/mis-subastas`).catch(() => null)
+        ]);
 
-  // Mock data for active bids
-  const allActiveBids = [
-    {
-      id: '1',
-      subastaTitle: 'Subasta de Colección Original Rolling Stone',
-      image: require('@/assets/images/rolling_stone_auction.png'),
-      lote: 1,
-      totalLotes: 5,
-      articuloTitle: 'Guitarra de Keith Richards',
-      miPuja: '$1,000,000 ARS',
-      pujaMaxima: '$1,115,000 ARS',
-      estado: 'Activa',
-    },
-    {
-      id: '2',
-      subastaTitle: 'Subasta de Colección Original Rolling Stone',
-      image: require('@/assets/images/rolling_stone_auction.png'),
-      lote: 3,
-      totalLotes: 5,
-      articuloTitle: 'Guitarra de Keith Richards',
-      miPuja: '$1,500,000 ARS',
-      pujaMaxima: '$1,115,000 ARS',
-      estado: 'Ganando',
-    },
-  ];
-
-  // Filter to show only one bid per auction (the winning one, or the most recent)
-  const activeBids = React.useMemo(() => {
-    const bidsByAuction = new Map<string, typeof allActiveBids[0]>();
-    
-    allActiveBids.forEach((bid) => {
-      const existing = bidsByAuction.get(bid.subastaTitle);
-      
-      if (!existing) {
-        bidsByAuction.set(bid.subastaTitle, bid);
-      } else {
-        // Prefer winning bid, otherwise keep the most recent
-        if (bid.estado === 'Ganando' && existing.estado !== 'Ganando') {
-          bidsByAuction.set(bid.subastaTitle, bid);
+        if (notifRes && notifRes.ok) {
+          const notifs = await notifRes.json();
+          setNotifications(notifs);
+          if (notifs.length > 0) {
+            setExpandedNotifIds([notifs[0].id?.toString()]);
+          }
         }
-      }
-    });
-    
-    return Array.from(bidsByAuction.values());
-  }, []);
 
-  // Mock data for active auctions (user's own auctions)
-  const activeAuctions = [
-    {
-      id: '1',
-      subastaTitle: 'Subasta de Colección Original Rolling Stone',
-      image: require('@/assets/images/rolling_stone_auction.png'),
-      lote: 4,
-      totalLotes: 5,
-      ubicacion: 'Depósito BidOwl Pilar',
-      articuloTitle: 'Guitarra de Keith Richards',
-      pujaMaxima: '$1,115,000 ARS',
-    },
-  ];
+        if (bidsRes && bidsRes.ok) {
+          const bids = await bidsRes.json();
+          // Filter to show only one bid per auction (the winning one, or the most recent)
+          const bidsByAuction = new Map<string, any>();
+          bids.forEach((bid: any) => {
+            const existing = bidsByAuction.get(bid.subastaTitle);
+            if (!existing) {
+              bidsByAuction.set(bid.subastaTitle, bid);
+            } else {
+              if (bid.estado === 'Ganando' && existing.estado !== 'Ganando') {
+                bidsByAuction.set(bid.subastaTitle, bid);
+              }
+            }
+          });
+          setActiveBids(Array.from(bidsByAuction.values()));
+        }
+
+        if (auctionsRes && auctionsRes.ok) {
+          setActiveAuctions(await auctionsRes.json());
+        }
+
+      } catch (error) {
+        console.error("Error fetching inbox data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchInboxData();
+  }, []);
 
   const renderBidCard = (bid: typeof activeBids[0]) => (
     <TouchableOpacity
@@ -136,7 +100,7 @@ export default function InboxScreen() {
       style={styles.bidCard}
       onPress={() => router.push(('/auction/' + bid.id) as any)}
     >
-      <Image source={bid.image} style={styles.bidImage} />
+      <Image source={bid.image ? { uri: bid.image } : require('@/assets/images/rolling_stone_auction.png')} style={styles.bidImage} />
       <View style={styles.bidContent}>
         <Text style={styles.subastaTitle}>{bid.subastaTitle}</Text>
         <Text style={styles.lote}>Lote {bid.lote} / {bid.totalLotes}</Text>
@@ -159,7 +123,7 @@ export default function InboxScreen() {
       style={styles.bidCard}
       onPress={() => router.push(('/auction/' + auction.id) as any)}
     >
-      <Image source={auction.image} style={styles.bidImage} />
+      <Image source={auction.image ? { uri: auction.image } : require('@/assets/images/rolling_stone_auction.png')} style={styles.bidImage} />
       <View style={styles.bidContent}>
         <Text style={styles.subastaTitle}>{auction.subastaTitle}</Text>
         <Text style={styles.lote}>Lote {auction.lote} / {auction.totalLotes}</Text>
@@ -185,7 +149,7 @@ export default function InboxScreen() {
         >
           <View style={styles.notifHeaderText}>
             <Text style={styles.notifTitle}>{notif.title}</Text>
-            <Text style={styles.notifTime}>{notif.time}</Text>
+            <Text style={styles.notifTime}>{notif.tiempoFormateado}</Text>
           </View>
           <SymbolView
             tintColor="#051C2C"

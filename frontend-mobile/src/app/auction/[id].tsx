@@ -97,8 +97,10 @@ export default function AuctionDetailScreen() {
 
   const [showBidModal, setShowBidModal] = useState(false);
   const [bidAmount, setBidAmount] = useState('1.200.000');
+  const [bidError, setBidError] = useState<string | null>(null);
 
   const handleBidAmountChange = (text: string) => {
+    setBidError(null);
     const numericValue = text.replace(/[^0-9]/g, '');
     if (!numericValue) {
       setBidAmount('');
@@ -106,6 +108,44 @@ export default function AuctionDetailScreen() {
     }
     const formatted = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     setBidAmount(formatted);
+  };
+
+  const handleBidSubmit = () => {
+    setBidError(null);
+    const numericBid = parseInt(bidAmount.replace(/\./g, ''), 10);
+    if (isNaN(numericBid)) {
+      setBidError('Por favor ingresa un monto válido.');
+      return;
+    }
+
+    const category = (auctionDetail?.categoria || 'comun').toLowerCase();
+    const isPremium = category === 'oro' || category === 'platino';
+    
+    const baseValue = auctionDetail?.previsualizacionitems?.[0]?.valorBase || 1000000;
+    const currentLeaderBid = 1155000;
+
+    if (!isPremium) {
+      const minBid = currentLeaderBid + (baseValue * 0.01);
+      const maxBid = currentLeaderBid + (baseValue * 0.20);
+
+      if (numericBid < minBid) {
+        setBidError(`La puja debe ser de al menos ${formatPrice(minBid)}`);
+        return;
+      }
+      if (numericBid > maxBid) {
+        setBidError(`La puja no puede superar los ${formatPrice(maxBid)}`);
+        return;
+      }
+    } else {
+      if (numericBid <= currentLeaderBid) {
+        setBidError(`La puja debe superar los ${formatPrice(currentLeaderBid)}`);
+        return;
+      }
+    }
+
+    setShowBidModal(false);
+    setBidError(null);
+    // TODO: Integración real de pujas
   };
 
   // Timer Countdown State
@@ -241,6 +281,13 @@ export default function AuctionDetailScreen() {
   const detail = auctionDetail || {};
   const previews = detail.previsualizacionitems || [];
   const categoryLabel = (detail.categoria || 'comun').toUpperCase();
+  
+  const baseValue = previews[0]?.valorBase || 1000000;
+  const currentLeaderBid = 1155000;
+  
+  const isPremium = categoryLabel === 'ORO' || categoryLabel === 'PLATINO';
+  const minBid = currentLeaderBid + (baseValue * 0.01);
+  const maxBid = currentLeaderBid + (baseValue * 0.20);
 
   const coverImage = detail.imagenPortada
     ? getImageUrl(detail.imagenPortada)
@@ -295,7 +342,7 @@ export default function AuctionDetailScreen() {
         {/* Title Block */}
         <View style={styles.titleSection}>
           <Text style={styles.mainTitle}>{detail.titulo}</Text>
-          <Text style={styles.baseValueText}>{formatPrice(1000000)}</Text>
+          <Text style={styles.baseValueText}>{formatPrice(baseValue)}</Text>
           <Text style={styles.baseValueLabel}>Valor Base</Text>
         </View>
 
@@ -450,7 +497,7 @@ export default function AuctionDetailScreen() {
               <Text style={styles.footerBidButtonText}>Pujar</Text>
             </TouchableOpacity>
             <View style={styles.footerAmountContainer}>
-              <Text style={styles.footerAmountText}>$1.155.000 AR$</Text>
+              <Text style={styles.footerAmountText}>{formatPrice(currentLeaderBid)}</Text>
               <Text style={styles.footerAmountLabel}>Monto de Puja Lider</Text>
             </View>
           </>
@@ -575,6 +622,22 @@ export default function AuctionDetailScreen() {
             </View>
             
             <View style={styles.bidModalBody}>
+              {!isPremium && (
+                <>
+                  <Text style={styles.restrictionsTitle}>Restricción de Categoria</Text>
+                  <View style={styles.restrictionsRow}>
+                    <View style={styles.restrictionBox}>
+                      <Text style={styles.restrictionLabel}>Puja Minima</Text>
+                      <Text style={styles.restrictionAmount}>{formatPrice(minBid)}</Text>
+                    </View>
+                    <View style={styles.restrictionBox}>
+                      <Text style={styles.restrictionLabel}>Puja Maxima</Text>
+                      <Text style={styles.restrictionAmount}>{formatPrice(maxBid)}</Text>
+                    </View>
+                  </View>
+                </>
+              )}
+
               <Text style={styles.bidModalLabel}>Ingrese su Monto a Pujar</Text>
               
               <View style={styles.bidModalInputContainer}>
@@ -589,10 +652,14 @@ export default function AuctionDetailScreen() {
                 />
                 <Text style={styles.bidModalCurrency}>AR$</Text>
               </View>
+
+              {bidError && (
+                <Text style={styles.bidErrorText}>{bidError}</Text>
+              )}
               
               <TouchableOpacity 
                 style={styles.bidModalSubmitBtn} 
-                onPress={() => setShowBidModal(false)}
+                onPress={handleBidSubmit}
               >
                 <Text style={styles.bidModalSubmitText}>¡Pujar!</Text>
               </TouchableOpacity>
@@ -1158,5 +1225,44 @@ const styles = StyleSheet.create({
     color: '#051C2C',
     fontSize: 16,
     fontWeight: '800',
+  },
+  bidErrorText: {
+    color: '#D32F2F',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  restrictionsTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#051C2C',
+    marginBottom: 12,
+  },
+  restrictionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 24,
+    gap: 12,
+  },
+  restrictionBox: {
+    flex: 1,
+    backgroundColor: '#051C2C',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
+  restrictionLabel: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  restrictionAmount: {
+    color: '#BEE757', // Lime green
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
