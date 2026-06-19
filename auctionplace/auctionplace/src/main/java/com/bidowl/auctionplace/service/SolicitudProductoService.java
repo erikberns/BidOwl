@@ -72,8 +72,9 @@ public class SolicitudProductoService {
             }
             
             // Promover el cliente a dueño insertando el registro en la tabla duenios
+            // Spring Boot nombra las columnas en snake_case por defecto.
             jdbcTemplate.update(
-                "INSERT INTO duenios (identificador, verificacionFinanciera, verificacionJudicial, calificacionRiesgo) VALUES (?, 'no', 'no', 1)",
+                "INSERT INTO duenios (identificador, verificacion_financiera, verificacion_judicial, calificacion_riesgo) VALUES (?, 'no', 'no', 1)",
                 creadorId
             );
             
