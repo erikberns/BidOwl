@@ -18,6 +18,7 @@ export default function AppTabs() {
       <Tabs.Screen name="publish" options={{ title: 'Publicar' }} />
       <Tabs.Screen name="inbox" options={{ title: 'Inbox' }} />
       <Tabs.Screen name="profile" options={{ title: 'Perfil' }} />
+      <Tabs.Screen name="inspection-result" options={{ href: null }} />
     </Tabs>
   );
 }
@@ -54,7 +55,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
   }
 
   // Hide the bottom tab bar completely for all other auction screens (catalog, bidding, history)
-  if (activeRoute && activeRoute.name.startsWith('auction')) {
+  if (activeRoute && (activeRoute.name.startsWith('auction') || activeRoute.name.includes('inspection-result'))) {
     return null;
   }
 
@@ -71,7 +72,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
         const { options } = descriptors[route.key];
         const label = options.title !== undefined ? options.title : route.name;
 
-        if (route.name.startsWith('auction') || ['_layout', '+not-found'].includes(route.name)) {
+        if (options.href === null || route.name.startsWith('auction') || ['_layout', '+not-found'].includes(route.name) || route.name.includes('inspection-result')) {
           return null;
         }
 
