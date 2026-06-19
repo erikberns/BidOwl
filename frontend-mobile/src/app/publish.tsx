@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -22,6 +23,7 @@ import { API_URL } from '@/constants/api';
 
 export default function PublishScreen() {
   const router = useRouter();
+  const isFocused = useIsFocused();
   const [articleName, setArticleName] = useState('');
   const [articleDescription, setArticleDescription] = useState('');
   const [creatorName, setCreatorName] = useState('');
@@ -52,16 +54,18 @@ export default function PublishScreen() {
   };
 
   useEffect(() => {
-    async function loadGuestStatus() {
-      try {
-        const isGuestStr = await AsyncStorage.getItem('isGuest');
-        setIsGuest(isGuestStr === 'true' || isGuestStr === null);
-      } catch {
-        setIsGuest(true);
+    if (isFocused) {
+      async function loadGuestStatus() {
+        try {
+          const isGuestStr = await AsyncStorage.getItem('isGuest');
+          setIsGuest(isGuestStr === 'true' || isGuestStr === null);
+        } catch {
+          setIsGuest(true);
+        }
       }
+      loadGuestStatus();
     }
-    loadGuestStatus();
-  }, []);
+  }, [isFocused]);
 
   const handleAddImage = async () => {
     try {
