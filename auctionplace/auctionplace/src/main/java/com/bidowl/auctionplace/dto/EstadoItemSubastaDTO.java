@@ -12,4 +12,6 @@ public class EstadoItemSubastaDTO {
 
     private String iditem;
     private PujaLiderDTO pujaLider;
+    private Long segundosRestantes;
+    private Boolean finalizado;
 }

@@ -231,14 +231,47 @@ public class SubastaController {
     }
 
     /**
+     * POST - Simular puja artificial de otro usuario
+     * POST /api/subastas/{idSubasta}/items/{iditem}/simular-puja
+     */
+    @PostMapping("/{idSubasta}/items/{iditem}/simular-puja")
+    public ResponseEntity<?> simularPuja(
+            @PathVariable Integer idSubasta,
+            @PathVariable Integer iditem,
+            @RequestBody(required = false) Map<String, Object> body) {
+        try {
+            Integer clienteId = null;
+            BigDecimal monto = null;
+            if (body != null) {
+                if (body.containsKey("clienteId") && body.get("clienteId") != null) {
+                    clienteId = Integer.parseInt(body.get("clienteId").toString());
+                }
+                if (body.containsKey("monto") && body.get("monto") != null) {
+                    monto = new BigDecimal(body.get("monto").toString());
+                }
+            }
+            CrearPujaResponse respuesta = subastaService.simularPuja(idSubasta, iditem, clienteId, monto);
+            return ResponseEntity.status(HttpStatus.CREATED).body(respuesta);
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
+
+
+    /**
      * Método auxiliar para extraer ID del token (simulado)
      */
     private Integer extraerIdDelToken(String token) throws Exception {
         if (token == null || token.isEmpty()) {
             throw new Exception("Token no proporcionado");
         }
-        // En producción, validar JWT
-        return 1; // Por ahora retornar un ID por defecto
+        try {
+            return Integer.parseInt(token.trim());
+        } catch (NumberFormatException e) {
+            return 1; // Fallback al ID por defecto si no es numérico
+        }
     }
 
     /**

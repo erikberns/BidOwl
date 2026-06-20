@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Modal, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Modal, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
-import { router, useLocalSearchParams, Stack, Tabs } from 'expo-router';
+import { router, useLocalSearchParams, Stack, Tabs, useNavigation } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
@@ -72,6 +72,7 @@ function parseAuctionDateTime(dateStr: string, timeStr: string): Date {
 export default function BiddingScreen() {
   const { id } = useLocalSearchParams();
   const auctionIdStr = Array.isArray(id) ? id[0] : id || '1';
+  const navigation = useNavigation();
 
   const [isGuest, setIsGuest] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
@@ -87,11 +88,21 @@ export default function BiddingScreen() {
   const [bidStep, setBidStep] = useState<'input' | 'confirm' | 'success' | null>(null);
   const [bidValue, setBidValue] = useState('');
 
+  // Real payment methods
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>('1');
+
+  // Lote dynamic timer states
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const [isBiddingFinished, setIsBiddingFinished] = useState<boolean>(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
   useEffect(() => {
     async function loadGuestStatus() {
       try {
         const isGuestStr = await AsyncStorage.getItem('isGuest');
-        setIsGuest(isGuestStr === 'true' || isGuestStr === null);
+        const userStr = await AsyncStorage.getItem('user');
+        setIsGuest((isGuestStr === 'true' || isGuestStr === null) && !userStr);
       } catch (error) {
         setIsGuest(true);
       }
@@ -126,13 +137,6 @@ export default function BiddingScreen() {
           
           const mappedItems = catalogData.map((item: any, idx: number) => {
             const basePriceVal = item.valorBase || 100000;
-            // Generate mock bids if empty
-            const generatedBids = [
-              { name: 'Juan Perez', time: 'Hace 5 minutos', amount: formatPrice(basePriceVal * 1.05), isLead: true },
-              { name: 'Maria Lopez', time: 'Hace 10 minutos', amount: formatPrice(basePriceVal * 1.02), isLead: false },
-              { name: 'Carlos Gomez', time: 'Hace 15 minutos', amount: formatPrice(basePriceVal), isLead: false }
-            ];
-            
             return {
               id: item.iditem || String(idx),
               index: idx + 1,
@@ -142,11 +146,33 @@ export default function BiddingScreen() {
               image: item.imagen ? getImageUrl(item.imagen) : require('@/assets/images/rolling_stone_auction.png'),
               owner: item.duenioNombre || 'Dueño Desconocido',
               details: item.descripcion || 'Sin descripción detallada.',
-              bids: generatedBids
+              bids: [], // will load dynamically
+              subastado: item.subastado
             };
           });
 
           setItems(mappedItems);
+
+          const activeIdx = mappedItems.findIndex((it: any) => it.subastado !== 'si');
+          if (activeIdx !== -1) {
+            setCurrentIndex(activeIdx);
+          } else {
+            setCurrentIndex(0);
+          }
+
+          const userStr = await AsyncStorage.getItem('user');
+          if (userStr) {
+            const user = JSON.parse(userStr);
+            setCurrentUser(user);
+            const pmRes = await fetch(`${API_URL}/personas/${user.identificador}/metodos-pago`);
+            if (pmRes.ok) {
+              const pmData = await pmRes.json();
+              setPaymentMethods(pmData);
+              if (pmData.length > 0) {
+                setSelectedPaymentMethodId(String(pmData[0].identificador));
+              }
+            }
+          }
         } else {
           // Fallback to mock catalog
           fallbackMockData();
@@ -184,6 +210,103 @@ export default function BiddingScreen() {
     loadAuctionAndItems();
   }, [auctionIdStr, isGuest]);
 
+  // Dynamic Polling for Bids of Current Item
+  const fetchBidsForItem = async (itemId: string, indexInState: number) => {
+    try {
+      const userStr = await AsyncStorage.getItem('user');
+      if (!userStr) return;
+      const user = JSON.parse(userStr);
+
+      const res = await fetch(`${API_URL}/subastas/${auctionIdStr}/items/${itemId}/pujas`, {
+        headers: {
+          'Autorizacion': String(user.identificador)
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const mappedBids = data.map((bid: any, idx: number) => ({
+          idpersona: bid.idpersona,
+          name: bid.nombre,
+          time: bid.hace || 'Hace unos instantes',
+          amount: formatPrice(bid.monto),
+          isLead: idx === 0
+        }));
+
+        setItems(prevItems => {
+          const nextItems = [...prevItems];
+          if (nextItems[indexInState]) {
+            nextItems[indexInState] = {
+              ...nextItems[indexInState],
+              bids: mappedBids
+            };
+          }
+          return nextItems;
+        });
+      }
+
+      // Fetch dynamic item timer and completion status
+      const statusRes = await fetch(`${API_URL}/subastas/${auctionIdStr}/items/${itemId}`, {
+        headers: {
+          'Autorizacion': String(user.identificador)
+        }
+      });
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        setSecondsLeft(statusData.segundosRestantes);
+        setIsBiddingFinished(statusData.finalizado);
+        if (statusData.finalizado) {
+          setItems(prevItems => {
+            const nextItems = [...prevItems];
+            if (nextItems[indexInState] && nextItems[indexInState].subastado !== 'si') {
+              nextItems[indexInState] = {
+                ...nextItems[indexInState],
+                subastado: 'si'
+              };
+            }
+            return nextItems;
+          });
+        }
+      }
+    } catch (e) {
+      console.error('[BiddingScreen] Error fetching bids for item:', itemId, e);
+    }
+  };
+
+  const currentItem = items[currentIndex] || {
+    id: '',
+    title: 'Cargando lote...',
+    basePrice: '$0',
+    basePriceNum: 0,
+    image: require('@/assets/images/rolling_stone_auction.png'),
+    owner: 'Dueño Desconocido',
+    details: '',
+    bids: [],
+    index: 1
+  };
+
+  useEffect(() => {
+    if (currentItem && currentItem.id) {
+      fetchBidsForItem(currentItem.id, currentIndex);
+    }
+  }, [currentIndex, currentItem?.id]);
+
+  useEffect(() => {
+    if (!currentItem || !currentItem.id) return;
+    const interval = setInterval(() => {
+      fetchBidsForItem(currentItem.id, currentIndex);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [currentIndex, currentItem?.id]);
+
+  // Local Lote Countdown Timer Effect
+  useEffect(() => {
+    if (secondsLeft === null || secondsLeft <= 0 || isBiddingFinished) return;
+    const timer = setInterval(() => {
+      setSecondsLeft(prev => (prev !== null && prev > 0) ? prev - 1 : 0);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [secondsLeft, isBiddingFinished]);
+
   // Update Countdown Timer
   useEffect(() => {
     if (!auctionDetail || !auctionDetail.fecha) return;
@@ -216,7 +339,7 @@ export default function BiddingScreen() {
       const diff = targetDate.getTime() - now.getTime();
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const minutes = Math.floor((diff % (1000 * 60)) / (1000 * 60));
       const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
       setTimeLeft({ days, hours, minutes, seconds });
@@ -243,21 +366,60 @@ export default function BiddingScreen() {
     }
   };
 
-  const handleConfirmBid = () => {
-    if (!bidValue) return;
-    const updatedItems = [...items];
-    const numericBid = parseFloat(bidValue.replace(/[^0-9.]/g, ''));
-    
-    updatedItems[currentIndex] = {
-      ...currentItem,
-      bids: [
-        { name: 'Claudio', time: 'Hace unos segundos', amount: formatPrice(numericBid), isLead: true },
-        ...currentItem.bids.map(b => ({ ...b, isLead: false }))
-      ]
-    };
-    setItems(updatedItems);
-    setBidStep('success');
+  const handleConfirmBid = async () => {
+    if (!bidValue || !currentItem) return;
+    try {
+      const userStr = await AsyncStorage.getItem('user');
+      if (!userStr) return;
+      const user = JSON.parse(userStr);
+
+      const numericBid = parseFloat(bidValue.replace(/[^0-9.]/g, ''));
+      
+      const response = await fetch(`${API_URL}/subastas/${auctionIdStr}/items/${currentItem.id}/pujas`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Autorizacion': String(user.identificador)
+        },
+        body: JSON.stringify({
+          monto: numericBid,
+          idMetodoPago: selectedPaymentMethodId
+        })
+      });
+
+      if (response.ok) {
+        await fetchBidsForItem(currentItem.id, currentIndex);
+        setBidStep('success');
+      } else {
+        const errorData = await response.json();
+        Alert.alert('Error al ofertar', errorData.error || 'No se pudo realizar la puja.');
+      }
+    } catch (e) {
+      console.error('[BiddingScreen] Error placing bid:', e);
+      Alert.alert('Error', 'Ocurrió un error al enviar la puja.');
+    }
   };
+
+  const leadBid = currentItem.bids.find((b: any) => b.isLead);
+  const leadAmount = leadBid ? leadBid.amount : currentItem.basePrice;
+  const isUserLeading = leadBid && currentUser && String(leadBid.idpersona) === String(currentUser.identificador);
+
+  const activeIndex = items.findIndex((it: any) => it.subastado !== 'si');
+  const isFutureLot = activeIndex !== -1 && currentIndex > activeIndex;
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (isUserLeading && !isBiddingFinished) {
+        e.preventDefault();
+        Alert.alert(
+          'Estás liderando la puja',
+          'No puedes abandonar la subasta mientras seas el postor líder. Debes esperar a que finalice el minuto o a que otro usuario supere tu oferta.',
+          [{ text: 'Entendido', style: 'cancel' }]
+        );
+      }
+    });
+    return unsubscribe;
+  }, [navigation, isUserLeading, isBiddingFinished]);
 
   if (isGuest === null || loading) {
     return (
@@ -270,20 +432,6 @@ export default function BiddingScreen() {
     );
   }
 
-  const currentItem = items[currentIndex] || {
-    title: 'Cargando lote...',
-    basePrice: '$0',
-    basePriceNum: 0,
-    image: require('@/assets/images/rolling_stone_auction.png'),
-    owner: 'Dueño Desconocido',
-    details: '',
-    bids: [],
-    index: 1
-  };
-
-  const leadBid = currentItem.bids.find((b: any) => b.isLead);
-  const leadAmount = leadBid ? leadBid.amount : currentItem.basePrice;
-
   // Timer UI configuration
   let stateTitle = "Subasta Activa";
   let stateColor = "#2E9F64"; // Green
@@ -295,6 +443,22 @@ export default function BiddingScreen() {
     stateTitle = "Subasta Finalizada";
     stateColor = "#8A8A8A"; // Gray
   }
+
+  // If item bidding has started and is not finished
+  if (secondsLeft !== null && !isBiddingFinished) {
+    stateTitle = "Cierre de Lote Inminente";
+    stateColor = "#BA4B4B"; // Red/Orange urgency accent
+  } else if (isBiddingFinished) {
+    stateTitle = "Lote Vendido";
+    stateColor = "#8A8A8A";
+  }
+
+  const displayTimer = (secondsLeft !== null && !isBiddingFinished) ? {
+    days: 0,
+    hours: 0,
+    minutes: Math.floor(secondsLeft / 60),
+    seconds: secondsLeft % 60
+  } : timeLeft;
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -354,25 +518,25 @@ export default function BiddingScreen() {
           
           <View style={styles.timerRow}>
             <View style={styles.timerBox}>
-              <Text style={styles.timerNumber}>{timeLeft.days}</Text>
+              <Text style={styles.timerNumber}>{displayTimer.days}</Text>
               <Text style={styles.timerLabel}>Dias</Text>
             </View>
             <Text style={styles.timerColon}>:</Text>
             
             <View style={styles.timerBox}>
-              <Text style={styles.timerNumber}>{timeLeft.hours}</Text>
+              <Text style={styles.timerNumber}>{displayTimer.hours}</Text>
               <Text style={styles.timerLabel}>Hrs.</Text>
             </View>
             <Text style={styles.timerColon}>:</Text>
 
             <View style={styles.timerBox}>
-              <Text style={styles.timerNumber}>{timeLeft.minutes}</Text>
+              <Text style={styles.timerNumber}>{displayTimer.minutes}</Text>
               <Text style={styles.timerLabel}>Min.</Text>
             </View>
             <Text style={styles.timerColon}>:</Text>
 
             <View style={styles.timerBox}>
-              <Text style={styles.timerNumber}>{timeLeft.seconds}</Text>
+              <Text style={styles.timerNumber}>{displayTimer.seconds}</Text>
               <Text style={styles.timerLabel}>Seg.</Text>
             </View>
           </View>
@@ -436,7 +600,7 @@ export default function BiddingScreen() {
 
           <TouchableOpacity 
             style={styles.historyButton}
-            onPress={() => router.push({ pathname: `/auction/${id}/history`, params: { itemIndex: currentIndex } } as any)}
+            onPress={() => router.push({ pathname: `/auction/${auctionIdStr}/history`, params: { itemId: currentItem.id, itemTitle: currentItem.title, itemIndex: currentIndex } } as any)}
           >
             <Text style={styles.historyButtonText}>Mostrar Historial Completo</Text>
           </TouchableOpacity>
@@ -445,7 +609,19 @@ export default function BiddingScreen() {
 
       {/* Bottom Bidding Bar */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.push(`/auction/${id}` as any)}>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => {
+            if (isUserLeading && !isBiddingFinished) {
+              Alert.alert(
+                'Estás liderando la puja',
+                'No puedes abandonar la subasta mientras seas el postor líder. Debes esperar a que finalice el minuto o a que otro usuario supere tu oferta.'
+              );
+            } else {
+              router.navigate(`/auction/${auctionIdStr}` as any);
+            }
+          }}
+        >
           <SymbolView
             tintColor="#fff"
             // @ts-ignore
@@ -454,13 +630,18 @@ export default function BiddingScreen() {
           />
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.bidButton} onPress={() => {
-          // Set initial bid value to be slightly higher than lead bid (e.g. + 5%)
-          const currentLeadNum = leadBid ? parseFloat(leadBid.amount.replace(/[^0-9]/g, '')) : currentItem.basePriceNum;
-          setBidValue(String(Math.round(currentLeadNum * 1.05)));
-          setBidStep('input');
-        }}>
-          <Text style={styles.bidButtonText}>Pujar</Text>
+        <TouchableOpacity 
+          style={[styles.bidButton, (isBiddingFinished || isUserLeading || isFutureLot) && styles.disabledBidButton]} 
+          disabled={isBiddingFinished || isUserLeading || isFutureLot}
+          onPress={() => {
+            const currentLeadNum = leadBid ? parseFloat(leadBid.amount.replace(/[^0-9]/g, '')) : currentItem.basePriceNum;
+            setBidValue(String(Math.round(currentLeadNum * 1.05)));
+            setBidStep('input');
+          }}
+        >
+          <Text style={styles.bidButtonText}>
+            {isBiddingFinished ? 'Vendido' : isFutureLot ? 'Próximo Lote' : isUserLeading ? 'Liderando' : 'Pujar'}
+          </Text>
         </TouchableOpacity>
 
         <View style={styles.leadPriceInfo}>
@@ -856,7 +1037,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 8,
-    backgroundColor: '#BA4B4B', // Reddish back button
+    backgroundColor: '#051C2C', // Dark navy back button
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -867,6 +1048,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#BEE757', // Lime yellow Bid button
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  disabledBidButton: {
+    backgroundColor: '#8A8A8A',
   },
   bidButtonText: {
     color: '#051C2C',

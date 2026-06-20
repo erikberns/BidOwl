@@ -11,4 +11,6 @@ public class ItemCatalogoDTO {
     private String imagen;
     private String duenioNombre;
     private String descripcion;
+    private String subastado;
 }
+

@@ -6,4 +6,5 @@ import lombok.Data;
 public class ElegibilidadDTO {
     private Boolean puedeUnirse;
     private String motivoRechazo;
+    private Boolean yaUnido;
 }

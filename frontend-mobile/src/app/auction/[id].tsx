@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator, Modal, TextInput } from 'react-native';
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
-import { router, useLocalSearchParams, Stack, Tabs } from 'expo-router';
+import { router, useLocalSearchParams, Stack, Tabs, useNavigation } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useIsFocused } from '@react-navigation/native';
 
 import JoinAuctionBar from '@/components/JoinAuctionBar';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
@@ -72,6 +74,8 @@ function parseAuctionDateTime(dateStr: string, timeStr: string): Date {
 export default function AuctionDetailScreen() {
   const { id } = useLocalSearchParams();
   const auctionIdStr = Array.isArray(id) ? id[0] : id || '1';
+  const isFocused = useIsFocused();
+  const navigation = useNavigation();
 
   const [auctionDetail, setAuctionDetail] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -83,6 +87,7 @@ export default function AuctionDetailScreen() {
 
   // Joining and Payment State
   const [hasJoined, setHasJoined] = useState(false);
+  const [isGuest, setIsGuest] = useState<boolean | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const paymentMethods = [
     { id: 'pm_1', type: 'card', name: 'VISA **** **** **** 2345' },
@@ -90,9 +95,36 @@ export default function AuctionDetailScreen() {
   ];
   const [selectedPayment, setSelectedPayment] = useState(paymentMethods[0].id);
 
-  const confirmPaymentAndJoin = () => {
-    setShowPaymentModal(false);
-    setHasJoined(true);
+  const confirmPaymentAndJoin = async () => {
+    try {
+      const userStr = await AsyncStorage.getItem('user');
+      if (!userStr) {
+        Alert.alert('Acceso requerido', 'Debes iniciar sesión para unirte a la subasta.');
+        return;
+      }
+      const user = JSON.parse(userStr);
+
+      const response = await fetch(`${API_URL}/subastas/${auctionIdStr}/unirse`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Autorizacion': String(user.identificador)
+        },
+        body: JSON.stringify({})
+      });
+
+      if (response.ok) {
+        setShowPaymentModal(false);
+        setHasJoined(true);
+        router.push(`/auction/${auctionIdStr}/bidding` as any);
+      } else {
+        const errorData = await response.json();
+        Alert.alert('Error al unirse', errorData.error || 'No se pudo unir a la subasta.');
+      }
+    } catch (e) {
+      console.error('[confirmPaymentAndJoin] Error:', e);
+      Alert.alert('Error', 'Ocurrió un error al intentar unirse a la subasta.');
+    }
   };
 
   const [showBidModal, setShowBidModal] = useState(false);
@@ -155,44 +187,49 @@ export default function AuctionDetailScreen() {
   // Description truncation state
   const [isExpanded, setIsExpanded] = useState(false);
 
-  useEffect(() => {
-    async function loadDetail() {
-      try {
+  const loadDetail = async () => {
+    try {
+      if (!auctionDetail) {
         setLoading(true);
-        const res = await fetch(`${API_URL}/subastas/${auctionIdStr}?detalle=true`);
-        if (res.ok) {
-          const data = await res.json();
-          setAuctionDetail(data);
-          setError(null);
-        } else {
-          // Fallback to mock data if not found in backend
-          const mock = MOCK_AUCTIONS.find(a => a.id === auctionIdStr) || MOCK_AUCTIONS[0];
-          const mockItems = MOCK_AUCTION_ITEMS[mock.id] || MOCK_AUCTION_ITEMS['1'];
-          setAuctionDetail({
-            id: mock.id,
-            titulo: mock.title,
-            descripcion: mock.description,
-            imagenPortada: null,
-            rematador: mock.auctioneer,
-            ubicacion: mock.location,
-            direccionDetallada: "Ubicado en la dirección indicada por la organización de remates.",
-            fecha: mock.date,
-            hora: mock.time,
-            categoria: mock.category,
-            cantidadTotalitems: mock.itemCount,
-            previsualizacionitems: mockItems.slice(0, 3).map(item => ({
-              iditem: item.id,
-              nombre: item.title,
-              valorBase: parseFloat(item.basePrice.replace(/[^0-9]/g, '')),
-              imagen: null,
-              duenioNombre: item.owner,
-              descripcion: item.details
-            }))
+      }
+
+      // 1. Fetch guest status and user
+      const isGuestStr = await AsyncStorage.getItem('isGuest');
+      const userStr = await AsyncStorage.getItem('user');
+      const guestVal = (isGuestStr === 'true' || isGuestStr === null) && !userStr;
+      setIsGuest(guestVal);
+
+      // 2. Fetch eligibility / joined status if not guest
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        try {
+          const elegRes = await fetch(`${API_URL}/subastas/${auctionIdStr}/elegibilidad?_=${Date.now()}`, {
+            headers: {
+              'Autorizacion': String(user.identificador)
+            }
           });
+          if (elegRes.ok) {
+            const elegData = await elegRes.json();
+            setHasJoined(!!elegData.yaUnido);
+          } else {
+            setHasJoined(false);
+          }
+        } catch (err) {
+          console.error('[AuctionDetailScreen] Error checking eligibility:', err);
+          setHasJoined(false);
         }
-      } catch (err) {
-        console.error('[AuctionDetailScreen] Error fetching details:', err);
-        // Fallback on network error
+      } else {
+        setHasJoined(false);
+      }
+
+      // 3. Fetch subasta details
+      const res = await fetch(`${API_URL}/subastas/${auctionIdStr}?detalle=true&_=${Date.now()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAuctionDetail(data);
+        setError(null);
+      } else {
+        // Fallback to mock data if not found in backend
         const mock = MOCK_AUCTIONS.find(a => a.id === auctionIdStr) || MOCK_AUCTIONS[0];
         const mockItems = MOCK_AUCTION_ITEMS[mock.id] || MOCK_AUCTION_ITEMS['1'];
         setAuctionDetail({
@@ -216,12 +253,50 @@ export default function AuctionDetailScreen() {
             descripcion: item.details
           }))
         });
-      } finally {
-        setLoading(false);
       }
+    } catch (err) {
+      console.error('[AuctionDetailScreen] Error fetching details:', err);
+      // Fallback on network error
+      const mock = MOCK_AUCTIONS.find(a => a.id === auctionIdStr) || MOCK_AUCTIONS[0];
+      const mockItems = MOCK_AUCTION_ITEMS[mock.id] || MOCK_AUCTION_ITEMS['1'];
+      setAuctionDetail({
+        id: mock.id,
+        titulo: mock.title,
+        descripcion: mock.description,
+        imagenPortada: null,
+        rematador: mock.auctioneer,
+        ubicacion: mock.location,
+        direccionDetallada: "Ubicado en la dirección indicada por la organización de remates.",
+        fecha: mock.date,
+        hora: mock.time,
+        categoria: mock.category,
+        cantidadTotalitems: mock.itemCount,
+        previsualizacionitems: mockItems.slice(0, 3).map(item => ({
+          iditem: item.id,
+          nombre: item.title,
+          valorBase: parseFloat(item.basePrice.replace(/[^0-9]/g, '')),
+          imagen: null,
+          duenioNombre: item.owner,
+          descripcion: item.details
+        }))
+      });
+    } finally {
+      setLoading(false);
     }
-    loadDetail();
-  }, [auctionIdStr]);
+  };
+
+  useEffect(() => {
+    if (isFocused) {
+      loadDetail();
+    }
+  }, [auctionIdStr, isFocused]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadDetail();
+    });
+    return unsubscribe;
+  }, [navigation, auctionIdStr]);
 
   // Update Countdown Timer
   useEffect(() => {
@@ -342,6 +417,14 @@ export default function AuctionDetailScreen() {
         {/* Title Block */}
         <View style={styles.titleSection}>
           <Text style={styles.mainTitle}>{detail.titulo}</Text>
+          <View style={styles.badgeRow}>
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryBadgeText}>{categoryLabel}</Text>
+            </View>
+            <Text style={styles.itemCountText}>{detail.cantidadTotalitems || previews.length} Articulos Totales</Text>
+          </View>
+          <Text style={styles.dateTimeText}>{detail.ubicacion || 'Pilar'} · {detail.fecha || '15/4/2026'} · {detail.hora || '18:30 UDT-3'}</Text>
+          <View style={{ height: 16 }} />
           <Text style={styles.baseValueText}>{formatPrice(baseValue)}</Text>
           <Text style={styles.baseValueLabel}>Valor Base</Text>
         </View>
@@ -383,8 +466,8 @@ export default function AuctionDetailScreen() {
         {/* Auctioneer Section */}
         <View style={styles.auctioneerSection}>
           <View style={styles.auctioneerTextContainer}>
-            <Text style={styles.sectionHeading}>Dueño actual del{'\n'}articulo de subasta</Text>
-            <Text style={styles.auctioneerName}>Agustin Blanco Vocos</Text>
+            <Text style={styles.sectionHeading}>Esta subasta sera{'\n'}rematada por</Text>
+            <Text style={styles.auctioneerName}>{detail.rematador || 'Agustin Blanco Vocos'}</Text>
           </View>
           <Image 
             source={require('@/assets/images/auctioneer_avatar.png')} 
@@ -421,92 +504,82 @@ export default function AuctionDetailScreen() {
 
         <View style={styles.divider} />
 
-        {/* Dynamic Bidding/Join Section */}
-        {hasJoined ? (
-          <View style={styles.biddingSection}>
-            <Text style={styles.sectionHeading}>Historial de Pujas</Text>
-            
-            <View style={styles.bidList}>
-              {/* Lead Bid */}
-              <View style={[styles.bidCard, styles.bidCardLeader]}>
-                <View style={styles.bidCardLeft}>
-                  <Image source={require('@/assets/images/auctioneer_avatar.png')} style={styles.bidAvatar} />
-                  <View>
-                    <Text style={styles.bidName}>Erik Berna</Text>
-                    <Text style={styles.bidTime}>Hace 4 minutos</Text>
-                  </View>
-                </View>
-                <View style={styles.bidCardRight}>
-                  <Text style={styles.bidLeaderLabel}>Puja Lider</Text>
-                  <Text style={styles.bidLeaderAmount}>1.155.000 AR$</Text>
-                </View>
-              </View>
+        {/* Location Section */}
+        <View style={styles.locationSection}>
+          <Text style={styles.sectionHeading}>Ubicación de la Subasta</Text>
+          <Text style={styles.locationTitle}>{detail.ubicacion || 'Pilar, Buenos Aires, Argentina'}</Text>
+          <Text style={styles.locationSubtitle}>{detail.direccionDetallada || 'Ubicado en Manuel Belgrano 501, Villa Morra.'}</Text>
+        </View>
 
-              {/* Other Bids */}
-              <View style={styles.bidCard}>
-                <View style={styles.bidCardLeft}>
-                  <Image source={require('@/assets/images/auctioneer_avatar.png')} style={styles.bidAvatar} />
-                  <View>
-                    <Text style={styles.bidName}>Erik Berna</Text>
-                    <Text style={styles.bidTime}>Hace 4 minutos</Text>
-                  </View>
-                </View>
-                <View style={styles.bidCardRight}>
-                  <Text style={styles.bidAmount}>1.155.000 AR$</Text>
-                </View>
-              </View>
-              <View style={styles.bidCard}>
-                <View style={styles.bidCardLeft}>
-                  <Image source={require('@/assets/images/auctioneer_avatar.png')} style={styles.bidAvatar} />
-                  <View>
-                    <Text style={styles.bidName}>Erik Berna</Text>
-                    <Text style={styles.bidTime}>Hace 4 minutos</Text>
-                  </View>
-                </View>
-                <View style={styles.bidCardRight}>
-                  <Text style={styles.bidAmount}>1.155.000 AR$</Text>
-                </View>
-              </View>
-            </View>
+        <View style={styles.divider} />
 
-            <TouchableOpacity style={styles.fullHistoryButton}>
-              <Text style={styles.fullHistoryButtonText}>Mostrar Historial Completo</Text>
-            </TouchableOpacity>
+        {/* Catalog Section */}
+        <View style={styles.catalogSection}>
+          <Text style={styles.sectionHeading}>Catalogo de Artículos</Text>
+          <Text style={styles.catalogSubtitle}>Está conformado por {detail.cantidadTotalitems || previews.length} artículos en total.</Text>
+          
+          <View style={styles.itemsList}>
+            {previews.slice(0, 3).map((item: any, idx: number) => {
+              const itemImageSource = item.imagen
+                ? getImageUrl(item.imagen)
+                : require('@/assets/images/rolling_stone_auction.png');
+              return (
+                <View key={item.iditem || idx} style={styles.itemCard}>
+                  <Image 
+                    source={itemImageSource} 
+                    style={styles.itemThumbnail} 
+                  />
+                  <View style={styles.itemInfo}>
+                    <Text style={styles.itemNumber}>{idx + 1}º Articulo</Text>
+                    <Text style={styles.itemTitle}>{item.nombre}</Text>
+                    <Text style={styles.itemPrice}>Valor Base: {formatPrice(item.valorBase)}</Text>
+                  </View>
+                </View>
+              );
+            })}
           </View>
-        ) : (
-          <View style={styles.lockSection}>
-            <SymbolView name={{ ios: 'lock.fill', android: 'lock', web: 'lock' }} size={48} tintColor="#E5E5E5" />
-            <Text style={styles.lockTitle}>Modo Espectador</Text>
-            <Text style={styles.lockSubtitle}>
-              Debes unirte a la subasta para poder pujar y ver el historial en vivo.
-            </Text>
-          </View>
-        )}
+
+          <TouchableOpacity 
+            style={styles.fullCatalogButton}
+            onPress={() => router.push(`/auction/${auctionIdStr}/catalog` as any)}
+          >
+            <Text style={styles.fullCatalogButtonText}>Mostrar el Catalogo Entero</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.liveStreamLink}
+            onPress={() => {
+              if (hasJoined) {
+                router.push(`/auction/${auctionIdStr}/bidding` as any);
+              } else {
+                if (isGuest) {
+                  Alert.alert(
+                    'Acceso requerido',
+                    'Debes iniciar sesión para entrar a la subasta.',
+                    [
+                      { text: 'Cancelar', style: 'cancel' },
+                      { text: 'Ir a perfil', onPress: () => router.push('/profile') },
+                    ]
+                  );
+                } else {
+                  setShowPaymentModal(true);
+                }
+              }
+            }}
+          >
+            {/* @ts-ignore */}
+            <SymbolView name={{ ios: 'tv.fill', android: 'live_tv', web: 'tv' }} size={20} tintColor="#051C2C" style={styles.liveStreamIcon} />
+            <Text style={styles.liveStreamText}>Mira la subasta en vivo y en directo</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       {/* Sticky Footer */}
-      <View style={styles.stickyFooter}>
-        <TouchableOpacity style={styles.footerBackButton} onPress={() => router.back()}>
-          {/* @ts-ignore */}
-          <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#fff" />
-        </TouchableOpacity>
-        
-        {hasJoined ? (
-          <>
-            <TouchableOpacity style={styles.footerBidButton} onPress={() => setShowBidModal(true)}>
-              <Text style={styles.footerBidButtonText}>Pujar</Text>
-            </TouchableOpacity>
-            <View style={styles.footerAmountContainer}>
-              <Text style={styles.footerAmountText}>{formatPrice(currentLeaderBid)}</Text>
-              <Text style={styles.footerAmountLabel}>Monto de Puja Lider</Text>
-            </View>
-          </>
-        ) : (
-          <TouchableOpacity style={styles.footerJoinButton} onPress={() => setShowPaymentModal(true)}>
-            <Text style={styles.footerJoinButtonText}>Unirme a la Subasta</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <JoinAuctionBar
+        auctionId={auctionIdStr}
+        onBack={() => router.back()}
+        isActive={auctionState === 'active'}
+      />
 
       {/* Image Viewer / Carousel Modal */}
       <Modal
@@ -929,7 +1002,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   footerBackButton: {
-    backgroundColor: '#BA4A5A',
+    backgroundColor: '#051C2C',
     width: 48,
     height: 48,
     borderRadius: 8,
@@ -965,7 +1038,7 @@ const styles = StyleSheet.create({
   },
   footerJoinButton: {
     flex: 1,
-    backgroundColor: '#051C2C',
+    backgroundColor: '#BEE757',
     height: 48,
     borderRadius: 8,
     justifyContent: 'center',
@@ -974,7 +1047,7 @@ const styles = StyleSheet.create({
   footerJoinButtonText: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#fff',
+    color: '#051C2C',
   },
   lockSection: {
     paddingVertical: 40,
@@ -1265,4 +1338,127 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginVertical: 12,
+  },
+  categoryBadge: {
+    backgroundColor: '#BEE757', // Lime yellow
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  categoryBadgeText: {
+    color: '#051C2C',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  itemCountText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#051C2C',
+    textDecorationLine: 'underline',
+  },
+  dateTimeText: {
+    fontSize: 14,
+    color: '#8A8A8A',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  locationSection: {
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+  },
+  locationTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#051C2C',
+    marginTop: 8,
+  },
+  locationSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
+  },
+  catalogSection: {
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+  },
+  catalogSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+  },
+  itemsList: {
+    gap: 12,
+  },
+  itemCard: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+  },
+  itemThumbnail: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 16,
+  },
+  itemInfo: {
+    flex: 1,
+  },
+  itemNumber: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2E9F64',
+    marginBottom: 2,
+  },
+  itemTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#051C2C',
+    marginBottom: 4,
+  },
+  itemPrice: {
+    fontSize: 13,
+    color: '#666',
+  },
+  fullCatalogButton: {
+    width: '100%',
+    borderWidth: 1.5,
+    borderColor: '#051C2C',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+    backgroundColor: '#fff',
+  },
+  fullCatalogButtonText: {
+    color: '#051C2C',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  liveStreamLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 24,
+    gap: 8,
+  },
+  liveStreamIcon: {
+    marginRight: 4,
+  },
+  liveStreamText: {
+    color: '#051C2C',
+    fontSize: 14,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
 });
+

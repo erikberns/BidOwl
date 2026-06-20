@@ -290,3 +290,13 @@ create table notificaciones(
 	constraint fk_notificaciones_personas foreign key (persona_id) references personas(identificador)
 )
 go
+
+-- Tabla secundaria para fecha de fin de puja de items
+create table items_catalogo_datos_adicionales(
+	identificador int not null,
+	fecha_fin_puja datetime null,
+	constraint pk_ic_datos_adicionales primary key (identificador),
+	constraint fk_ic_datos_adicionales_ic foreign key (identificador) references itemsCatalogo(identificador)
+)
+go
+

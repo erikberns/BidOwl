@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 
 @Entity
 @Table(name = "itemsCatalogo")
+@SecondaryTable(name = "items_catalogo_datos_adicionales", pkJoinColumns = @PrimaryKeyJoinColumn(name = "identificador"))
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -34,4 +35,7 @@ public class ItemCatalogo {
 
     @Column(name = "subastado", length = 2)
     private String subastado = "no"; // "si", "no"
+
+    @Column(table = "items_catalogo_datos_adicionales", name = "fecha_fin_puja")
+    private java.time.LocalDateTime fechaFinPuja;
 }

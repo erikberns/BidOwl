@@ -4,33 +4,183 @@ import { SymbolView } from 'expo-symbols';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from '@/constants/api';
 
 interface JoinAuctionBarProps {
   auctionId: string;
   onBack?: () => void;
+  isActive?: boolean;
 }
 
-export default function JoinAuctionBar({ auctionId, onBack }: JoinAuctionBarProps) {
+export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActive }: JoinAuctionBarProps) {
   const isDark = false;
   const insets = useSafeAreaInsets();
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isGuest, setIsGuest] = useState<boolean | null>(null);
+  const [isActive, setIsActive] = useState<boolean>(propIsActive !== undefined ? propIsActive : true);
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [selectedMethod, setSelectedMethod] = useState<any>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  const getIconName = (type: string) => {
+    switch (type) {
+      case 'visa':
+        return { ios: 'creditcard', android: 'credit_card', web: 'credit_card' };
+      case 'bank':
+        return { ios: 'building.columns', android: 'account_balance', web: 'account_balance' };
+      case 'check':
+        return { ios: 'doc.plaintext', android: 'description', web: 'description' };
+      default:
+        return { ios: 'questionmark.circle', android: 'help', web: 'help' };
+    }
+  };
+
+  // Load payment methods from backend
+  const loadPaymentMethods = async () => {
+    try {
+      const userStr = await AsyncStorage.getItem('user');
+      if (!userStr) return;
+      const user = JSON.parse(userStr);
+      const uId = user.identificador;
+      if (!uId) return;
+
+      const response = await fetch(`${API_URL}/personas/${uId}/metodos-pago`);
+      if (response.ok) {
+        const data = await response.json();
+        const mapped = data.map((item: any) => {
+          if (item.tarjetaCredito) {
+            const num = item.tarjetaCredito.numeroTarjeta || '';
+            const last4 = num.length >= 4 ? num.slice(-4) : num;
+            return {
+              id: String(item.identificador),
+              type: 'visa',
+              label: 'Tarjeta de Crédito',
+              details: `**** **** **** ${last4}`,
+            };
+          } else if (item.cuentaBancaria) {
+            return {
+              id: String(item.identificador),
+              type: 'bank',
+              label: `Cuenta Bancaria ${item.cuentaBancaria.nombreBanco || ''}`,
+              details: `CBU/IBAN: ${item.cuentaBancaria.cbuIban || ''}`,
+            };
+          } else if (item.chequeCertificado) {
+            return {
+              id: String(item.identificador),
+              type: 'check',
+              label: `Cheque Certificado ${item.chequeCertificado.numeroCheque || ''}`,
+              details: `Banco: ${item.chequeCertificado.bancoEmisor || ''}`,
+            };
+          }
+          return {
+            id: String(item.identificador),
+            type: 'check',
+            label: 'Método desconocido',
+            details: '',
+          };
+        });
+        setPaymentMethods(mapped);
+        if (mapped.length > 0) {
+          setSelectedMethod(mapped[0]);
+        } else {
+          setSelectedMethod(null);
+        }
+      }
+    } catch (e) {
+      console.error('[JoinAuctionBar] Error fetching payment methods:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (isModalVisible) {
+      loadPaymentMethods();
+    } else {
+      setIsDropdownOpen(false);
+    }
+  }, [isModalVisible]);
 
   const activeColor = '#051C2C';
   const backgroundColor = '#FFFFFF';
   const borderColor = '#ECECEC';
 
+  // Helper to parse dates from API or Mock
+  function parseAuctionDateTime(dateStr: string, timeStr: string): Date {
+    try {
+      if (!dateStr) return new Date();
+      const cleanDate = dateStr.replace(/\s+/g, '');
+      const cleanTime = timeStr ? timeStr.split(' ')[0].replace(/\s+/g, '') : "00:00";
+
+      const dateParts = cleanDate.split('/');
+      if (dateParts.length === 3) {
+        const day = parseInt(dateParts[0], 10);
+        const month = parseInt(dateParts[1], 10) - 1;
+        const year = parseInt(dateParts[2], 10);
+
+        const timeParts = cleanTime.split(':');
+        const hours = timeParts[0] ? parseInt(timeParts[0], 10) : 0;
+        const minutes = timeParts[1] ? parseInt(timeParts[1], 10) : 0;
+        const seconds = timeParts[2] ? parseInt(timeParts[2], 10) : 0;
+
+        return new Date(year, month, day, hours, minutes, seconds);
+      }
+
+      const isoParts = cleanDate.split('-');
+      if (isoParts.length === 3) {
+        const year = parseInt(isoParts[0], 10);
+        const month = parseInt(isoParts[1], 10) - 1;
+        const day = parseInt(isoParts[2], 10);
+
+        const timeParts = cleanTime.split(':');
+        const hours = timeParts[0] ? parseInt(timeParts[0], 10) : 0;
+        const minutes = timeParts[1] ? parseInt(timeParts[1], 10) : 0;
+        const seconds = timeParts[2] ? parseInt(timeParts[2], 10) : 0;
+
+        return new Date(year, month, day, hours, minutes, seconds);
+      }
+    } catch (e) {
+      console.error("Error parsing date-time:", e);
+    }
+    return new Date();
+  }
+
   useEffect(() => {
     async function loadGuestStatus() {
       try {
         const isGuestStr = await AsyncStorage.getItem('isGuest');
-        setIsGuest(isGuestStr === 'true' || isGuestStr === null);
+        const userStr = await AsyncStorage.getItem('user');
+        setIsGuest((isGuestStr === 'true' || isGuestStr === null) && !userStr);
       } catch (error) {
         setIsGuest(true);
       }
     }
     loadGuestStatus();
   }, []);
+
+  useEffect(() => {
+    if (propIsActive !== undefined) {
+      setIsActive(propIsActive);
+      return;
+    }
+
+    async function checkAuctionStatus() {
+      try {
+        const res = await fetch(`${API_URL}/subastas/${auctionId}?detalle=true`);
+        if (res.ok) {
+          const detail = await res.json();
+          if (detail && detail.fecha) {
+            const startDate = parseAuctionDateTime(detail.fecha, detail.hora);
+            const endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+            const now = new Date();
+            const active = now.getTime() >= startDate.getTime() && now.getTime() < endDate.getTime();
+            setIsActive(active);
+          }
+        }
+      } catch (e) {
+        console.error('[JoinAuctionBar] Error checking status:', e);
+      }
+    }
+    checkAuctionStatus();
+  }, [auctionId, propIsActive]);
 
   const handleBack = () => {
     if (onBack) {
@@ -82,12 +232,14 @@ export default function JoinAuctionBar({ auctionId, onBack }: JoinAuctionBarProp
       </TouchableOpacity>
 
       <TouchableOpacity 
-        style={[styles.joinBtn, isGuest ? styles.disabledJoinBtn : null]}
+        style={[styles.joinBtn, !isActive ? styles.disabledJoinBtn : null]}
         onPress={handleJoinPress}
         activeOpacity={0.8}
-        disabled={isGuest === true}
+        disabled={!isActive}
       >
-        <Text style={[styles.joinBtnText, isGuest ? styles.disabledJoinBtnText : null]}>Unirse a Subasta</Text>
+        <Text style={[styles.joinBtnText, !isActive ? styles.disabledJoinBtnText : null]}>
+          {isActive ? 'Unirse a Subasta' : 'Subasta Inactiva'}
+        </Text>
       </TouchableOpacity>
 
       {/* Payment Method Dialog Modal */}
@@ -113,31 +265,109 @@ export default function JoinAuctionBar({ auctionId, onBack }: JoinAuctionBarProp
               <Text style={styles.modalLabel}>Metodo de Pago a Utilizar a Futuro</Text>
               
               {/* Custom Selector Dropdown */}
-              <TouchableOpacity style={styles.selectorDropdown} activeOpacity={0.8}>
+              <TouchableOpacity 
+                style={styles.selectorDropdown} 
+                activeOpacity={0.8}
+                onPress={() => {
+                  if (paymentMethods.length > 0) {
+                    setIsDropdownOpen(!isDropdownOpen);
+                  }
+                }}
+              >
                 <View style={styles.selectorLeftRow}>
                   <SymbolView
                     tintColor="#051C2C"
                     // @ts-ignore
-                    name={{ ios: 'creditcard', android: 'credit_card', web: 'credit_card' }}
+                    name={selectedMethod ? getIconName(selectedMethod.type) : { ios: 'exclamationmark.triangle', android: 'warning', web: 'warning' }}
                     size={24}
                     style={styles.cardIcon}
                   />
-                  <Text style={styles.selectorText}>VISA **** **** **** 2345</Text>
+                  <Text style={[styles.selectorText, !selectedMethod && { color: '#E30613' }]}>
+                    {selectedMethod 
+                      ? `${selectedMethod.label} ${selectedMethod.details}` 
+                      : 'No hay métodos de pago registrados'}
+                  </Text>
                 </View>
-                <SymbolView
-                  tintColor="#051C2C"
-                  // @ts-ignore
-                  name={{ ios: 'chevron.down', android: 'keyboard_arrow_down', web: 'chevron_down' }}
-                  size={16}
-                />
+                {paymentMethods.length > 0 && (
+                  <SymbolView
+                    tintColor="#051C2C"
+                    // @ts-ignore
+                    name={isDropdownOpen ? { ios: 'chevron.up', android: 'keyboard_arrow_up', web: 'chevron_up' } : { ios: 'chevron.down', android: 'keyboard_arrow_down', web: 'chevron_down' }}
+                    size={16}
+                  />
+                )}
               </TouchableOpacity>
+
+              {isDropdownOpen && paymentMethods.length > 0 && (
+                <View style={styles.dropdownOptionsContainer}>
+                  {paymentMethods.map((method) => (
+                    <TouchableOpacity 
+                      key={method.id} 
+                      style={styles.dropdownOption}
+                      onPress={() => {
+                        setSelectedMethod(method);
+                        setIsDropdownOpen(false);
+                      }}
+                    >
+                      <SymbolView
+                        tintColor="#051C2C"
+                        // @ts-ignore
+                        name={getIconName(method.type)}
+                        size={20}
+                        style={styles.cardIcon}
+                      />
+                      <Text style={styles.dropdownOptionText}>
+                        {method.label} {method.details}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
 
               {/* ¡Entrar! Action Button */}
               <TouchableOpacity 
                 style={styles.modalEnterButton}
-                onPress={() => {
-                  setIsModalVisible(false);
-                  router.push(`/auction/${auctionId}/bidding` as any);
+                onPress={async () => {
+                  if (!selectedMethod) {
+                    Alert.alert(
+                      'Método de pago requerido',
+                      'Debes registrar al menos un método de pago en tu perfil para poder formar parte de las subastas.',
+                      [
+                        { text: 'Cancelar', style: 'cancel' },
+                        { text: 'Ir a Perfil', onPress: () => { setIsModalVisible(false); router.push('/profile'); } }
+                      ]
+                    );
+                    return;
+                  }
+
+                  try {
+                    const userStr = await AsyncStorage.getItem('user');
+                    if (!userStr) {
+                      Alert.alert('Acceso requerido', 'Debes iniciar sesión para unirte a la subasta.');
+                      return;
+                    }
+                    const user = JSON.parse(userStr);
+
+                    const response = await fetch(`${API_URL}/subastas/${auctionId}/unirse`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Autorizacion': String(user.identificador)
+                      },
+                      body: JSON.stringify({})
+                    });
+
+                    if (response.ok) {
+                      setIsModalVisible(false);
+                      router.push(`/auction/${auctionId}/bidding` as any);
+                    } else {
+                      const errorData = await response.json();
+                      Alert.alert('Error al unirse', errorData.error || 'No se pudo unir a la subasta.');
+                    }
+                  } catch (e) {
+                    console.error('[JoinAuctionBar] Error joining auction:', e);
+                    Alert.alert('Error', 'Ocurrió un error al intentar unirse a la subasta.');
+                  }
                 }}
               >
                 <Text style={styles.modalEnterButtonText}>¡Entrar!</Text>
@@ -279,5 +509,27 @@ const styles = StyleSheet.create({
     color: '#051C2C',
     fontSize: 16,
     fontWeight: '800',
-  }
+  },
+  dropdownOptionsContainer: {
+    borderWidth: 1.5,
+    borderColor: '#E5E5E5',
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    marginTop: -16,
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  dropdownOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  dropdownOptionText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#333',
+  },
 });

@@ -15,6 +15,11 @@ type Tab = 'activos' | 'miSubasta' | 'notificaciones' | 'historial';
 export default function InboxScreen() {
   const [activeTab, setActiveTab] = React.useState<Tab>('notificaciones');
   const [expandedNotifIds, setExpandedNotifIds] = React.useState<string[]>([]);
+  const toggleNotif = (id: string) => {
+    setExpandedNotifIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
   const [notifications, setNotifications] = React.useState<any[]>([]);
   const [activeBids, setActiveBids] = React.useState<any[]>([]);
   const [activeAuctions, setActiveAuctions] = React.useState<any[]>([]);

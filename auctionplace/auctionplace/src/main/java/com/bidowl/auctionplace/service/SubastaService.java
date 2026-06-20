@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,6 +32,9 @@ public class SubastaService {
 
     @Autowired
     private PujoRepository pujoRepository;
+
+    @Autowired
+    private PaisRepository paisRepository;
 
     public List<Subasta> obtenerTodas() {
         return subastaRepository.findAll();
@@ -115,6 +119,27 @@ public class SubastaService {
             lider.setNombre(puja.getAsistente().getCliente().getNombre());
             lider.setMonto(puja.getImporte());
             estado.setPujaLider(lider);
+        }
+
+        // Lógica de temporizador de 1 minuto y auto-cierre
+        if (itemCatalogo.getFechaFinPuja() != null) {
+            boolean expiro = LocalDateTime.now().isAfter(itemCatalogo.getFechaFinPuja());
+            if (expiro && !"si".equalsIgnoreCase(itemCatalogo.getSubastado())) {
+                itemCatalogo.setSubastado("si");
+                itemCatalogoRepository.save(itemCatalogo);
+                if (pujaLider.isPresent()) {
+                    Pujo puja = pujaLider.get();
+                    puja.setGanador("si");
+                    pujoRepository.save(puja);
+                }
+            }
+            long segundos = Duration.between(LocalDateTime.now(), itemCatalogo.getFechaFinPuja()).getSeconds();
+            if (segundos < 0) segundos = 0L;
+            estado.setSegundosRestantes(segundos);
+            estado.setFinalizado(expiro || "si".equalsIgnoreCase(itemCatalogo.getSubastado()));
+        } else {
+            estado.setSegundosRestantes(null);
+            estado.setFinalizado("si".equalsIgnoreCase(itemCatalogo.getSubastado()));
         }
 
         return estado;
@@ -203,6 +228,34 @@ public class SubastaService {
         ItemCatalogo itemCatalogo = itemCatalogoRepository.findByIdentificadorAndCatalogo_Subasta_Identificador(iditem, idSubasta)
                 .orElseThrow(() -> new java.util.NoSuchElementException("Item con ID " + iditem + " no encontrado en la subasta " + idSubasta));
 
+        // Validar secuencialidad de los lotes: el lote anterior debe haber finalizado
+        List<ItemCatalogo> todosLosItems = itemCatalogoRepository.findByCatalogoSubastaIdentificador(idSubasta);
+        todosLosItems.sort(java.util.Comparator.comparing(ItemCatalogo::getIdentificador));
+        for (ItemCatalogo item : todosLosItems) {
+            if (item.getIdentificador().equals(iditem)) {
+                break;
+            }
+            if (!"si".equalsIgnoreCase(item.getSubastado())) {
+                throw new IllegalStateException("No se puede pujar sobre este lote porque el lote anterior (Lote " + item.getIdentificador() + ") aún no ha finalizado.");
+            }
+        }
+
+        // Lógica de temporizador de lote
+        if (itemCatalogo.getFechaFinPuja() != null && LocalDateTime.now().isAfter(itemCatalogo.getFechaFinPuja())) {
+            itemCatalogo.setSubastado("si");
+            itemCatalogoRepository.save(itemCatalogo);
+            Optional<Pujo> pujaLider = pujoRepository.findFirstByItemIdentificadorOrderByImporteDesc(iditem);
+            if (pujaLider.isPresent()) {
+                Pujo lider = pujaLider.get();
+                lider.setGanador("si");
+                pujoRepository.save(lider);
+            }
+            throw new IllegalStateException("El remate de este artículo ha finalizado.");
+        }
+        if ("si".equalsIgnoreCase(itemCatalogo.getSubastado())) {
+            throw new IllegalStateException("El remate de este artículo ha finalizado.");
+        }
+
         // Validar que la subasta existe y está abierta
         Optional<Subasta> subasta = subastaRepository.findById(idSubasta);
         if (subasta.isEmpty() || !"abierta".equalsIgnoreCase(subasta.get().getEstado())) {
@@ -220,6 +273,10 @@ public class SubastaService {
 
         // Obtener o crear asistente (lógica centralizada y corregida)
         Asistente asistente = getOrCreateAsistente(clienteId, idSubasta);
+
+        // Iniciar o reiniciar el temporizador de 1 minuto
+        itemCatalogo.setFechaFinPuja(LocalDateTime.now().plusMinutes(1));
+        itemCatalogoRepository.save(itemCatalogo);
 
         // Crear la puja
         Pujo puja = new Pujo();
@@ -375,6 +432,7 @@ public class SubastaService {
                     }
                     dto.setDuenioNombre(duenioNombre);
                     dto.setDescripcion(desc);
+                    dto.setSubastado(item.getSubastado());
 
                     return dto;
                 })
@@ -404,6 +462,10 @@ public class SubastaService {
         if (cliente.isEmpty()) {
             throw new java.util.NoSuchElementException("Cliente no encontrado");
         }
+
+        // Verificar si ya está unido
+        Optional<Asistente> asistenteExistente = asistenteRepository.findByClienteIdentificadorAndSubastaIdentificador(clienteId, idSubasta);
+        resultado.setYaUnido(asistenteExistente.isPresent());
 
         String categoriaRequerida = subasta.get().getCategoria();
         String categoriaCliente = cliente.get().getCategoriaCliente();
@@ -477,4 +539,70 @@ public class SubastaService {
                     return asistenteRepository.save(nuevoAsistente);
                 });
     }
+    public CrearPujaResponse simularPuja(Integer idSubasta, Integer iditem) {
+        return simularPuja(idSubasta, iditem, null, null);
+    }
+
+    public CrearPujaResponse simularPuja(Integer idSubasta, Integer iditem, Integer clienteId, BigDecimal montoPersonalizado) {
+        // 1. Determinar el monto
+        BigDecimal monto = montoPersonalizado;
+        if (monto == null) {
+            LimitesPujaDTO limites = obtenerLimitesPuja(idSubasta, iditem);
+            if (limites.getPujaMinima() != null) {
+                monto = limites.getPujaMinima();
+                Optional<Pujo> pujaLider = pujoRepository.findFirstByItemIdentificadorOrderByImporteDesc(iditem);
+                if (pujaLider.isPresent()) {
+                    BigDecimal incremento = BigDecimal.valueOf((int)(Math.random() * 40000) + 10000);
+                    monto = monto.add(incremento);
+                }
+            } else {
+                monto = BigDecimal.valueOf(100000);
+            }
+
+            if (limites.getPujaMaxima() != null && monto.compareTo(limites.getPujaMaxima()) > 0) {
+                monto = limites.getPujaMaxima();
+            }
+        }
+
+        // 2. Determinar el cliente
+        Cliente cliente;
+        if (clienteId != null) {
+            cliente = clienteRepository.findById(clienteId)
+                    .orElseThrow(() -> new java.util.NoSuchElementException("Cliente no encontrado con id: " + clienteId));
+        } else {
+            String[] nombresMock = {
+                "Diego Maradona", "Lionel Messi", "Sofia Rodriguez", 
+                "Gaston Vocos", "Micaela Perez", "Carlos Tevez", 
+                "Juan Roman Riquelme", "Emanuel Ginobili"
+            };
+            int randIndex = (int) (Math.random() * nombresMock.length);
+            String fullName = nombresMock[randIndex];
+            String[] nameParts = fullName.split(" ");
+            String nombre = nameParts[0];
+            String apellido = nameParts[1];
+            String email = nombre.toLowerCase() + "." + apellido.toLowerCase() + "@mockbidding.com";
+
+            Pais paisDefault = paisRepository.findAll().stream().findFirst().orElse(null);
+
+            cliente = clienteRepository.findByEmail(email).orElseGet(() -> {
+                Cliente nuevo = new Cliente();
+                nuevo.setNombre(nombre);
+                nuevo.setApellido(apellido);
+                nuevo.setEmail(email);
+                nuevo.setDocumento(String.valueOf((int)(Math.random() * 90000000) + 10000000));
+                nuevo.setContrasena("dummy123");
+                nuevo.setEstado("activo");
+                nuevo.setCategoria("platino");
+                nuevo.setAdmitido("si");
+                nuevo.setPais(paisDefault);
+                nuevo.setPaisCliente(paisDefault);
+                nuevo.setRematesAsistidos(1);
+                return clienteRepository.save(nuevo);
+            });
+        }
+
+        // 3. Crear puja usando el flujo estándar
+        return crearPuja(idSubasta, iditem, monto, "1", cliente.getIdentificador());
+    }
 }
+

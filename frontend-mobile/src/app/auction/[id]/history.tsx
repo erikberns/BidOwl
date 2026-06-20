@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs } from 'expo-router';
@@ -7,24 +7,39 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { MOCK_AUCTION_ITEMS } from '@/constants/mockData';
+import { API_URL } from '@/constants/api';
+
+// Helper to format prices
+const formatPrice = (value: number | string) => {
+  if (value === undefined || value === null) return '';
+  const num = typeof value === 'number' ? value : parseFloat(value.toString().replace(/[^0-9.]/g, ''));
+  if (isNaN(num)) return value.toString();
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " ARS";
+};
 
 export default function BidsHistoryScreen() {
-  const { id, itemIndex } = useLocalSearchParams();
+  const { id, itemId, itemTitle, itemIndex } = useLocalSearchParams();
   const [isGuest, setIsGuest] = useState<boolean | null>(null);
-  const selectedIndex = itemIndex ? parseInt(itemIndex as string, 10) : 0;
+  const [loading, setLoading] = useState<boolean>(true);
+  const [bids, setBids] = useState<any[]>([]);
+  const [isBiddingFinished, setIsBiddingFinished] = useState<boolean>(false);
 
+  const selectedIndex = itemIndex ? parseInt(itemIndex as string, 10) : 0;
   const auctionIdStr = Array.isArray(id) ? id[0] : id || '1';
   const mockItems = MOCK_AUCTION_ITEMS[auctionIdStr] || MOCK_AUCTION_ITEMS['1'];
-
   const currentItem = mockItems[selectedIndex] || mockItems[0];
-  const leadBid = currentItem.bids.find(b => b.isLead);
+
+  const titleToDisplay = (Array.isArray(itemTitle) ? itemTitle[0] : itemTitle) || currentItem.title;
+
+  const leadBid = bids.find(b => b.isLead);
   const leadAmount = leadBid ? leadBid.amount : currentItem.basePrice;
 
   useEffect(() => {
     async function loadGuestStatus() {
       try {
         const isGuestStr = await AsyncStorage.getItem('isGuest');
-        setIsGuest(isGuestStr === 'true' || isGuestStr === null);
+        const userStr = await AsyncStorage.getItem('user');
+        setIsGuest((isGuestStr === 'true' || isGuestStr === null) && !userStr);
       } catch (error) {
         setIsGuest(true);
       }
@@ -38,6 +53,85 @@ export default function BidsHistoryScreen() {
     }
   }, [isGuest]);
 
+  const fetchBids = async () => {
+    try {
+      const userStr = await AsyncStorage.getItem('user');
+      if (!userStr) return;
+      const user = JSON.parse(userStr);
+
+      const targetItemId = Array.isArray(itemId) ? itemId[0] : itemId;
+      if (!targetItemId) {
+        fallbackMock();
+        return;
+      }
+
+      const res = await fetch(`${API_URL}/subastas/${auctionIdStr}/items/${targetItemId}/pujas`, {
+        headers: {
+          'Autorizacion': String(user.identificador)
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const mappedBids = data.map((bid: any, idx: number) => ({
+          name: bid.nombre,
+          time: bid.hace || 'Hace unos instantes',
+          amount: formatPrice(bid.monto),
+          isLead: idx === 0
+        }));
+        setBids(mappedBids);
+      } else {
+        fallbackMock();
+      }
+
+      // Fetch dynamic item timer and completion status
+      const statusRes = await fetch(`${API_URL}/subastas/${auctionIdStr}/items/${targetItemId}`, {
+        headers: {
+          'Autorizacion': String(user.identificador)
+        }
+      });
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        setIsBiddingFinished(statusData.finalizado);
+      }
+    } catch (e) {
+      console.error('[BidsHistoryScreen] Error fetching bids:', e);
+      fallbackMock();
+    }
+  };
+
+  const fallbackMock = () => {
+    const mapped = currentItem.bids.map(b => ({
+      name: b.name,
+      time: b.time,
+      amount: b.amount,
+      isLead: b.isLead
+    }));
+    setBids(mapped);
+  };
+
+  useEffect(() => {
+    if (isGuest === true) return;
+
+    async function initialLoad() {
+      setLoading(true);
+      await fetchBids();
+      setLoading(false);
+    }
+    initialLoad();
+  }, [itemId, isGuest]);
+
+  useEffect(() => {
+    if (isGuest === true) return;
+    const targetItemId = Array.isArray(itemId) ? itemId[0] : itemId;
+    if (!targetItemId) return;
+
+    const interval = setInterval(() => {
+      fetchBids();
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [itemId, isGuest]);
+
   if (isGuest === null) {
     return null;
   }
@@ -48,7 +142,7 @@ export default function BidsHistoryScreen() {
       <Tabs.Screen options={{ headerShown: false }} />
       {/* Header Bar */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.push(`/auction/${id}/bidding` as any)}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.navigate(`/auction/${auctionIdStr}/bidding` as any)}>
           <SymbolView
             tintColor="#051C2C"
             // @ts-ignore
@@ -67,37 +161,45 @@ export default function BidsHistoryScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.sectionTitle}>Historial de Pujas</Text>
-        <Text style={styles.sectionSubtitle}>{currentItem.title}</Text>
+        <Text style={styles.sectionSubtitle}>{titleToDisplay}</Text>
 
-        <View style={styles.bidsList}>
-          {currentItem.bids.map((bid, index) => (
-            <View 
-              key={index} 
-              style={[
-                styles.bidRow, 
-                bid.isLead ? styles.leadBidRow : styles.normalBidRow
-              ]}
-            >
-              <Image 
-                source={require('@/assets/images/auctioneer_avatar.png')} 
-                style={styles.bidderAvatar} 
-              />
-              <View style={styles.bidderInfo}>
-                <Text style={styles.bidderName}>{bid.name}</Text>
-                <Text style={styles.bidTime}>{bid.time}</Text>
-              </View>
-              <View style={styles.bidAmountContainer}>
-                {bid.isLead && <Text style={styles.leadBidLabel}>Puja Lider</Text>}
-                <Text style={styles.bidAmount}>{bid.amount}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
+        {loading ? (
+          <ActivityIndicator size="large" color="#051C2C" style={{ marginTop: 40 }} />
+        ) : (
+          <View style={styles.bidsList}>
+            {bids.length === 0 ? (
+              <Text style={{ textAlign: 'center', color: '#666', marginTop: 20 }}>Sin ofertas aún para este lote.</Text>
+            ) : (
+              bids.map((bid, index) => (
+                <View 
+                  key={index} 
+                  style={[
+                    styles.bidRow, 
+                    bid.isLead ? styles.leadBidRow : styles.normalBidRow
+                  ]}
+                >
+                  <Image 
+                    source={require('@/assets/images/auctioneer_avatar.png')} 
+                    style={styles.bidderAvatar} 
+                  />
+                  <View style={styles.bidderInfo}>
+                    <Text style={styles.bidderName}>{bid.name}</Text>
+                    <Text style={styles.bidTime}>{bid.time}</Text>
+                  </View>
+                  <View style={styles.bidAmountContainer}>
+                    {bid.isLead && <Text style={styles.leadBidLabel}>Puja Lider</Text>}
+                    <Text style={styles.bidAmount}>{bid.amount}</Text>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        )}
       </ScrollView>
 
       {/* Bottom Bidding Bar */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.bottomBackButton} onPress={() => router.push(`/auction/${id}/bidding` as any)}>
+        <TouchableOpacity style={styles.bottomBackButton} onPress={() => router.navigate(`/auction/${auctionIdStr}/bidding` as any)}>
           <SymbolView
             tintColor="#fff"
             // @ts-ignore
@@ -106,8 +208,12 @@ export default function BidsHistoryScreen() {
           />
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.bidButton}>
-          <Text style={styles.bidButtonText}>Pujar</Text>
+        <TouchableOpacity 
+          style={[styles.bidButton, isBiddingFinished && { backgroundColor: '#8A8A8A' }]} 
+          disabled={isBiddingFinished}
+          onPress={() => router.navigate(`/auction/${auctionIdStr}/bidding` as any)}
+        >
+          <Text style={styles.bidButtonText}>{isBiddingFinished ? 'Vendido' : 'Pujar'}</Text>
         </TouchableOpacity>
 
         <View style={styles.leadPriceInfo}>
@@ -233,7 +339,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 8,
-    backgroundColor: '#BA4B4B', // Reddish back button
+    backgroundColor: '#051C2C', // Dark navy back button
     justifyContent: 'center',
     alignItems: 'center',
   },

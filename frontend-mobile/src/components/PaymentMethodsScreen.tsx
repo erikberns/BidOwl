@@ -1538,16 +1538,6 @@ const styles = StyleSheet.create({
   fileCardBoxWithImage: {
     alignItems: 'flex-start',
   },
-  filePreviewImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 8,
-    resizeMode: 'cover',
-  },
-  fileAddText: {
-    fontSize: 30,
-    color: '#333',
-  },
   fileActionRow: {
     flexDirection: 'row',
     marginTop: 8,
@@ -1565,16 +1555,6 @@ const styles = StyleSheet.create({
   fileActionButtonText: {
     color: '#ffffff',
     fontSize: 12,
-    fontWeight: 'bold',
-  },
-  filePreviewImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 8,
-    resizeMode: 'cover',
-  },
-  fileCardText: {
-    fontSize: 14,
     fontWeight: 'bold',
   },
   fileCardText: {

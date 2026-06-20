@@ -61,7 +61,7 @@ export default function CatalogScreen() {
       <Tabs.Screen options={{ headerShown: false }} />
       {/* Header Bar */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.push(`/auction/${id}` as any)}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.navigate(`/auction/${id}` as any)}>
           <SymbolView
             tintColor="#051C2C"
             // @ts-ignore
@@ -108,7 +108,7 @@ export default function CatalogScreen() {
       {/* Bottom Bar */}
       <JoinAuctionBar
         auctionId={id as string}
-        onBack={() => router.push(`/auction/${id}` as any)}
+        onBack={() => router.navigate(`/auction/${id}` as any)}
       />
     </SafeAreaView>
   );

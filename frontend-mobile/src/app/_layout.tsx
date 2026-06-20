@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppTabs from '@/components/app-tabs';
 import { Onboarding } from '@/components/Onboarding';
+import { API_URL } from '@/constants/api';
 import { AuthScreen } from '@/components/AuthScreen';
 import { RegisterScreen, RegisterData } from '@/components/RegisterScreen';
 import { EmailConfirmationScreen } from '@/components/EmailConfirmationScreen';
@@ -43,25 +44,51 @@ export default function TabLayout() {
         setIsFirstLaunch(hasSeenOnboardingStr === null);
 
         const userStr = await AsyncStorage.getItem('user');
-        const stage2Status = await AsyncStorage.getItem('registrationStage2Status');
-        const stage2Step = await AsyncStorage.getItem('registrationStage2Step');
-
-        if (stage2Status === 'in_progress' && userStr) {
-          setHasSeenAuth(false);
-          const userObj = JSON.parse(userStr);
-          setCurrentUser(userObj);
-          if (stage2Step === 'photo') {
-            setIsSettingProfilePhoto(true);
-          } else if (stage2Step === 'payment_methods') {
-            setIsSettingPaymentMethods(true);
-          } else {
-            setIsSettingPassword(true);
+        let userExists = true;
+        if (userStr) {
+          try {
+            const user = JSON.parse(userStr);
+            const checkRes = await fetch(`${API_URL}/personas/${user.identificador}`);
+            if (checkRes.status === 404) {
+              userExists = false;
+            }
+          } catch (e) {
+            console.warn('[Layout] Failed to check user existence:', e);
           }
+        }
+
+        if (!userExists) {
+          await AsyncStorage.removeItem('user');
+          await AsyncStorage.removeItem('hasSeenAuth');
+          await AsyncStorage.removeItem('isGuest');
+          await AsyncStorage.removeItem('registrationStage2Status');
+          await AsyncStorage.removeItem('registrationStage2Step');
+          setCurrentUser(null);
+          setHasSeenAuth(false);
+          setIsSettingProfilePhoto(false);
+          setIsSettingPaymentMethods(false);
+          setIsSettingPassword(false);
         } else {
-          const hasSeenAuthStr = await AsyncStorage.getItem('hasSeenAuth');
-          setHasSeenAuth(hasSeenAuthStr === 'true');
-          if (userStr) {
-            setCurrentUser(JSON.parse(userStr));
+          const stage2Status = await AsyncStorage.getItem('registrationStage2Status');
+          const stage2Step = await AsyncStorage.getItem('registrationStage2Step');
+
+          if (stage2Status === 'in_progress' && userStr) {
+            setHasSeenAuth(false);
+            const userObj = JSON.parse(userStr);
+            setCurrentUser(userObj);
+            if (stage2Step === 'photo') {
+              setIsSettingProfilePhoto(true);
+            } else if (stage2Step === 'payment_methods') {
+              setIsSettingPaymentMethods(true);
+            } else {
+              setIsSettingPassword(true);
+            }
+          } else {
+            const hasSeenAuthStr = await AsyncStorage.getItem('hasSeenAuth');
+            setHasSeenAuth(hasSeenAuthStr === 'true');
+            if (userStr) {
+              setCurrentUser(JSON.parse(userStr));
+            }
           }
         }
       } catch (error) {
