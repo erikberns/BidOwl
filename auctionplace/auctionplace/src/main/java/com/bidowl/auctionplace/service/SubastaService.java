@@ -67,8 +67,9 @@ public class SubastaService {
     }
 
     public Subasta obtenerPorId(Integer id) {
-        return subastaRepository.findById(id)
+        Subasta subasta = subastaRepository.findById(id)
                 .orElseThrow(() -> new java.util.NoSuchElementException("Subasta no encontrada con el identificador: " + id));
+        return checkAndAutoOpen(subasta);
     }
 
     public List<ItemCatalogo> obtenerCatalogo(Integer subastaId) {
@@ -317,8 +318,12 @@ public class SubastaService {
         }
 
         // Validar que la subasta existe y está abierta
-        Optional<Subasta> subasta = subastaRepository.findById(idSubasta);
-        if (subasta.isEmpty() || !"abierta".equalsIgnoreCase(subasta.get().getEstado())) {
+        Optional<Subasta> subastaOpt = subastaRepository.findById(idSubasta);
+        if (subastaOpt.isEmpty()) {
+            throw new IllegalStateException("La subasta no existe o no está abierta");
+        }
+        Subasta subasta = checkAndAutoOpen(subastaOpt.get());
+        if (!"abierta".equalsIgnoreCase(subasta.getEstado())) {
             throw new IllegalStateException("La subasta no existe o no está abierta");
         }
 
@@ -391,12 +396,12 @@ public class SubastaService {
      * GET /api/subastas/{idSubasta}
      */
     public SubastaDetalleDTO obtenerDetalleSubasta(Integer idSubasta) {
-        Optional<Subasta> subasta = subastaRepository.findById(idSubasta);
-        if (subasta.isEmpty()) {
+        Optional<Subasta> subastaOpt = subastaRepository.findById(idSubasta);
+        if (subastaOpt.isEmpty()) {
             throw new java.util.NoSuchElementException("Subasta no encontrada");
         }
 
-        Subasta s = subasta.get();
+        Subasta s = checkAndAutoOpen(subastaOpt.get());
         SubastaDetalleDTO dto = new SubastaDetalleDTO();
         dto.setId(s.getIdentificador().toString());
         dto.setTitulo(s.getTitulo() != null ? s.getTitulo() : "Subasta " + s.getIdentificador());
@@ -472,10 +477,11 @@ public class SubastaService {
      * GET /api/subastas/{idSubasta}/catalogo
      */
     public List<ItemCatalogoDTO> obtenerCatalogoItemsSubasta(Integer idSubasta) {
-        Optional<Subasta> subasta = subastaRepository.findById(idSubasta);
-        if (subasta.isEmpty()) {
+        Optional<Subasta> subastaOpt = subastaRepository.findById(idSubasta);
+        if (subastaOpt.isEmpty()) {
             throw new java.util.NoSuchElementException("Subasta no encontrada");
         }
+        checkAndAutoOpen(subastaOpt.get());
 
         List<ItemCatalogo> items = itemCatalogoRepository.findByCatalogoSubastaIdentificador(idSubasta);
 
@@ -520,8 +526,18 @@ public class SubastaService {
     }
 
     public byte[] obtenerFotoSubastaBytes(Integer subastaId) {
-        Optional<Subasta> subasta = subastaRepository.findById(subastaId);
-        return subasta.map(Subasta::getFoto).orElse(null);
+        Optional<Subasta> subastaOpt = subastaRepository.findById(subastaId);
+        if (subastaOpt.isPresent()) {
+            Subasta s = subastaOpt.get();
+            if (s.getFoto() != null && s.getFoto().length > 0) {
+                return s.getFoto();
+            }
+            Optional<Catalogo> catalogoOpt = catalogoRepository.findBySubastaIdentificador(subastaId);
+            if (catalogoOpt.isPresent() && catalogoOpt.get().getFoto() != null) {
+                return catalogoOpt.get().getFoto();
+            }
+        }
+        return null;
     }
 
     /**
@@ -532,10 +548,11 @@ public class SubastaService {
         ElegibilidadDTO resultado = new ElegibilidadDTO();
 
         // Validar que la subasta existe
-        Optional<Subasta> subasta = subastaRepository.findById(idSubasta);
-        if (subasta.isEmpty()) {
+        Optional<Subasta> subastaOpt = subastaRepository.findById(idSubasta);
+        if (subastaOpt.isEmpty()) {
             throw new java.util.NoSuchElementException("Subasta no encontrada");
         }
+        Subasta subasta = checkAndAutoOpen(subastaOpt.get());
 
         // Validar que el cliente existe
         Optional<Cliente> cliente = clienteRepository.findById(clienteId);
@@ -547,7 +564,7 @@ public class SubastaService {
         Optional<Asistente> asistenteExistente = asistenteRepository.findByClienteIdentificadorAndSubastaIdentificador(clienteId, idSubasta);
         resultado.setYaUnido(asistenteExistente.isPresent());
 
-        String categoriaRequerida = subasta.get().getCategoria();
+        String categoriaRequerida = subasta.getCategoria();
         String categoriaCliente = cliente.get().getCategoriaCliente();
 
         // Validar categoría
@@ -695,7 +712,8 @@ public class SubastaService {
             throw new IllegalArgumentException("Formato de fecha inválido. Debe ser yyyy-MM-dd.");
         }
 
-        if (dateFecha.isBefore(java.time.LocalDate.now().plusDays(10))) {
+        boolean saltarValidacion = request.getSaltarValidacionFecha() != null && request.getSaltarValidacionFecha();
+        if (!saltarValidacion && dateFecha.isBefore(java.time.LocalDate.now().plusDays(10))) {
             throw new IllegalArgumentException("La fecha de la subasta debe ser al menos 10 días posterior a la fecha actual.");
         }
 
@@ -745,73 +763,59 @@ public class SubastaService {
         subasta.setDescripcion(request.getDescripcion());
         subasta.setDireccionDetallada(request.getDireccionDetallada());
 
+        if (request.getFotoBase64() != null && !request.getFotoBase64().isEmpty()) {
+            try {
+                String base64Data = request.getFotoBase64();
+                if (base64Data.contains(",")) {
+                    base64Data = base64Data.split(",")[1];
+                }
+                byte[] decodedBytes = java.util.Base64.getDecoder().decode(base64Data.trim());
+                subasta.setFoto(decodedBytes);
+            } catch (Exception e) {
+                System.err.println("Error decodificando fotoBase64 de la subasta: " + e.getMessage());
+            }
+        }
+
         Subasta subastaGuardada = subastaRepository.save(subasta);
 
-        // 5. Crear y guardar Catalogo
-        Catalogo catalogo = new Catalogo();
-        catalogo.setDescripcion(request.getCatalogoDescripcion() != null ? request.getCatalogoDescripcion() : "Catálogo");
-        catalogo.setSubasta(subastaGuardada);
-        catalogo.setResponsable(responsable);
+        // 5. Vincular catálogo existente y actualizar fechaFinPuja si corresponde
+        if (request.getCatalogoId() != null) {
+            Catalogo catalogo = catalogoRepository.findById(request.getCatalogoId())
+                    .orElseThrow(() -> new java.util.NoSuchElementException("Catálogo no encontrado con ID: " + request.getCatalogoId()));
+            
+            catalogo.setSubasta(subastaGuardada);
+            catalogoRepository.save(catalogo);
 
-        Catalogo catalogoGuardado = catalogoRepository.save(catalogo);
-
-        // 6. Procesar items del catálogo
-        if (request.getItems() != null && !request.getItems().isEmpty()) {
-            for (ItemCatalogoCrearRequest itemReq : request.getItems()) {
-                Producto producto = productoRepository.findById(itemReq.getProductoId())
-                        .orElseThrow(() -> new java.util.NoSuchElementException("Producto no encontrado con ID: " + itemReq.getProductoId()));
-
-                if (!"si".equalsIgnoreCase(producto.getDisponible())) {
-                    throw new IllegalStateException("El producto con ID " + itemReq.getProductoId() + " no está disponible.");
+            // Actualizar fechaFinPuja de los ítems del catálogo que tengan fecha nula
+            List<ItemCatalogo> items = itemCatalogoRepository.findByCatalogoIdentificador(catalogo.getIdentificador());
+            for (ItemCatalogo item : items) {
+                if (item.getFechaFinPuja() == null) {
+                    item.setFechaFinPuja(java.time.LocalDateTime.of(dateFecha, timeHora).plusHours(1));
+                    itemCatalogoRepository.save(item);
                 }
-
-                // Obtener propuesta comercial para fallback de precioBase y comision
-                PropuestaComercial propuesta = propuestaComercialRepository.findByProducto(producto)
-                        .orElse(null);
-
-                BigDecimal precioBase = itemReq.getPrecioBase();
-                if (precioBase == null) {
-                    if (propuesta != null) {
-                        precioBase = propuesta.getValorBase();
-                    } else {
-                        throw new IllegalArgumentException("Debe especificar el precio base o tener una propuesta comercial registrada para el producto ID: " + itemReq.getProductoId());
-                    }
-                }
-
-                BigDecimal comision = itemReq.getComision();
-                if (comision == null) {
-                    if (propuesta != null) {
-                        comision = propuesta.getComision();
-                    } else {
-                        throw new IllegalArgumentException("Debe especificar la comisión o tener una propuesta comercial registrada para el producto ID: " + itemReq.getProductoId());
-                    }
-                }
-
-                java.time.LocalDateTime fechaFinPuja = null;
-                if (itemReq.getFechaFinPuja() != null && !itemReq.getFechaFinPuja().isEmpty()) {
-                    try {
-                        fechaFinPuja = java.time.LocalDateTime.parse(itemReq.getFechaFinPuja().replace(" ", "T"));
-                    } catch (Exception e) {
-                        throw new IllegalArgumentException("Formato de fecha de fin de puja inválido. Debe ser yyyy-MM-dd HH:mm:ss.");
-                    }
-                } else {
-                    // Por defecto, fin de puja es a la hora de inicio de la subasta más 1 hora
-                    fechaFinPuja = java.time.LocalDateTime.of(dateFecha, timeHora).plusHours(1);
-                }
-
-                ItemCatalogo item = new ItemCatalogo();
-                item.setCatalogo(catalogoGuardado);
-                item.setProducto(producto);
-                item.setPrecioBase(precioBase);
-                item.setComision(comision);
-                item.setSubastado("no");
-                item.setFechaFinPuja(fechaFinPuja);
-
-                itemCatalogoRepository.save(item);
             }
         }
 
         return subastaGuardada;
+    }
+
+    @Transactional
+    public Subasta guardarFotoSubasta(Integer subastaId, byte[] fotoBytes) {
+        Subasta subasta = obtenerPorId(subastaId);
+        subasta.setFoto(fotoBytes);
+        return subastaRepository.save(subasta);
+    }
+
+    @Transactional
+    public Subasta checkAndAutoOpen(Subasta subasta) {
+        if (subasta != null && subasta.getFecha() != null && subasta.getHora() != null && "cerrada".equalsIgnoreCase(subasta.getEstado())) {
+            java.time.LocalDateTime inicio = java.time.LocalDateTime.of(subasta.getFecha(), subasta.getHora());
+            if (java.time.LocalDateTime.now().isAfter(inicio)) {
+                subasta.setEstado("abierta");
+                subasta = subastaRepository.save(subasta);
+            }
+        }
+        return subasta;
     }
 }
 

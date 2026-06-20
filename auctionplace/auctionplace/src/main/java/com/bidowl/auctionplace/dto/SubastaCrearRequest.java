@@ -21,6 +21,7 @@ public class SubastaCrearRequest {
     private String categoria;       // "comun", "especial", "plata", "oro", "platino"
     private Integer subastadorId;
     private Integer responsableId; // Empleado ID (revisor)
-    private String catalogoDescripcion;
-    private List<ItemCatalogoCrearRequest> items;
+    private Integer catalogoId; // Vincular a catálogo/colección existente
+    private String fotoBase64;
+    private Boolean saltarValidacionFecha;
 }

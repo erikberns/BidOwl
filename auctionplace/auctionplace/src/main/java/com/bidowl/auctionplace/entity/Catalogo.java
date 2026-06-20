@@ -27,4 +27,8 @@ public class Catalogo {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "responsable", nullable = false)
     private Empleado responsable;
+
+    @Lob
+    @Column(name = "foto", columnDefinition = "LONGBLOB")
+    private byte[] foto;
 }

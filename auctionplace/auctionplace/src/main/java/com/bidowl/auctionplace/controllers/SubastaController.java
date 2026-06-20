@@ -9,6 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
@@ -322,7 +324,7 @@ public class SubastaController {
      * POST /api/subastas
      */
     @PostMapping
-    public ResponseEntity<?> crearSubastaConCatalogo(@RequestBody SubastaCrearRequest request) {
+    public ResponseEntity<?> crearSubasta(@RequestBody SubastaCrearRequest request) {
         try {
             Subasta subasta = subastaService.crearSubastaConCatalogo(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(subasta);
@@ -334,6 +336,28 @@ public class SubastaController {
             Map<String, Object> error = new HashMap<>();
             error.put("error", "Error interno del servidor: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    @PutMapping(value = "/{id}/foto", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> guardarFotoSubasta(
+            @PathVariable Integer id,
+            @RequestParam("foto") MultipartFile foto) {
+        try {
+            if (foto == null || foto.isEmpty()) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("error", "El archivo de foto es requerido.");
+                return ResponseEntity.badRequest().body(error);
+            }
+            Subasta subasta = subastaService.guardarFotoSubasta(id, foto.getBytes());
+            return ResponseEntity.ok(subasta);
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            if (e instanceof java.util.NoSuchElementException) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            }
+            return ResponseEntity.badRequest().body(error);
         }
     }
 

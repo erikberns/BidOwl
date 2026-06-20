@@ -19,6 +19,7 @@ export function AuthScreen({ onComplete, onRegister, onLogin, onLoginSuccess, on
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleGuest = async () => {
     await AsyncStorage.setItem('hasSeenAuth', 'true');
@@ -177,11 +178,18 @@ export function AuthScreen({ onComplete, onRegister, onLogin, onLoginSuccess, on
                   setPassword(val);
                   if (passwordError) setPasswordError('');
                 }}
-                secureTextEntry={true}
+                secureTextEntry={!showPassword}
                 autoCapitalize="none"
                 editable={!isLoading}
                 error={passwordError}
                 containerStyle={{ marginBottom: 8 }}
+                headerRight={
+                  <Pressable onPress={() => setShowPassword(!showPassword)}>
+                    <Text style={{ fontSize: 12, color: '#2E9F64', fontWeight: 'bold' }}>
+                      {showPassword ? 'Ocultar' : 'Mostrar'}
+                    </Text>
+                  </Pressable>
+                }
               />
 
               <Pressable style={styles.forgotContainer} onPress={onForgotPassword}>

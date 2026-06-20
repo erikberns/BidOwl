@@ -4,6 +4,7 @@ import com.bidowl.auctionplace.entity.*;
 import com.bidowl.auctionplace.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -77,7 +78,11 @@ public class ItemCatalogoService {
             }
 
             registro.setImporte(pujaGanadora.getImporte());
-            registro.setComision(item.getComision());
+            BigDecimal comisionPorcentaje = item.getComision() != null ? item.getComision() : BigDecimal.ZERO;
+            BigDecimal comisionCalculada = pujaGanadora.getImporte()
+                    .multiply(comisionPorcentaje)
+                    .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+            registro.setComision(comisionCalculada);
 
             registroDeSubastaRepository.save(registro);
 

@@ -34,10 +34,20 @@ export default function PublishScreen() {
   const [isBelonging, setIsBelonging] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [isGuest, setIsGuest] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
   const [modalMessage, setModalMessage] = useState('');
   const [modalOnOk, setModalOnOk] = useState<(() => void) | null>(null);
+
+  // Validation error states
+  const [imagesError, setImagesError] = useState('');
+  const [articleNameError, setArticleNameError] = useState('');
+  const [articleDescriptionError, setArticleDescriptionError] = useState('');
+  const [creatorNameError, setCreatorNameError] = useState('');
+  const [articleDateError, setArticleDateError] = useState('');
+  const [articleHistoryError, setArticleHistoryError] = useState('');
+  const [isBelongingError, setIsBelongingError] = useState('');
 
   const showAppModal = (title: string, message: string, onOk?: () => void) => {
     setModalTitle(title);
@@ -54,6 +64,25 @@ export default function PublishScreen() {
     }
   };
 
+  const handleResetForm = () => {
+    setIsSubmitted(false);
+    setArticleName('');
+    setArticleDescription('');
+    setCreatorName('');
+    setArticleDate('');
+    setArticleHistory('');
+    setIsArtpiece(false);
+    setIsBelonging(false);
+    setImages([]);
+    setImagesError('');
+    setArticleNameError('');
+    setArticleDescriptionError('');
+    setCreatorNameError('');
+    setArticleDateError('');
+    setArticleHistoryError('');
+    setIsBelongingError('');
+  };
+
   useEffect(() => {
     if (isFocused) {
       async function loadGuestStatus() {
@@ -66,10 +95,15 @@ export default function PublishScreen() {
         }
       }
       loadGuestStatus();
+
+      if (isSubmitted) {
+        handleResetForm();
+      }
     }
   }, [isFocused]);
 
   const handleDateChange = (text: string) => {
+    if (articleDateError) setArticleDateError('');
     const cleaned = text.replace(/\D/g, '');
     let formatted = cleaned;
     if (cleaned.length > 2) {
@@ -94,7 +128,13 @@ export default function PublishScreen() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const uri = result.assets[0].uri;
-        setImages(prev => (prev.length < 10 ? [...prev, uri] : prev));
+        setImages(prev => {
+          const next = prev.length < 10 ? [...prev, uri] : prev;
+          if (next.length >= 6) {
+            setImagesError('');
+          }
+          return next;
+        });
       }
     } catch (err) {
       console.warn('Error seleccionando imagen', err);
@@ -102,7 +142,13 @@ export default function PublishScreen() {
   };
 
   const handleRemoveImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
+    setImages(prev => {
+      const next = prev.filter((_, i) => i !== index);
+      if (next.length >= 6) {
+        setImagesError('');
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async () => {
@@ -117,12 +163,57 @@ export default function PublishScreen() {
       return;
     }
 
+    // Clear previous errors
+    setImagesError('');
+    setArticleNameError('');
+    setArticleDescriptionError('');
+    setCreatorNameError('');
+    setArticleDateError('');
+    setArticleHistoryError('');
+    setIsBelongingError('');
+
+    let hasErrors = false;
+
     if (images.length < 6) {
-      showAppModal('Atención', 'Se requieren al menos 6 imágenes para enviar la solicitud.');
+      setImagesError('Se requieren al menos 6 imágenes para enviar la solicitud.');
+      hasErrors = true;
+    }
+
+    if (!articleName || !articleName.trim()) {
+      setArticleNameError('El nombre del artículo es obligatorio.');
+      hasErrors = true;
+    }
+
+    if (!articleDescription || !articleDescription.trim()) {
+      setArticleDescriptionError('La descripción del artículo es obligatoria.');
+      hasErrors = true;
+    }
+
+    if (isArtpiece) {
+      if (!creatorName || !creatorName.trim()) {
+        setCreatorNameError('El nombre del creador es obligatorio.');
+        hasErrors = true;
+      }
+      if (!articleDate || articleDate.length !== 14) {
+        setArticleDateError('La fecha de creación es obligatoria y debe tener el formato DD / MM / YYYY.');
+        hasErrors = true;
+      }
+      if (!articleHistory || !articleHistory.trim()) {
+        setArticleHistoryError('La historia del artículo es obligatoria.');
+        hasErrors = true;
+      }
+    }
+
+    if (!isBelonging) {
+      setIsBelongingError('Debe declarar que el bien le pertenece.');
+      hasErrors = true;
+    }
+
+    if (hasErrors) {
       return;
     }
 
-    showAppModal('Enviando', 'Enviando solicitud, por favor espere...');
+    setIsSubmitting(true);
 
     let apiDate = '';
     if (isArtpiece && articleDate.length === 14) {
@@ -178,17 +269,16 @@ export default function PublishScreen() {
 
       const json = await res.json().catch(() => ({}));
       if (res.ok) {
-        hideAppModal();
         setIsSubmitted(true);
       } else {
-        hideAppModal();
         const msg = json?.message || json?.error || json?.mensaje || 'Error al crear la solicitud';
         showAppModal('Error', String(msg));
       }
     } catch (err) {
       console.warn('Error enviando solicitud:', err);
-      hideAppModal();
       showAppModal('Error', 'No se pudo enviar la solicitud. Intenta nuevamente.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -196,7 +286,13 @@ export default function PublishScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.headerBar}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => {
+              handleResetForm();
+              router.back();
+            }}
+            style={styles.backButton}
+          >
             <Text style={styles.backButtonText}>‹</Text>
           </TouchableOpacity>
           <ThemedText style={styles.headerTitle}>Solicitar Subasta de Articulo</ThemedText>
@@ -219,7 +315,10 @@ export default function PublishScreen() {
           <TouchableOpacity
             style={styles.successButton}
             activeOpacity={0.8}
-            onPress={() => router.back()}
+            onPress={() => {
+              handleResetForm();
+              router.back();
+            }}
           >
             <Text style={styles.successButtonText}>Entendido</Text>
           </TouchableOpacity>
@@ -296,47 +395,67 @@ export default function PublishScreen() {
               <Text style={styles.infoIconText}>ⓘ</Text>
             </View>
           </View>
-          <View style={styles.imagesGrid}>
-            {images.map((uri, idx) => (
-              <Pressable key={idx} onPress={() => handleRemoveImage(idx)}>
-                <Image source={{ uri }} style={styles.imageThumb} />
-              </Pressable>
-            ))}
-            {images.length < 10 && (
-              <Pressable style={styles.addImageButton} onPress={handleAddImage}>
-                <Text style={styles.addImageText}>+</Text>
-              </Pressable>
-            )}
+          <View style={[styles.imagesContainer, !!imagesError && styles.imagesErrorContainer]}>
+            <View style={styles.imagesGrid}>
+              {images.map((uri, idx) => (
+                <Pressable key={idx} onPress={() => handleRemoveImage(idx)}>
+                  <Image source={{ uri }} style={styles.imageThumb} />
+                </Pressable>
+              ))}
+              {images.length < 10 && (
+                <Pressable style={styles.addImageButton} onPress={handleAddImage}>
+                  <Text style={styles.addImageText}>+</Text>
+                </Pressable>
+              )}
+            </View>
           </View>
+          {!!imagesError && <Text style={[styles.errorText, { marginTop: 8, marginBottom: 0 }]}>{imagesError}</Text>}
         </View>
 
         {/* Nombre del Articulo */}
-        <View style={styles.inputGroup}>
+        <View style={[
+          styles.inputGroup,
+          !!articleNameError && styles.inputGroupError,
+          !!articleNameError && { marginBottom: 8 }
+        ]}>
           <Text style={styles.inputLabel}>Nombre del Articulo</Text>
           <TextInput
             style={styles.inputField}
             placeholder="Zapatillas de Michael Jordan"
             placeholderTextColor="#ccc"
             value={articleName}
-            onChangeText={setArticleName}
+            onChangeText={(text) => {
+              setArticleName(text);
+              if (articleNameError) setArticleNameError('');
+            }}
             underlineColorAndroid="transparent"
           />
         </View>
+        {!!articleNameError && <Text style={styles.errorText}>{articleNameError}</Text>}
 
         {/* Descripción del Articulo */}
-        <View style={[styles.inputGroup, { minHeight: 140 }]}>
+        <View style={[
+          styles.inputGroup,
+          { minHeight: 140 },
+          !!articleDescriptionError && styles.inputGroupError,
+          !!articleDescriptionError && { marginBottom: 8 }
+        ]}>
           <Text style={styles.inputLabel}>Descripción del Articulo</Text>
           <TextInput
             style={[styles.inputField, { textAlignVertical: 'top', flex: 1 }]}
             placeholder="Zapatillas Jordan en excelente estado, con diseño icónico que combina estilo..."
             placeholderTextColor="#ccc"
             value={articleDescription}
-            onChangeText={setArticleDescription}
+            onChangeText={(text) => {
+              setArticleDescription(text);
+              if (articleDescriptionError) setArticleDescriptionError('');
+            }}
             multiline
             numberOfLines={5}
             underlineColorAndroid="transparent"
           />
         </View>
+        {!!articleDescriptionError && <Text style={styles.errorText}>{articleDescriptionError}</Text>}
 
         {/* Artwork Toggle */}
         <View style={styles.toggleRow}>
@@ -345,7 +464,14 @@ export default function PublishScreen() {
           </Text>
           <Switch
             value={isArtpiece}
-            onValueChange={setIsArtpiece}
+            onValueChange={(val) => {
+              setIsArtpiece(val);
+              if (!val) {
+                setCreatorNameError('');
+                setArticleDateError('');
+                setArticleHistoryError('');
+              }
+            }}
             trackColor={{ false: '#E5E5E5', true: '#051C2C' }}
             thumbColor="#fff"
           />
@@ -355,20 +481,32 @@ export default function PublishScreen() {
         {isArtpiece && (
           <>
             {/* Nombre del Creador */}
-            <View style={styles.inputGroup}>
+            <View style={[
+              styles.inputGroup,
+              !!creatorNameError && styles.inputGroupError,
+              !!creatorNameError && { marginBottom: 8 }
+            ]}>
               <Text style={styles.inputLabel}>Nombre del Creador</Text>
               <TextInput
                 style={styles.inputField}
                 placeholder="Michael Jordan"
                 placeholderTextColor="#ccc"
                 value={creatorName}
-                onChangeText={setCreatorName}
+                onChangeText={(text) => {
+                  setCreatorName(text);
+                  if (creatorNameError) setCreatorNameError('');
+                }}
                 underlineColorAndroid="transparent"
               />
             </View>
+            {!!creatorNameError && <Text style={styles.errorText}>{creatorNameError}</Text>}
 
             {/* Fecha de Creación */}
-            <View style={styles.inputGroup}>
+            <View style={[
+              styles.inputGroup,
+              !!articleDateError && styles.inputGroupError,
+              !!articleDateError && { marginBottom: 8 }
+            ]}>
               <Text style={styles.inputLabel}>Fecha de Creación</Text>
               <TextInput
                 style={styles.inputField}
@@ -381,31 +519,53 @@ export default function PublishScreen() {
                 underlineColorAndroid="transparent"
               />
             </View>
+            {!!articleDateError && <Text style={styles.errorText}>{articleDateError}</Text>}
 
             {/* Historia del Articulo */}
-            <View style={[styles.inputGroup, { minHeight: 140 }]}>
+            <View style={[
+              styles.inputGroup,
+              { minHeight: 140 },
+              !!articleHistoryError && styles.inputGroupError,
+              !!articleHistoryError && { marginBottom: 8 }
+            ]}>
               <Text style={styles.inputLabel}>Historia del Articulo</Text>
               <TextInput
                 style={[styles.inputField, { textAlignVertical: 'top', flex: 1 }]}
                 placeholder={'Las Air Jordan 12 del "Flu Game" se utilizaron icónicas en las Finales de 1997...'}
                 placeholderTextColor="#ccc"
                 value={articleHistory}
-                onChangeText={setArticleHistory}
+                onChangeText={(text) => {
+                  setArticleHistory(text);
+                  if (articleHistoryError) setArticleHistoryError('');
+                }}
                 multiline
                 numberOfLines={5}
                 underlineColorAndroid="transparent"
               />
             </View>
+            {!!articleHistoryError && <Text style={styles.errorText}>{articleHistoryError}</Text>}
           </>
         )}
 
         {/* Ownership Checkbox */}
         <View style={styles.section}>
           <Pressable
-            style={styles.checkboxRow}
-            onPress={() => setIsBelonging(!isBelonging)}
+            style={[
+              styles.checkboxRow,
+              !!isBelongingError && styles.checkboxRowError,
+              !!isBelongingError && { marginBottom: 8 }
+            ]}
+            onPress={() => {
+              const nextVal = !isBelonging;
+              setIsBelonging(nextVal);
+              if (nextVal && isBelongingError) setIsBelongingError('');
+            }}
           >
-            <View style={[styles.checkbox, isBelonging && styles.checkboxChecked]}>
+            <View style={[
+              styles.checkbox,
+              isBelonging && styles.checkboxChecked,
+              !!isBelongingError && { borderColor: '#E30613' }
+            ]}>
               {isBelonging && <Text style={styles.checkmark}>✓</Text>}
             </View>
             <View style={styles.checkboxContent}>
@@ -417,15 +577,19 @@ export default function PublishScreen() {
               </ThemedText>
             </View>
           </Pressable>
+          {!!isBelongingError && <Text style={[styles.errorText, { marginTop: 0, marginBottom: 0 }]}>{isBelongingError}</Text>}
         </View>
 
         {/* Submit Button */}
         <TouchableOpacity
-          style={styles.submitButton}
+          style={[styles.submitButton, isSubmitting && { opacity: 0.6 }]}
           activeOpacity={0.8}
           onPress={handleSubmit}
+          disabled={isSubmitting}
         >
-          <Text style={styles.submitButtonText}>Mandar</Text>
+          <Text style={styles.submitButtonText}>
+            {isSubmitting ? 'Enviando...' : 'Mandar'}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
       <Modal
@@ -707,6 +871,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#051C2C',
+  },
+  imagesContainer: {
+    width: '100%',
+  },
+  imagesErrorContainer: {
+    borderWidth: 1.5,
+    borderColor: '#E30613',
+    borderRadius: 12,
+    padding: 8,
+  },
+  inputGroupError: {
+    borderColor: '#E30613',
+  },
+  checkboxRowError: {
+    borderWidth: 1.5,
+    borderColor: '#E30613',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+  },
+  errorText: {
+    color: '#E30613',
+    fontSize: 12,
+    marginTop: 0,
+    marginBottom: 16,
+    paddingLeft: 4,
+    fontWeight: '500',
   },
 });
 

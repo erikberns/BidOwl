@@ -574,14 +574,28 @@ export default function InboxScreen() {
               </View>
             </View>
 
-            <Text style={styles.offerDecisionTitle}>Usted tiene la ultima palabra en esta negociación.</Text>
+            {(!selectedProposal?.propuesta || selectedProposal.propuesta.valorBase == null) ? (
+              <Text style={[styles.offerDecisionTitle, { color: '#E30613', fontWeight: 'bold' }]}>
+                La propuesta comercial aún no ha sido cargada por el revisor/tasador. Por favor regrese más tarde.
+              </Text>
+            ) : (
+              <Text style={styles.offerDecisionTitle}>Usted tiene la ultima palabra en esta negociación.</Text>
+            )}
           </ScrollView>
-          
+
           <View style={styles.offerFooter}>
-            <TouchableOpacity style={[styles.shippingButton, { flex: 1, marginRight: 8 }]} onPress={() => {
-              setShowOfferDetails(false);
-              setShowPaymentSelection(true);
-            }}>
+            <TouchableOpacity
+              style={[
+                styles.shippingButton,
+                { flex: 1, marginRight: 8 },
+                (!selectedProposal?.propuesta || selectedProposal.propuesta.valorBase == null) && { backgroundColor: '#ccc' }
+              ]}
+              disabled={!selectedProposal?.propuesta || selectedProposal.propuesta.valorBase == null}
+              onPress={() => {
+                setShowOfferDetails(false);
+                setShowPaymentSelection(true);
+              }}
+            >
               <Text style={styles.shippingButtonText}>Aceptar</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.rejectButton, { flex: 1, marginLeft: 8 }]} onPress={async () => {

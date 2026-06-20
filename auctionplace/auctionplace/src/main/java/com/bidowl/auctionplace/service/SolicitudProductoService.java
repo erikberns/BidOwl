@@ -305,15 +305,18 @@ public class SolicitudProductoService {
         Producto p = producto.get();
 
         Optional<PropuestaComercial> propuestaOpt = propuestaComercialRepository.findByProducto(p);
-        BigDecimal basePrice = BigDecimal.ZERO;
-        if (propuestaOpt.isPresent()) {
-            PropuestaComercial prop = propuestaOpt.get();
-            prop.setEstado("ACEPTADA");
-            propuestaComercialRepository.save(prop);
-            if (prop.getValorBase() != null) {
-                basePrice = prop.getValorBase();
-            }
+        if (propuestaOpt.isEmpty()) {
+            throw new IllegalStateException("La propuesta comercial no ha sido enviada por el revisor aún.");
         }
+
+        PropuestaComercial prop = propuestaOpt.get();
+        if (prop.getValorBase() == null || prop.getComision() == null) {
+            throw new IllegalStateException("La propuesta comercial no posee valores asignados válidos.");
+        }
+
+        prop.setEstado("ACEPTADA");
+        propuestaComercialRepository.save(prop);
+        BigDecimal basePrice = prop.getValorBase();
 
         // Calculate coverage at 110% of base price
         BigDecimal coverageAmount = basePrice.multiply(BigDecimal.valueOf(1.10));
@@ -326,9 +329,9 @@ public class SolicitudProductoService {
         seguro.setCompania("La Segunda Cooperativa de Seguros");
         seguro.setPolizaCombinada("no");
         seguro.setImporte(coverageAmount);
-        seguroRepository.save(seguro);
+        Seguro savedSeguro = seguroRepository.save(seguro);
 
-        p.setSeguro(seguro);
+        p.setSeguro(savedSeguro);
         p.setDisponible("si");
         productoRepository.save(p);
 
