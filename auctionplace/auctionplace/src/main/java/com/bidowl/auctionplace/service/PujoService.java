@@ -38,6 +38,10 @@ public class PujoService {
         ItemCatalogo item = itemCatalogoRepository.findById(itemId)
                 .orElseThrow(() -> new Exception("Artículo del catálogo no encontrado."));
 
+        if (item.getProducto().getDuenio().getIdentificador().equals(asistente.getCliente().getIdentificador())) {
+            throw new Exception("No puedes pujar por un artículo de tu propiedad.");
+        }
+
         if ("si".equalsIgnoreCase(item.getSubastado())) {
             throw new Exception("El artículo ya ha sido subastado.");
         }

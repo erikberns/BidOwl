@@ -379,6 +379,52 @@ public class SolicitudItemController {
     }
 
     /**
+     * POST - Crear propuesta comercial para una solicitud
+     * POST /api/solicitudes-items/{idSolicitud}/propuesta
+     */
+    @PostMapping("/{idSolicitud}/propuesta")
+    public ResponseEntity<?> enviarPropuestaComercial(
+            @PathVariable String idSolicitud,
+            @RequestBody PropuestaCrearRequest request) {
+
+        try {
+            if (idSolicitud == null || idSolicitud.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(crearErrorMap("El ID de solicitud es requerido", null));
+            }
+            if (request.getValorBase() == null || request.getComision() == null) {
+                return ResponseEntity.badRequest()
+                        .body(crearErrorMap("El valor base y la comisión son requeridos", null));
+            }
+
+            LocalDate fechaEstimada = null;
+            if (request.getFechaEstimada() != null && !request.getFechaEstimada().isEmpty()) {
+                try {
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+                    fechaEstimada = LocalDate.parse(request.getFechaEstimada(), formatter);
+                } catch (Exception e) {
+                    return ResponseEntity.badRequest()
+                            .body(crearErrorMap("Formato de fecha de subasta inválido. Use yyyy-MM-dd", null));
+                }
+            }
+
+            solicitudProductoService.enviarPropuestaComercial(
+                    idSolicitud,
+                    request.getValorBase(),
+                    request.getComision(),
+                    request.getUbicacionSubasta(),
+                    fechaEstimada
+            );
+
+            return ResponseEntity.ok(Collections.singletonMap("mensaje", "Propuesta comercial enviada exitosamente"));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(crearErrorMap("Error interno del servidor: " + e.getMessage(), null));
+        }
+    }
+
+    /**
      * Método auxiliar para extraer ID del token (simulado)
      * En producción, usar JWT o similar
      */

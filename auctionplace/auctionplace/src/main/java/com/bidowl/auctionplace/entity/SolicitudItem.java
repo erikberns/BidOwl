@@ -72,6 +72,6 @@ public class SolicitudItem {
     @Column(name = "fecha_actualizacion")
     private LocalDateTime fechaActualizacion = LocalDateTime.now();
 
-    @OneToOne(mappedBy = "solicitudItem", cascade = CascadeType.ALL)
-    private PropuestaComercial propuestaComercial;
+    // @OneToOne(mappedBy = "solicitudItem", cascade = CascadeType.ALL)
+    // private PropuestaComercial propuestaComercial;
 }

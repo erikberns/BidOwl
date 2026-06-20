@@ -19,10 +19,10 @@ public class Duenio extends Cliente {
     @JoinColumn(name = "numeroPais")
     private Pais paisDuenio;
 
-    @Column(name = "verificacionFinanciera", length = 2)
+    @Column(name = "verificaciónFinanciera", length = 2)
     private String verificacionFinanciera = "no"; // "si", "no"
 
-    @Column(name = "verificacionJudicial", length = 2)
+    @Column(name = "verificaciónJudicial", length = 2)
     private String verificacionJudicial = "no"; // "si", "no"
 
     @Column(name = "calificacionRiesgo")

@@ -8,12 +8,9 @@ import java.math.BigDecimal;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class PropuestaComercialDTO {
-
-    private Integer id;
+public class PropuestaCrearRequest {
     private BigDecimal valorBase;
     private BigDecimal comision;
-    private String estado;
     private String ubicacionSubasta;
-    private String fechaEstimada;
+    private String fechaEstimada; // yyyy-MM-dd
 }

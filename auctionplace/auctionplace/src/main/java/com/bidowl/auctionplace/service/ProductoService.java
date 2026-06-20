@@ -192,15 +192,18 @@ public class ProductoService {
             throw new Exception("Producto no encontrado con ID: " + id);
         }
         Producto producto = productoOptional.get();
-        producto.setDisponible("si");
+        
+        // El producto se mantiene como no disponible ("no") durante la negociación de la propuesta.
+        // Solo pasará a estar disponible ("si") cuando el usuario acepte explícitamente la propuesta.
+        producto.setDisponible("no");
         Producto actualizado = productoRepository.save(producto);
         
         if (producto.getDuenio() != null) {
             Notificacion notificacion = new Notificacion();
             notificacion.setPersonaId(producto.getDuenio().getIdentificador());
             notificacion.setTitulo("Artículo aceptado");
-            notificacion.setCuerpo("Su artículo '" + (producto.getDescripcionCompleta() != null ? producto.getDescripcionCompleta() : "ID " + producto.getIdentificador()) + "' ha pasado la inspección y está disponible.");
-            notificacion.setAccion("show_offer_details");
+            notificacion.setCuerpo("Su artículo '" + (producto.getDescripcionCompleta() != null ? producto.getDescripcionCompleta() : "ID " + producto.getIdentificador()) + "' ha pasado la inspección física.");
+            notificacion.setAccion("show_inspection_result:" + producto.getIdentificador());
             notificacion.setLeida(false);
             notificacion.setFecha(java.time.LocalDateTime.now());
             notificacionRepository.save(notificacion);
@@ -226,7 +229,7 @@ public class ProductoService {
             notificacion.setPersonaId(producto.getDuenio().getIdentificador());
             notificacion.setTitulo("Artículo rechazado");
             notificacion.setCuerpo("Su artículo '" + (producto.getDescripcionCompleta() != null ? producto.getDescripcionCompleta() : "ID " + producto.getIdentificador()) + "' ha sido marcado como no disponible.");
-            notificacion.setAccion("show_inspection_request");
+            notificacion.setAccion("show_inspection_rejected:" + producto.getIdentificador());
             notificacion.setLeida(false);
             notificacion.setFecha(java.time.LocalDateTime.now());
             notificacionRepository.save(notificacion);
@@ -273,5 +276,24 @@ public class ProductoService {
             return fotos.get(0).getFoto();
         }
         return null;
+    }
+
+    public java.util.Map<String, Object> obtenerSeguroProducto(Integer id) throws Exception {
+        Optional<Producto> productoOpt = productoRepository.findById(id);
+        if (productoOpt.isEmpty()) {
+            throw new Exception("Producto no encontrado con ID: " + id);
+        }
+        Producto p = productoOpt.get();
+        if (p.getSeguro() == null) {
+            throw new Exception("El producto no posee un seguro contratado.");
+        }
+        Seguro s = p.getSeguro();
+        java.util.HashMap<String, Object> response = new java.util.HashMap<>();
+        response.put("nroPoliza", s.getNroPoliza());
+        response.put("compania", s.getCompania());
+        response.put("polizaCombinada", s.getPolizaCombinada());
+        response.put("importe", s.getImporte());
+        response.put("ubicacionDeposito", "Depósito Central BidOwl Pilar, Estantería B4");
+        return response;
     }
 }

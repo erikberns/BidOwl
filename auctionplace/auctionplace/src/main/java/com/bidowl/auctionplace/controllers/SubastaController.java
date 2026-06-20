@@ -22,6 +22,9 @@ public class SubastaController {
     @Autowired
     private SubastaService subastaService;
 
+    @Autowired
+    private com.bidowl.auctionplace.service.ItemCatalogoService itemCatalogoService;
+
     @GetMapping
     public ResponseEntity<?> obtenerTodasOCatalogo(
             @RequestParam(required = false) String estado,
@@ -311,6 +314,44 @@ public class SubastaController {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
             }
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+        }
+    }
+
+    /**
+     * POST - Crear una nueva subasta con su catálogo e ítems
+     * POST /api/subastas
+     */
+    @PostMapping
+    public ResponseEntity<?> crearSubastaConCatalogo(@RequestBody SubastaCrearRequest request) {
+        try {
+            Subasta subasta = subastaService.crearSubastaConCatalogo(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(subasta);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", "Error interno del servidor: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+        }
+    }
+
+    /**
+     * POST - Finalizar subasta de un item (manual o test)
+     * POST /api/subastas/{idSubasta}/items/{iditem}/finalizar
+     */
+    @PostMapping("/{idSubasta}/items/{iditem}/finalizar")
+    public ResponseEntity<?> finalizarItem(
+            @PathVariable Integer idSubasta,
+            @PathVariable Integer iditem) {
+        try {
+            ItemCatalogo item = itemCatalogoService.finalizarSubastaDeItem(iditem);
+            return ResponseEntity.ok(item);
+        } catch (Exception e) {
+            Map<String, Object> error = new HashMap<>();
+            error.put("error", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
         }
     }
 }

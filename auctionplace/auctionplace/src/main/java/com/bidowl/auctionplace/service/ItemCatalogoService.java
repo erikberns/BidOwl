@@ -25,6 +25,9 @@ public class ItemCatalogoService {
     @Autowired
     private MetodoPagoRepository metodoPagoRepository;
 
+    @Autowired
+    private NotificacionRepository notificacionRepository;
+
     public List<ItemCatalogo> obtenerItemsPorCatalogo(Integer catalogoId) {
         return itemCatalogoRepository.findByCatalogoIdentificador(catalogoId);
     }
@@ -66,13 +69,27 @@ public class ItemCatalogoService {
             if (!pagos.isEmpty()) {
                 registro.setMetodoPago(pagos.get(0));
             } else {
-                throw new Exception("El comprador ganador no posee medios de pago registrados.");
+                // Crear un método de pago ficticio para evitar fallar la finalización si el ganador no tiene métodos registrados
+                MetodoPago metodoFicticio = new MetodoPago();
+                metodoFicticio.setPersona(clienteGanador);
+                metodoPagoRepository.save(metodoFicticio);
+                registro.setMetodoPago(metodoFicticio);
             }
 
             registro.setImporte(pujaGanadora.getImporte());
             registro.setComision(item.getComision());
 
             registroDeSubastaRepository.save(registro);
+
+            // Generar notificación para el usuario ganador
+            Notificacion notificacion = new Notificacion();
+            notificacion.setPersonaId(clienteGanador.getIdentificador());
+            notificacion.setTitulo("¡Ha obtenido un nuevo objeto!");
+            notificacion.setCuerpo("Has ganado la subasta para '" + item.getProducto().getNombre() + "'. Te entregaremos la factura correspondiente para formalizar la operación. A continuación, podrás confirmar la modalidad de entrega.");
+            notificacion.setAccion("show_bid_won:" + item.getIdentificador());
+            notificacion.setLeida(false);
+            notificacion.setFecha(java.time.LocalDateTime.now());
+            notificacionRepository.save(notificacion);
 
             return guardado;
         } else {

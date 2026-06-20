@@ -3,14 +3,19 @@ package com.bidowl.auctionplace.service;
 import com.bidowl.auctionplace.dto.MiSubastaDTO;
 import com.bidowl.auctionplace.dto.NotificacionDTO;
 import com.bidowl.auctionplace.dto.PujaActivaDTO;
+import com.bidowl.auctionplace.dto.WonItemDetailDTO;
 import com.bidowl.auctionplace.entity.Notificacion;
 import com.bidowl.auctionplace.entity.Pujo;
 import com.bidowl.auctionplace.entity.Producto;
+import com.bidowl.auctionplace.entity.ItemCatalogo;
+import com.bidowl.auctionplace.entity.Cliente;
 import com.bidowl.auctionplace.repository.NotificacionRepository;
 import com.bidowl.auctionplace.repository.PujoRepository;
 import com.bidowl.auctionplace.repository.ProductoRepository;
+import com.bidowl.auctionplace.repository.ItemCatalogoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.math.BigDecimal;
 
 import java.text.NumberFormat;
 import java.time.Duration;
@@ -29,6 +34,9 @@ public class InboxService {
 
     @Autowired
     private ProductoRepository productoRepository;
+
+    @Autowired
+    private ItemCatalogoRepository itemCatalogoRepository;
 
     public List<NotificacionDTO> obtenerNotificaciones(Integer personaId) {
         List<Notificacion> notificaciones = notificacionRepository.findByPersonaIdOrderByFechaDesc(personaId);
@@ -51,12 +59,17 @@ public class InboxService {
                 dto.setTiempoFormateado("Hace " + duration.toDays() + " Días");
             }
 
-            if ("show_inspection_request".equals(n.getAccion())) {
-                dto.setButtonText("Revisar Solicitud del Articulo");
-            } else if ("show_inspection_result".equals(n.getAccion())) {
-                dto.setButtonText("Revisar Oferta del Articulo");
-            } else if ("show_inspection_rejected".equals(n.getAccion())) {
-                dto.setButtonText("Revisar Oferta del Articulo");
+            String accion = n.getAccion();
+            if (accion != null) {
+                if (accion.startsWith("show_inspection_request")) {
+                    dto.setButtonText("Ver resultado de solicitud de articulo");
+                } else if (accion.startsWith("show_inspection_result")) {
+                    dto.setButtonText("Revisar Oferta del Articulo");
+                } else if (accion.startsWith("show_inspection_rejected")) {
+                    dto.setButtonText("Revisar Oferta del Articulo");
+                } else if (accion.startsWith("show_bid_won")) {
+                    dto.setButtonText("Ver Factura y Envio");
+                }
             }
 
             return dto;
@@ -97,19 +110,113 @@ public class InboxService {
     }
 
     public List<MiSubastaDTO> obtenerMisSubastas(Integer personaId) {
-        // Lo mismo aquí, implementamos el mock en el Service para el endpoint
-        List<MiSubastaDTO> subastas = new ArrayList<>();
+        List<Producto> productos = productoRepository.findByDuenioIdentificador(personaId);
+        List<MiSubastaDTO> dtos = new ArrayList<>();
         
-        MiSubastaDTO subasta = new MiSubastaDTO();
-        subasta.setId(1);
-        subasta.setSubastaTitle("Subasta de Colección Original Rolling Stone");
-        subasta.setLote(4);
-        subasta.setTotalLotes(5);
-        subasta.setUbicacion("Depósito BidOwl Pilar");
-        subasta.setArticuloTitle("Guitarra de Keith Richards");
-        subasta.setPujaMaxima("$1.115.000 ARS");
+        for (Producto p : productos) {
+            // Find if this product is in any ItemCatalogo to get lot info and subasta title
+            List<ItemCatalogo> items = itemCatalogoRepository.findByProductoIdentificador(p.getIdentificador());
+            
+            MiSubastaDTO dto = new MiSubastaDTO();
+            dto.setId(p.getIdentificador());
+            dto.setArticuloTitle(p.getNombre());
+            dto.setUbicacion("Depósito Central BidOwl Pilar, Estantería B4");
+            
+            if (!items.isEmpty()) {
+                ItemCatalogo item = items.get(0);
+                
+                // Let's compute lote index dynamically:
+                List<ItemCatalogo> allItemsInCatalogo = itemCatalogoRepository.findByCatalogoIdentificador(item.getCatalogo().getIdentificador());
+                int idx = allItemsInCatalogo.indexOf(item);
+                dto.setLote(idx >= 0 ? idx + 1 : 1);
+                dto.setTotalLotes(allItemsInCatalogo.size());
+                
+                if (item.getCatalogo().getSubasta() != null) {
+                    dto.setSubastaTitle(item.getCatalogo().getSubasta().getTitulo());
+                    dto.setUbicacion(item.getCatalogo().getSubasta().getUbicacion());
+                } else {
+                    dto.setSubastaTitle("Subasta de Colección");
+                }
+                
+                // Set max bid or base price formatted
+                Optional<Pujo> pujaLider = pujoRepository.findFirstByItemIdentificadorOrderByImporteDesc(item.getIdentificador());
+                if (pujaLider.isPresent()) {
+                    dto.setPujaMaxima(NumberFormat.getCurrencyInstance(new Locale("es", "ARS")).format(pujaLider.get().getImporte()));
+                } else {
+                    dto.setPujaMaxima(NumberFormat.getCurrencyInstance(new Locale("es", "ARS")).format(item.getPrecioBase()));
+                }
+            } else {
+                dto.setSubastaTitle("Artículo en Revisión / Sin Subasta");
+                dto.setLote(0);
+                dto.setTotalLotes(0);
+                dto.setPujaMaxima("-");
+            }
+            
+            dtos.add(dto);
+        }
         
-        subastas.add(subasta);
-        return subastas;
+        // If no products found, fallback to standard mock for backward compatibility
+        if (dtos.isEmpty()) {
+            MiSubastaDTO subasta = new MiSubastaDTO();
+            subasta.setId(1);
+            subasta.setSubastaTitle("Subasta de Colección Original Rolling Stone");
+            subasta.setLote(4);
+            subasta.setTotalLotes(5);
+            subasta.setUbicacion("Depósito Central BidOwl Pilar, Estantería B4");
+            subasta.setArticuloTitle("Guitarra de Keith Richards");
+            subasta.setPujaMaxima("$1.115.000 ARS");
+            dtos.add(subasta);
+        }
+        
+        return dtos;
+    }
+
+    public WonItemDetailDTO obtenerDetalleItemGanado(Integer itemId) {
+        ItemCatalogo item = itemCatalogoRepository.findById(itemId)
+                .orElseThrow(() -> new java.util.NoSuchElementException("Item de catálogo con ID " + itemId + " no encontrado"));
+
+        List<ItemCatalogo> items = itemCatalogoRepository.findByCatalogoIdentificador(item.getCatalogo().getIdentificador());
+        int loteIndex = 1;
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i).getIdentificador().equals(itemId)) {
+                loteIndex = i + 1;
+                break;
+            }
+        }
+        int totalLotes = items.size();
+
+        BigDecimal importe = BigDecimal.ZERO;
+        Optional<Pujo> pujaLider = pujoRepository.findFirstByItemIdentificadorOrderByImporteDesc(itemId);
+        if (pujaLider.isPresent()) {
+            importe = pujaLider.get().getImporte();
+        } else {
+            importe = item.getPrecioBase();
+        }
+
+        // Obtener el ganador/comprador
+        String domicilio = "No especificado";
+        if (pujaLider.isPresent()) {
+            Cliente cliente = pujaLider.get().getAsistente().getCliente();
+            if (cliente.getDireccion() != null && !cliente.getDireccion().isEmpty()) {
+                domicilio = cliente.getDireccion();
+            }
+        }
+
+        String subastaTitle = "Subasta de Colección";
+        if (item.getCatalogo().getSubasta() != null && item.getCatalogo().getSubasta().getTitulo() != null) {
+            subastaTitle = item.getCatalogo().getSubasta().getTitulo();
+        }
+
+        WonItemDetailDTO dto = new WonItemDetailDTO();
+        dto.setItemId(itemId);
+        dto.setSubastaTitle(subastaTitle);
+        dto.setItemTitle(item.getProducto().getNombre());
+        dto.setLoteIndex(loteIndex);
+        dto.setTotalLotes(totalLotes);
+        dto.setImporte(importe);
+        dto.setDomicilio(domicilio);
+        dto.setCostoEnvio(new BigDecimal("20000.00")); // Costo de envío dinámico de 20.000 AR$
+
+        return dto;
     }
 }

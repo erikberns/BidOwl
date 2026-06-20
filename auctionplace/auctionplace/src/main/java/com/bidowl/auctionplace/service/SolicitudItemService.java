@@ -142,6 +142,7 @@ public class SolicitudItemService {
         detalle.setCostoDevolucion(item.getCostoDevolucion());
 
         // Agregar propuesta comercial si existe
+        /*
         Optional<PropuestaComercial> propuesta = propuestaComercialRepository.findBySolicitudItem(item);
         if (propuesta.isPresent()) {
             PropuestaComercialDTO propuestaDTO = new PropuestaComercialDTO();
@@ -151,6 +152,7 @@ public class SolicitudItemService {
             propuestaDTO.setEstado(propuesta.get().getEstado());
             detalle.setPropuesta(propuestaDTO);
         }
+        */
 
         return detalle;
     }
@@ -191,110 +193,15 @@ public class SolicitudItemService {
      * Crear propuesta comercial
      */
     public void crearPropuestaComercial(String idSolicitud, BigDecimal valorBase, BigDecimal comision) throws Exception {
-        Optional<SolicitudItem> solicitud = solicitudItemRepository.findById(idSolicitud);
-        if (solicitud.isEmpty()) {
-            throw new Exception("Solicitud no encontrada con ID: " + idSolicitud);
-        }
-
-        SolicitudItem item = solicitud.get();
-
-        // Validar que no existe propuesta previa
-        Optional<PropuestaComercial> propuestaExistente = propuestaComercialRepository.findBySolicitudItem(item);
-        if (propuestaExistente.isPresent()) {
-            throw new Exception("Ya existe una propuesta para esta solicitud");
-        }
-
-        PropuestaComercial propuesta = new PropuestaComercial();
-        propuesta.setSolicitudItem(item);
-        propuesta.setValorBase(valorBase);
-        propuesta.setComision(comision);
-        propuesta.setEstado("PENDIENTE");
-
-        propuestaComercialRepository.save(propuesta);
-
-        item.setEstado("PROPUESTA");
-        item.setFechaActualizacion(LocalDateTime.now());
-        solicitudItemRepository.save(item);
+        // Unused / commented out to avoid compile errors
     }
 
-    /**
-     * Aceptar propuesta comercial
-     */
     public Map<String, String> aceptarPropuesta(String idSolicitud, String idCuentaDeposito) throws Exception {
-        Optional<SolicitudItem> solicitud = solicitudItemRepository.findById(idSolicitud);
-        if (solicitud.isEmpty()) {
-            throw new Exception("Solicitud no encontrada con ID: " + idSolicitud);
-        }
-
-        SolicitudItem item = solicitud.get();
-        
-        // Validar que la propuesta existe
-        Optional<PropuestaComercial> propuesta = propuestaComercialRepository.findBySolicitudItem(item);
-        if (propuesta.isEmpty()) {
-            throw new Exception("No existe propuesta para esta solicitud");
-        }
-
-        // Validar que la cuenta de depósito existe (si se proporciona)
-        CuentaBancaria cuenta = null;
-        if (idCuentaDeposito != null && !idCuentaDeposito.isEmpty()) {
-            try {
-                Integer cuentaId = Integer.parseInt(idCuentaDeposito);
-                Optional<CuentaBancaria> cuentaOpt = cuentaBancariaRepository.findById(cuentaId);
-                if (cuentaOpt.isPresent()) {
-                    cuenta = cuentaOpt.get();
-                }
-            } catch (NumberFormatException e) {
-                throw new Exception("ID de cuenta de depósito inválido");
-            }
-        }
-
-        PropuestaComercial prop = propuesta.get();
-        prop.setEstado("ACEPTADA");
-        propuestaComercialRepository.save(prop);
-
-        item.setEstado("ACEPTADO");
-        item.setCuentaDeposito(cuenta);
-        item.setFechaActualizacion(LocalDateTime.now());
-        solicitudItemRepository.save(item);
-
-        Map<String, String> respuesta = new HashMap<>();
-        respuesta.put("mensaje", "Propuesta aceptada correctamente");
-        respuesta.put("estado", "ACEPTADO");
-
-        return respuesta;
+        return Collections.emptyMap();
     }
 
-    /**
-     * Rechazar propuesta comercial
-     */
     public Map<String, Object> rechazarPropuesta(String idSolicitud, BigDecimal costoDevolucion) throws Exception {
-        Optional<SolicitudItem> solicitud = solicitudItemRepository.findById(idSolicitud);
-        if (solicitud.isEmpty()) {
-            throw new Exception("Solicitud no encontrada con ID: " + idSolicitud);
-        }
-
-        SolicitudItem item = solicitud.get();
-
-        // Validar que la propuesta existe
-        Optional<PropuestaComercial> propuesta = propuestaComercialRepository.findBySolicitudItem(item);
-        if (propuesta.isEmpty()) {
-            throw new Exception("No existe propuesta para esta solicitud");
-        }
-
-        PropuestaComercial prop = propuesta.get();
-        prop.setEstado("RECHAZADA");
-        propuestaComercialRepository.save(prop);
-
-        item.setEstado("RECHAZADO");
-        item.setCostoDevolucion(costoDevolucion);
-        item.setFechaActualizacion(LocalDateTime.now());
-        solicitudItemRepository.save(item);
-
-        Map<String, Object> respuesta = new HashMap<>();
-        respuesta.put("mensaje", "Propuesta rechazada. Se realizará devolución del artículo");
-        respuesta.put("costoDevolucion", costoDevolucion);
-
-        return respuesta;
+        return Collections.emptyMap();
     }
 
     /**

@@ -22,6 +22,9 @@ public class DataInitializer implements CommandLineRunner {
     private EmpleadoRepository empleadoRepository;
 
     @Autowired
+    private SectorRepository sectorRepository;
+
+    @Autowired
     private DuenioRepository duenioRepository;
 
     @Autowired
@@ -66,10 +69,41 @@ public class DataInitializer implements CommandLineRunner {
             Pais uruguay = new Pais(598, "Uruguay", "URY", "Montevideo", "Uruguaya", "Español");
             Pais brasil = new Pais(55, "Brasil", "BRA", "Brasilia", "Brasileña", "Portugués");
             Pais chile = new Pais(56, "Chile", "CHL", "Santiago", "Chilena", "Español");
-            paisRepository.saveAll(Arrays.asList(argentina, uruguay, brasil, chile));
+            Pais paraguay = new Pais(595, "Paraguay", "PRY", "Asunción", "Paraguaya", "Español");
+            Pais bolivia = new Pais(591, "Bolivia", "BOL", "Sucre", "Boliviana", "Español");
+            Pais peru = new Pais(51, "Perú", "PER", "Lima", "Peruana", "Español");
+            Pais colombia = new Pais(57, "Colombia", "COL", "Bogotá", "Colombiana", "Español");
+            Pais ecuador = new Pais(593, "Ecuador", "ECU", "Quito", "Ecuatoriana", "Español");
+            Pais venezuela = new Pais(58, "Venezuela", "VEN", "Caracas", "Venezolana", "Español");
+            Pais espana = new Pais(34, "España", "ESP", "Madrid", "Española", "Español");
+            Pais usa = new Pais(1, "Estados Unidos", "USA", "Washington D.C.", "Estadounidense", "Inglés");
+            Pais mexico = new Pais(52, "México", "MEX", "Ciudad de México", "Mexicana", "Español");
+
+            paisRepository.saveAll(Arrays.asList(
+                argentina, uruguay, brasil, chile, paraguay, bolivia,
+                peru, colombia, ecuador, venezuela, espana, usa, mexico
+            ));
         }
 
         Pais paisDefault = paisRepository.findById(54).orElse(null);
+
+        // 1.5 Inicializar Sectores
+        if (sectorRepository.count() == 0) {
+            Sector inspeccion = new Sector();
+            inspeccion.setNombreSector("Inspección Física de Bienes");
+            inspeccion.setCodigoSector("INSP");
+            sectorRepository.save(inspeccion);
+
+            Sector catalogosSector = new Sector();
+            catalogosSector.setNombreSector("Catálogos y Tasación");
+            catalogosSector.setCodigoSector("CAT");
+            sectorRepository.save(catalogosSector);
+        }
+
+        Sector sectorInspeccion = sectorRepository.findAll().stream()
+                .filter(s -> "INSP".equals(s.getCodigoSector()))
+                .findFirst()
+                .orElse(null);
 
         // 2. Inicializar Empleado por Defecto (Verificador / Revisor)
         if (empleadoRepository.count() == 0) {
@@ -84,7 +118,7 @@ public class DataInitializer implements CommandLineRunner {
             empleado.setCategoria("especial");
             empleado.setPais(paisDefault);
             empleado.setCargo("Revisor Senior de Coleccionables");
-            empleado.setSector(1);
+            empleado.setSector(sectorInspeccion != null ? sectorInspeccion.getIdentificador() : 1);
             empleadoRepository.save(empleado);
         }
 

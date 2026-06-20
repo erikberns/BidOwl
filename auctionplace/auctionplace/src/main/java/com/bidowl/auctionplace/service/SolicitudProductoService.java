@@ -45,6 +45,15 @@ public class SolicitudProductoService {
     @Autowired
     private NotificacionRepository notificacionRepository;
 
+    @Autowired
+    private PropuestaComercialRepository propuestaComercialRepository;
+
+    @Autowired
+    private SeguroRepository seguroRepository;
+
+    @Autowired
+    private MetodoPagoRepository metodoPagoRepository;
+
     /**
      * Crear una nueva solicitud de artículo (usa tabla productos)
      * POST /api/solicitudes-items
@@ -75,9 +84,9 @@ public class SolicitudProductoService {
             }
             
             // Promover el cliente a dueño insertando el registro en la tabla duenios
-            // Spring Boot nombra las columnas en snake_case por defecto.
+            // Con nombres de columnas coincidentes con SQL Server y aportando el verificador por defecto (revisor 1)
             jdbcTemplate.update(
-                "INSERT INTO duenios (identificador, verificacion_financiera, verificacion_judicial, calificacion_riesgo) VALUES (?, 'no', 'no', 1)",
+                "INSERT INTO duenios (identificador, verificaciónFinanciera, verificaciónJudicial, calificacionRiesgo, verificador) VALUES (?, 'no', 'no', 1, 1)",
                 creadorId
             );
             
@@ -137,9 +146,9 @@ public class SolicitudProductoService {
         // Generate notification
         Notificacion notificacion = new Notificacion();
         notificacion.setPersonaId(creadorId);
-        notificacion.setTitulo("Solicitud de artículo recibida");
-        notificacion.setCuerpo("Su solicitud del artículo '" + nombre + "' ha sido recibida y está en proceso de revisión.");
-        notificacion.setAccion("show_inspection_request");
+        notificacion.setTitulo("Su solicitud de artículo publicado fue revisada");
+        notificacion.setCuerpo("Su solicitud del artículo '" + nombre + "' fue revisada por nuestro equipo y está lista para el siguiente paso de inspección física.");
+        notificacion.setAccion("show_inspection_request:" + productoGuardado.getIdentificador());
         notificacion.setLeida(false);
         notificacion.setFecha(java.time.LocalDateTime.now());
         notificacionRepository.save(notificacion);
@@ -215,21 +224,28 @@ public class SolicitudProductoService {
             detalle.setPolizaSeguro(p.getSeguro().getNroPoliza());
         }
 
-        // PROPUESTA COMERCIAL (NO SIMULADA)
-        // La propuesta debería estar vinculada al 'ItemCatalogo' si ya se creó.
-        // Esto asume que al generar una propuesta, se crea una entrada en 'itemsCatalogo'.
-        PropuestaComercialDTO propuesta = new PropuestaComercialDTO();
-        // SUGERENCIA: Buscar el item en el catálogo relacionado con este producto.
-        // Optional<ItemCatalogo> itemCat = itemCatalogoRepository.findByProducto(p);
-        // if (itemCat.isPresent()) {
-        //     propuesta.setValorBase(itemCat.get().getPrecioBase());
-        //     propuesta.setComision(itemCat.get().getComision());
-        // }
-        // Como la lógica no existe, se mantiene la simulación por ahora, pero se marca como tal.
-        propuesta.setValorBase(BigDecimal.valueOf(1000)); // VALOR SIMULADO
-        propuesta.setComision(BigDecimal.valueOf(100));   // VALOR SIMULADO
-        propuesta.setEstado("PENDIENTE"); // ESTADO SIMULADO
-        detalle.setPropuesta(propuesta);
+        // PROPUESTA COMERCIAL REAL (DESDE BASE DE DATOS)
+        Optional<PropuestaComercial> propuestaOpt = propuestaComercialRepository.findByProducto(p);
+        if (propuestaOpt.isPresent()) {
+            PropuestaComercial prop = propuestaOpt.get();
+            PropuestaComercialDTO propuestaDTO = new PropuestaComercialDTO();
+            propuestaDTO.setId(prop.getId());
+            propuestaDTO.setValorBase(prop.getValorBase());
+            propuestaDTO.setComision(prop.getComision());
+            propuestaDTO.setEstado(prop.getEstado());
+            propuestaDTO.setUbicacionSubasta(prop.getUbicacionSubasta());
+            propuestaDTO.setFechaEstimada(prop.getFechaEstimada() != null ? prop.getFechaEstimada().toString() : null);
+            detalle.setPropuesta(propuestaDTO);
+            
+            // Sincronizar estado de la solicitud con el estado de la propuesta
+            if ("PENDIENTE".equals(prop.getEstado())) {
+                detalle.setEstado("PROPUESTA");
+            } else if ("ACEPTADA".equals(prop.getEstado())) {
+                detalle.setEstado("ACEPTADO");
+            } else if ("RECHAZADA".equals(prop.getEstado())) {
+                detalle.setEstado("RECHAZADO");
+            }
+        }
 
         return detalle;
     }
@@ -273,16 +289,50 @@ public class SolicitudProductoService {
             throw new Exception("Solicitud no encontrada con ID: " + idSolicitud);
         }
 
+        // Validate that the payment method selected is not a certified cheque
+        if (idCuentaDeposito != null && !idCuentaDeposito.isEmpty()) {
+            try {
+                Integer mpId = Integer.parseInt(idCuentaDeposito);
+                Optional<MetodoPago> mpOpt = metodoPagoRepository.findById(mpId);
+                if (mpOpt.isPresent() && mpOpt.get().getChequeCertificado() != null) {
+                    throw new IllegalArgumentException("No se pueden recibir comisiones en cheques certificados.");
+                }
+            } catch (NumberFormatException e) {
+                // Ignore for mock methods (e.g. pm_1, pm_2) to preserve compatibility
+            }
+        }
 
         Producto p = producto.get();
-        // SUGERENCIA: Aquí debería crearse el 'ItemCatalogo' final con el precio y comisión acordados.
-        // El estado del producto debería cambiar a algo como "LISTO_PARA_SUBASTA".
+
+        Optional<PropuestaComercial> propuestaOpt = propuestaComercialRepository.findByProducto(p);
+        BigDecimal basePrice = BigDecimal.ZERO;
+        if (propuestaOpt.isPresent()) {
+            PropuestaComercial prop = propuestaOpt.get();
+            prop.setEstado("ACEPTADA");
+            propuestaComercialRepository.save(prop);
+            if (prop.getValorBase() != null) {
+                basePrice = prop.getValorBase();
+            }
+        }
+
+        // Calculate coverage at 110% of base price
+        BigDecimal coverageAmount = basePrice.multiply(BigDecimal.valueOf(1.10));
+
+        // Generate unique policy number
+        String policyNumber = "POL-" + String.format("%06d", new Random().nextInt(1000000));
+
+        Seguro seguro = new Seguro();
+        seguro.setNroPoliza(policyNumber);
+        seguro.setCompania("La Segunda Cooperativa de Seguros");
+        seguro.setPolizaCombinada("no");
+        seguro.setImporte(coverageAmount);
+        seguroRepository.save(seguro);
+
+        p.setSeguro(seguro);
         p.setDisponible("si");
         productoRepository.save(p);
 
-        // SUGERENCIA: Usar un DTO específico en lugar de un Map.
         Map<String, String> respuesta = new HashMap<>();
-        // El campo 'estado' no está en la definición del endpoint, pero se mantiene por ahora.
         respuesta.put("mensaje", "Propuesta aceptada correctamente");
         respuesta.put("estado", "ACEPTADO");
 
@@ -301,18 +351,64 @@ public class SolicitudProductoService {
         }
 
         Producto p = producto.get();
-        // SUGERENCIA: El estado debería ser "RECHAZADO" o "PENDIENTE_DEVOLUCION".
         p.setDisponible("no");
         productoRepository.save(p);
 
-        // SUGERENCIA: Usar un DTO específico en lugar de un Map.
+        Optional<PropuestaComercial> propuestaOpt = propuestaComercialRepository.findByProducto(p);
+        if (propuestaOpt.isPresent()) {
+            PropuestaComercial prop = propuestaOpt.get();
+            prop.setEstado("RECHAZADA");
+            propuestaComercialRepository.save(prop);
+        }
+
         Map<String, Object> respuesta = new HashMap<>();
         respuesta.put("mensaje", "Propuesta rechazada. Se realizará devolución del artículo");
-        // El parámetro 'costoDevolucion' no está en la definición del body del endpoint.
-        // Debería calcularse o recuperarse de la configuración.
         respuesta.put("costoDevolucion", costoDevolucion != null ? costoDevolucion : BigDecimal.ZERO);
 
         return respuesta;
+    }
+
+    /**
+     * Enviar propuesta comercial para una solicitud/producto
+     */
+    public void enviarPropuestaComercial(
+            String idSolicitud,
+            BigDecimal valorBase,
+            BigDecimal comision,
+            String ubicacionSubasta,
+            LocalDate fechaEstimada) throws Exception {
+
+        Integer id = parseId(idSolicitud);
+        Optional<Producto> productoOpt = productoRepository.findById(id);
+        if (productoOpt.isEmpty()) {
+            throw new Exception("Solicitud no encontrada con ID: " + idSolicitud);
+        }
+
+        Producto p = productoOpt.get();
+
+        PropuestaComercial propuesta = propuestaComercialRepository.findByProducto(p)
+                .orElse(new PropuestaComercial());
+
+        propuesta.setProducto(p);
+        propuesta.setValorBase(valorBase);
+        propuesta.setComision(comision);
+        propuesta.setUbicacionSubasta(ubicacionSubasta);
+        propuesta.setFechaEstimada(fechaEstimada);
+        propuesta.setEstado("PENDIENTE");
+
+        propuestaComercialRepository.save(propuesta);
+
+        // Generar notificación para el usuario dueño del producto
+        if (p.getDuenio() != null) {
+            Notificacion notificacion = new Notificacion();
+            notificacion.setPersonaId(p.getDuenio().getIdentificador());
+            notificacion.setTitulo("Su solicitud de artículo publicado fue revisada");
+            notificacion.setCuerpo("Su solicitud del artículo '" + (p.getDescripcionCompleta() != null ? p.getDescripcionCompleta() : "ID " + p.getIdentificador()) + "' fue revisada por nuestro equipo y está lista para el siguiente paso de inspección física.");
+            notificacion.setAccion("show_inspection_result:" + p.getIdentificador());
+            notificacion.setLeida(false);
+            notificacion.setFecha(java.time.LocalDateTime.now());
+            notificacionRepository.save(notificacion);
+        }
     }
 
     private Integer parseId(String id) throws Exception {

@@ -19,14 +19,20 @@ public class PropuestaComercial {
     private Integer id;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "solicitud_item_id", nullable = false, unique = true)
-    private SolicitudItem solicitudItem;
+    @JoinColumn(name = "producto_id", nullable = false, unique = true)
+    private Producto producto;
 
     @Column(name = "valor_base", precision = 18, scale = 2, nullable = false)
     private BigDecimal valorBase;
 
     @Column(name = "comision", precision = 18, scale = 2, nullable = false)
     private BigDecimal comision;
+
+    @Column(name = "ubicacion_subasta", length = 350)
+    private String ubicacionSubasta;
+
+    @Column(name = "fecha_estimada")
+    private java.time.LocalDate fechaEstimada;
 
     @Column(name = "estado", length = 50)
     private String estado = "PENDIENTE"; // PENDIENTE, ACEPTADA, RECHAZADA

@@ -11,6 +11,7 @@ import java.util.Optional;
 public interface ItemCatalogoRepository extends JpaRepository<ItemCatalogo, Integer> {
     List<ItemCatalogo> findByCatalogoIdentificador(Integer catalogoId);
     List<ItemCatalogo> findByCatalogoSubastaIdentificador(Integer subastaId);
+    List<ItemCatalogo> findByProductoIdentificador(Integer productoId);
 
     /**
      * Encuentra un ItemCatalogo por su ID y el ID de la subasta a la que pertenece.

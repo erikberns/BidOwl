@@ -94,7 +94,7 @@ export default function PublishScreen() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const uri = result.assets[0].uri;
-        setImages(prev => (prev.length < 6 ? [...prev, uri] : prev));
+        setImages(prev => (prev.length < 10 ? [...prev, uri] : prev));
       }
     } catch (err) {
       console.warn('Error seleccionando imagen', err);
@@ -117,15 +117,15 @@ export default function PublishScreen() {
       return;
     }
 
-    if (images.length < 3) {
-      showAppModal('Atención', 'Se requieren al menos 3 imágenes para enviar la solicitud.');
+    if (images.length < 6) {
+      showAppModal('Atención', 'Se requieren al menos 6 imágenes para enviar la solicitud.');
       return;
     }
 
     showAppModal('Enviando', 'Enviando solicitud, por favor espere...');
 
-    let apiDate = articleDate;
-    if (articleDate.length === 14) {
+    let apiDate = '';
+    if (isArtpiece && articleDate.length === 14) {
       const parts = articleDate.split(' / ');
       if (parts.length === 3) {
         apiDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
@@ -136,9 +136,9 @@ export default function PublishScreen() {
     form.append('nombre', articleName);
     form.append('descripcion', articleDescription);
     form.append('esArteODisenador', JSON.stringify(isArtpiece));
-    form.append('nombreCreador', creatorName);
-    form.append('fechaCreacion', apiDate);
-    form.append('historia', articleHistory);
+    form.append('nombreCreador', isArtpiece ? creatorName : 'N/A');
+    form.append('fechaCreacion', isArtpiece ? apiDate : '');
+    form.append('historia', isArtpiece ? articleHistory : '');
     form.append('declaracionPropiedad', JSON.stringify(isBelonging));
 
     for (let idx = 0; idx < images.length; idx++) {
@@ -286,12 +286,11 @@ export default function PublishScreen() {
             Describe características, estado y cualidad relevante para atraer mejores ofertas
           </ThemedText>
         </View>
-
         {/* Images Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <ThemedText style={styles.sectionTitle}>
-              Imágenes del Articulo (Mínimo 3 imágenes)
+              Imagenes del Articulo (Minimo 6 imagenes)
             </ThemedText>
             <View style={styles.infoIcon}>
               <Text style={styles.infoIconText}>ⓘ</Text>
@@ -303,7 +302,7 @@ export default function PublishScreen() {
                 <Image source={{ uri }} style={styles.imageThumb} />
               </Pressable>
             ))}
-            {images.length < 6 && (
+            {images.length < 10 && (
               <Pressable style={styles.addImageButton} onPress={handleAddImage}>
                 <Text style={styles.addImageText}>+</Text>
               </Pressable>
@@ -312,85 +311,93 @@ export default function PublishScreen() {
         </View>
 
         {/* Nombre del Articulo */}
-        <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Nombre del Articulo</ThemedText>
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Nombre del Articulo</Text>
           <TextInput
-            style={styles.input}
+            style={styles.inputField}
             placeholder="Zapatillas de Michael Jordan"
-            placeholderTextColor="#999"
+            placeholderTextColor="#ccc"
             value={articleName}
             onChangeText={setArticleName}
+            underlineColorAndroid="transparent"
           />
         </View>
 
         {/* Descripción del Articulo */}
-        <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Descripción del Articulo</ThemedText>
+        <View style={[styles.inputGroup, { minHeight: 140 }]}>
+          <Text style={styles.inputLabel}>Descripción del Articulo</Text>
           <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="Zapatillas con acabado estilo, con diseño tónico que resalta su diseño limpio de alta calidad, ofrecen gran comodidad. Perfecto para uso diario como para ocasiones especiales. Su estética..."
-            placeholderTextColor="#999"
+            style={[styles.inputField, { textAlignVertical: 'top', flex: 1 }]}
+            placeholder="Zapatillas Jordan en excelente estado, con diseño icónico que combina estilo..."
+            placeholderTextColor="#ccc"
             value={articleDescription}
             onChangeText={setArticleDescription}
             multiline
             numberOfLines={5}
+            underlineColorAndroid="transparent"
           />
         </View>
 
         {/* Artwork Toggle */}
-        <View style={styles.section}>
-          <View style={styles.toggleRow}>
-            <ThemedText style={styles.toggleLabel}>
-              ¿Es una pieza de arte u obra de algún maestro?
-            </ThemedText>
-            <Switch
-              value={isArtpiece}
-              onValueChange={setIsArtpiece}
-              trackColor={{ false: '#E5E5E5', true: '#BEE757' }}
-              thumbColor="#fff"
-            />
-          </View>
-        </View>
-
-        {/* Nombre del Creador */}
-        <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Nombre del Creador</ThemedText>
-          <TextInput
-            style={styles.input}
-            placeholder="Michael Jordan"
-            placeholderTextColor="#999"
-            value={creatorName}
-            onChangeText={setCreatorName}
+        <View style={styles.toggleRow}>
+          <Text style={styles.toggleLabel}>
+            ¿Es una pieza de arte u obra de algun diseñador?
+          </Text>
+          <Switch
+            value={isArtpiece}
+            onValueChange={setIsArtpiece}
+            trackColor={{ false: '#E5E5E5', true: '#051C2C' }}
+            thumbColor="#fff"
           />
         </View>
 
-        {/* Fecha del Articulo */}
-        <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Fecha del Articulo</ThemedText>
-          <TextInput
-            style={styles.input}
-            placeholder="DD / MM / YYYY"
-            placeholderTextColor="#999"
-            value={articleDate}
-            onChangeText={handleDateChange}
-            keyboardType="numeric"
-            maxLength={14}
-          />
-        </View>
+        {/* Conditional inputs */}
+        {isArtpiece && (
+          <>
+            {/* Nombre del Creador */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Nombre del Creador</Text>
+              <TextInput
+                style={styles.inputField}
+                placeholder="Michael Jordan"
+                placeholderTextColor="#ccc"
+                value={creatorName}
+                onChangeText={setCreatorName}
+                underlineColorAndroid="transparent"
+              />
+            </View>
 
-        {/* Historia del Articulo */}
-        <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Historia del Articulo</ThemedText>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder={'Las Air Jordan 12 del "Flu Game" se utilizaron icónicas en las Finales de 1997 cuando Jordán disputó el partido enfermo, anotó 38 puntos contra Utah Jazz. Este partido convertit a alta moda en un símbolo de esfuerzo y grandeza en el deporte.'}
-            placeholderTextColor="#999"
-            value={articleHistory}
-            onChangeText={setArticleHistory}
-            multiline
-            numberOfLines={5}
-          />
-        </View>
+            {/* Fecha de Creación */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Fecha de Creación</Text>
+              <TextInput
+                style={styles.inputField}
+                placeholder="DD / MM / YYYY"
+                placeholderTextColor="#ccc"
+                value={articleDate}
+                onChangeText={handleDateChange}
+                keyboardType="numeric"
+                maxLength={14}
+                underlineColorAndroid="transparent"
+              />
+            </View>
+
+            {/* Historia del Articulo */}
+            <View style={[styles.inputGroup, { minHeight: 140 }]}>
+              <Text style={styles.inputLabel}>Historia del Articulo</Text>
+              <TextInput
+                style={[styles.inputField, { textAlignVertical: 'top', flex: 1 }]}
+                placeholder={'Las Air Jordan 12 del "Flu Game" se utilizaron icónicas en las Finales de 1997...'}
+                placeholderTextColor="#ccc"
+                value={articleHistory}
+                onChangeText={setArticleHistory}
+                multiline
+                numberOfLines={5}
+                underlineColorAndroid="transparent"
+              />
+            </View>
+          </>
+        )}
 
         {/* Ownership Checkbox */}
         <View style={styles.section}>
@@ -576,38 +583,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-    borderRadius: 8,
-    backgroundColor: '#F9FEFE',
+    paddingVertical: 16,
+    marginBottom: 16,
   },
   toggleLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#051C2C',
     flex: 1,
+    paddingRight: 16,
   },
   checkboxRow: {
     flexDirection: 'row',
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-    borderRadius: 8,
-    backgroundColor: '#F9FEFE',
+    gap: 16,
+    paddingVertical: 16,
+    marginBottom: 20,
   },
   checkboxContent: {
     flex: 1,
   },
   checkbox: {
-    width: 20,
-    height: 20,
+    width: 24,
+    height: 24,
     borderWidth: 2,
     borderColor: '#E5E5E5',
-    borderRadius: 3,
+    borderRadius: 6,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 2,
@@ -615,6 +615,27 @@ const styles = StyleSheet.create({
   checkboxChecked: {
     backgroundColor: '#051C2C',
     borderColor: '#051C2C',
+  },
+  inputGroup: {
+    borderWidth: 1.5,
+    borderColor: '#E5E5E5',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: '#fff',
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 12,
+    color: '#999999',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  inputField: {
+    fontSize: 15,
+    color: '#051C2C',
+    paddingVertical: 4,
+    fontWeight: '500',
   },
   checkmark: {
     fontSize: 12,

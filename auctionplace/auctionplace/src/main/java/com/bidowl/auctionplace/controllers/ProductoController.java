@@ -120,10 +120,10 @@ public class ProductoController {
     }
 
     /**
-     * PATCH - Marca un producto como disponible
-     * PATCH /api/v1/productos/{id}/disponible
+     * PATCH - Acepta el producto en la inspección
+     * PATCH /api/productos/{id}/aceptar
      */
-    @PatchMapping("/{id}/disponible")
+    @PatchMapping("/{id}/aceptar")
     public ResponseEntity<?> marcarComoDisponible(@PathVariable Integer id) {
         try {
             ProductoDTO producto = productoService.marcarComoDisponible(id);
@@ -134,10 +134,10 @@ public class ProductoController {
     }
 
     /**
-     * PATCH - Marca un producto como no disponible
-     * PATCH /api/v1/productos/{id}/no-disponible
+     * PATCH - Rechaza el producto en la inspección
+     * PATCH /api/productos/{id}/rechazar
      */
-    @PatchMapping("/{id}/no-disponible")
+    @PatchMapping("/{id}/rechazar")
     public ResponseEntity<?> marcarComoNoDisponible(@PathVariable Integer id) {
         try {
             ProductoDTO producto = productoService.marcarComoNoDisponible(id);
@@ -159,6 +159,16 @@ public class ProductoController {
                     .body(foto);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/{id}/seguro")
+    public ResponseEntity<?> obtenerSeguroProducto(@PathVariable Integer id) {
+        try {
+            Map<String, Object> seguro = productoService.obtenerSeguroProducto(id);
+            return ResponseEntity.ok(seguro);
+        } catch (Exception e) {
+            return crearRespuestaError(e.getMessage(), HttpStatus.NOT_FOUND);
         }
     }
 

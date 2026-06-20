@@ -37,7 +37,7 @@ create table sectores(
 go
 
 create table seguros(
-	nroPoliza varchar(30) not null.
+	nroPoliza varchar(30) not null,
 	compania varchar(150) not null,
 	polizaCombinada varchar(2) constraint chkpolizaCombinada check(polizaCombinada in ('si','no')),
 	importe decimal(18,2) not null constraint chkImporte check (importe > 0),

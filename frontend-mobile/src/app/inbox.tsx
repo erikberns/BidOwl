@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, Stack, Tabs } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useIsFocused } from '@react-navigation/native';
 
 import MapComponent from '@/components/Map';
 
@@ -15,20 +16,8 @@ type Tab = 'miSubasta' | 'notificaciones' | 'historial';
 
 export default function InboxScreen() {
   const [activeTab, setActiveTab] = React.useState<Tab>('notificaciones');
+  const isFocused = useIsFocused();
   const [isGuest, setIsGuest] = React.useState<boolean | null>(null);
-
-  React.useEffect(() => {
-    async function checkUserStatus() {
-      try {
-        const isGuestStr = await AsyncStorage.getItem('isGuest');
-        const userStr = await AsyncStorage.getItem('user');
-        setIsGuest((isGuestStr === 'true' || isGuestStr === null) && !userStr);
-      } catch (e) {
-        setIsGuest(true);
-      }
-    }
-    checkUserStatus();
-  }, []);
 
   const [expandedNotifIds, setExpandedNotifIds] = React.useState<string[]>([]);
   const toggleNotif = (id: string) => {
@@ -46,16 +35,27 @@ export default function InboxScreen() {
   const [showInspectionRejected, setShowInspectionRejected] = React.useState(false);
   const [showInspectionRequest, setShowInspectionRequest] = React.useState(false);
   const [showShippingInstructions, setShowShippingInstructions] = React.useState(false);
+  const [showBidWon, setShowBidWon] = React.useState(false);
+  const [showDeliverySelection, setShowDeliverySelection] = React.useState(false);
+  const [showWonInvoice, setShowWonInvoice] = React.useState(false);
+  const [showDeliverySuccess, setShowDeliverySuccess] = React.useState(false);
+  const [wonItemDetails, setWonItemDetails] = React.useState<any>(null);
+  const [deliveryType, setDeliveryType] = React.useState<'envio' | 'retiro'>('envio');
+  const [showInsuranceDetails, setShowInsuranceDetails] = React.useState(false);
+  const [selectedProductInsurance, setSelectedProductInsurance] = React.useState<any>(null);
+
+  const [loggedInUserId, setLoggedInUserId] = React.useState<number | null>(null);
+  const [selectedRequestId, setSelectedRequestId] = React.useState<string | null>(null);
+  const [selectedProposal, setSelectedProposal] = React.useState<any>(null);
+  const [showProposalSuccess, setShowProposalSuccess] = React.useState(false);
+  const [showProposalRejected, setShowProposalRejected] = React.useState(false);
   
   // Payment Methods Data
-  const paymentMethods = [
+  const [paymentMethods, setPaymentMethods] = React.useState<any[]>([
     { id: 'pm_1', type: 'card', name: 'VISA **** **** **** 2345' },
     { id: 'pm_2', type: 'bank', name: 'Cuenta Bancaria Galicia' },
-  ];
-  const bankPaymentMethods = paymentMethods.filter(method => method.type === 'bank');
-  const [selectedPayment, setSelectedPayment] = React.useState(
-    bankPaymentMethods.length > 0 ? bankPaymentMethods[0].id : paymentMethods[0].id
-  );
+  ]);
+  const [selectedPayment, setSelectedPayment] = React.useState('pm_1');
 
   const [selectedLocation, setSelectedLocation] = React.useState({
     latitude: -34.6037, // Default a Buenos Aires
@@ -63,12 +63,23 @@ export default function InboxScreen() {
   });
   const [selectedAddress, setSelectedAddress] = React.useState('');
 
-  React.useEffect(() => {
-    async function fetchInboxData() {
-      try {
-        setLoading(true);
-        // Using static personaId = 1 for demo purposes
-        const personaId = 1;
+  const checkUserStatusAndFetch = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      const isGuestStr = await AsyncStorage.getItem('isGuest');
+      const userStr = await AsyncStorage.getItem('user');
+      const guestVal = (isGuestStr === 'true' || isGuestStr === null) && !userStr;
+      setIsGuest(guestVal);
+
+      if (!guestVal) {
+        let personaId = 1;
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          if (user.identificador) {
+            personaId = Number(user.identificador);
+          }
+        }
+        setLoggedInUserId(personaId);
 
         const [notifRes, bidsRes, auctionsRes] = await Promise.all([
           fetch(`${API_URL}/inbox/${personaId}/notificaciones`).catch(() => null),
@@ -105,14 +116,45 @@ export default function InboxScreen() {
           setActiveAuctions(await auctionsRes.json());
         }
 
-      } catch (error) {
-        console.error("Error fetching inbox data:", error);
-      } finally {
-        setLoading(false);
+        const pmResponse = await fetch(`${API_URL}/personas/${personaId}/metodos-pago`).catch(() => null);
+        if (pmResponse && pmResponse.ok) {
+          const pmData = await pmResponse.json();
+          const filtered = pmData.filter((item: any) => !item.chequeCertificado).map((item: any) => {
+            if (item.tarjetaCredito) {
+              const num = item.tarjetaCredito.numeroTarjeta || '';
+              const last4 = num.length >= 4 ? num.slice(-4) : num;
+              return {
+                id: String(item.identificador),
+                type: 'card',
+                name: `Tarjeta **** **** **** ${last4}`,
+              };
+            } else if (item.cuentaBancaria) {
+              return {
+                id: String(item.identificador),
+                type: 'bank',
+                name: `Cuenta Bancaria ${item.cuentaBancaria.nombreBanco || ''} (${item.cuentaBancaria.cbuIban || ''})`,
+              };
+            }
+            return null;
+          }).filter((i: any) => i !== null);
+          
+          if (filtered.length > 0) {
+            setPaymentMethods(filtered);
+            setSelectedPayment(filtered[0].id);
+          }
+        }
       }
+    } catch (error) {
+      console.error("Error fetching inbox data:", error);
+    } finally {
+      setLoading(false);
     }
-    fetchInboxData();
   }, []);
+
+  React.useEffect(() => {
+    if (!isFocused) return;
+    checkUserStatusAndFetch();
+  }, [isFocused, checkUserStatusAndFetch]);
 
   const renderBidCard = (bid: typeof activeBids[0]) => (
     <TouchableOpacity
@@ -138,23 +180,52 @@ export default function InboxScreen() {
   );
 
   const renderAuctionCard = (auction: typeof activeAuctions[0]) => (
-    <TouchableOpacity
-      key={auction.id}
-      style={styles.bidCard}
-      onPress={() => router.push(('/auction/' + auction.id) as any)}
-    >
-      <Image source={auction.image ? { uri: auction.image } : require('@/assets/images/rolling_stone_auction.png')} style={styles.bidImage} />
-      <View style={styles.bidContent}>
-        <Text style={styles.subastaTitle}>{auction.subastaTitle}</Text>
-        <Text style={styles.lote}>Lote {auction.lote} / {auction.totalLotes}</Text>
-        <Text style={styles.ubicacion}>{auction.ubicacion}</Text>
-        <Text style={styles.articuloTitle}>{auction.articuloTitle}</Text>
-        <View style={styles.pujaMaxInfo}>
-          <Text style={styles.pujaMaxLabel}>Puja Máxima:</Text>
-          <Text style={styles.pujaMaxValue}>{auction.pujaMaxima}</Text>
+    <View key={auction.id} style={styles.auctionCardContainer}>
+      <TouchableOpacity
+        style={styles.bidCard}
+        onPress={() => router.push(('/auction/' + auction.id) as any)}
+      >
+        <Image source={auction.image ? { uri: auction.image } : require('@/assets/images/rolling_stone_auction.png')} style={styles.bidImage} />
+        <View style={styles.bidContent}>
+          <Text style={styles.subastaTitle}>{auction.subastaTitle}</Text>
+          <Text style={styles.lote}>Lote {auction.lote} / {auction.totalLotes}</Text>
+          <Text style={styles.ubicacion}>{auction.ubicacion}</Text>
+          <Text style={styles.articuloTitle}>{auction.articuloTitle}</Text>
+          <View style={styles.pujaMaxInfo}>
+            <Text style={styles.pujaMaxLabel}>Puja Máxima:</Text>
+            <Text style={styles.pujaMaxValue}>{auction.pujaMaxima}</Text>
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+      
+      {/* Ver Seguro y Depósito Button */}
+      <TouchableOpacity 
+        style={styles.insuranceButton}
+        onPress={async () => {
+          try {
+            const res = await fetch(`${API_URL}/productos/${auction.id}/seguro`);
+            if (res.ok) {
+              const data = await res.json();
+              setSelectedProductInsurance(data);
+              setShowInsuranceDetails(true);
+            } else {
+              alert("Este artículo no posee un seguro activo.");
+            }
+          } catch (err) {
+            console.error("Error fetching insurance:", err);
+            alert("No se pudo obtener la información del seguro.");
+          }
+        }}
+      >
+        <SymbolView 
+          // @ts-ignore
+          name={{ ios: 'shield.fill', android: 'shield', web: 'shield' }} 
+          size={16} 
+          tintColor="#051C2C" 
+        />
+        <Text style={styles.insuranceButtonText}>Ver Seguro y Depósito</Text>
+      </TouchableOpacity>
+    </View>
   );
 
   const renderNotificationCard = (notif: typeof notifications[0]) => {
@@ -168,7 +239,7 @@ export default function InboxScreen() {
           activeOpacity={0.7}
         >
           <View style={styles.notifHeaderText}>
-            <Text style={styles.notifTitle}>{notif.title}</Text>
+            <Text style={styles.notifTitle}>{notif.titulo || notif.title}</Text>
             <Text style={styles.notifTime}>{notif.tiempoFormateado}</Text>
           </View>
           <SymbolView
@@ -186,14 +257,56 @@ export default function InboxScreen() {
             {notif.buttonText && (
               <TouchableOpacity 
                 style={styles.notifButton}
-                onPress={() => {
-                  // @ts-ignore
-                  if (notif.action === 'show_inspection_result') {
+                onPress={async () => {
+                  const actionStr = notif.action || '';
+                  const parts = actionStr.split(':');
+                  const actionType = parts[0];
+                  const requestId = parts[1];
+
+                  if (requestId) {
+                    setSelectedRequestId(requestId);
+                    if (actionType !== 'show_bid_won') {
+                      try {
+                        const response = await fetch(`${API_URL}/solicitudes-items/${requestId}`, {
+                          headers: {
+                            'Autorizacion': String(loggedInUserId || 1),
+                          }
+                        });
+                        if (response.ok) {
+                          const data = await response.json();
+                          setSelectedProposal(data);
+                        } else {
+                          console.error('Error fetching request details:', response.statusText);
+                        }
+                      } catch (err) {
+                        console.error('Network error fetching request details:', err);
+                      }
+                    } else {
+                      try {
+                        const response = await fetch(`${API_URL}/inbox/won-item/${requestId}`);
+                        if (response.ok) {
+                          const data = await response.json();
+                          setWonItemDetails(data);
+                        } else {
+                          console.error('Error fetching won item details:', response.statusText);
+                        }
+                      } catch (err) {
+                        console.error('Network error fetching won item details:', err);
+                      }
+                    }
+                  } else {
+                    setSelectedRequestId(null);
+                    setSelectedProposal(null);
+                  }
+
+                  if (actionType === 'show_inspection_result') {
                     setShowInspectionResult(true);
-                  } else if (notif.action === 'show_inspection_rejected') {
+                  } else if (actionType === 'show_inspection_rejected') {
                     setShowInspectionRejected(true);
-                  } else if (notif.action === 'show_inspection_request') {
+                  } else if (actionType === 'show_inspection_request') {
                     setShowInspectionRequest(true);
+                  } else if (actionType === 'show_bid_won') {
+                    setShowBidWon(true);
                   } else if (notif.route) {
                     router.push(notif.route);
                   }
@@ -429,23 +542,35 @@ export default function InboxScreen() {
             <View style={styles.offerCard}>
               <View style={styles.offerRow}>
                 <Text style={styles.offerLabel}>Nombre del Bien</Text>
-                <Text style={styles.offerValue}>Zapatillas de Michael Jordan</Text>
+                <Text style={styles.offerValue}>{selectedProposal?.nombre || 'Cargando...'}</Text>
               </View>
               <View style={styles.offerRow}>
                 <Text style={styles.offerLabel}>Ubicación de Subasta</Text>
-                <Text style={styles.offerValue}>Mendoza</Text>
+                <Text style={styles.offerValue}>{selectedProposal?.propuesta?.ubicacionSubasta || 'No especificada'}</Text>
               </View>
               <View style={styles.offerRow}>
                 <Text style={styles.offerLabel}>Fecha Estimada</Text>
-                <Text style={styles.offerValue}>10 / 10 / 2026</Text>
+                <Text style={styles.offerValue}>
+                  {selectedProposal?.propuesta?.fechaEstimada 
+                    ? selectedProposal.propuesta.fechaEstimada.split('-').reverse().join(' / ')
+                    : 'No especificada'}
+                </Text>
               </View>
               <View style={styles.offerRow}>
                 <Text style={styles.offerLabel}>Valor Base Propuesto</Text>
-                <Text style={styles.offerValue}>9.000.000 AR$</Text>
+                <Text style={styles.offerValue}>
+                  {selectedProposal?.propuesta?.valorBase != null 
+                    ? `${Number(selectedProposal.propuesta.valorBase).toLocaleString('es-AR')} AR$` 
+                    : 'No especificado'}
+                </Text>
               </View>
               <View style={[styles.offerRow, { marginBottom: 0 }]}>
                 <Text style={styles.offerLabel}>Comision Recibida</Text>
-                <Text style={styles.offerValue}>10% de Valor Final de Venta</Text>
+                <Text style={styles.offerValue}>
+                  {selectedProposal?.propuesta?.comision != null 
+                    ? `${selectedProposal.propuesta.comision}% de Valor Final de Venta` 
+                    : 'No especificada'}
+                </Text>
               </View>
             </View>
 
@@ -459,7 +584,34 @@ export default function InboxScreen() {
             }}>
               <Text style={styles.shippingButtonText}>Aceptar</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.rejectButton, { flex: 1, marginLeft: 8 }]} onPress={() => setShowOfferDetails(false)}>
+            <TouchableOpacity style={[styles.rejectButton, { flex: 1, marginLeft: 8 }]} onPress={async () => {
+              if (selectedRequestId) {
+                try {
+                  const response = await fetch(`${API_URL}/solicitudes-items/${selectedRequestId}/propuesta/rechazar`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Autorizacion': String(loggedInUserId || 1),
+                    },
+                    body: JSON.stringify({
+                      costoDevolucion: 0,
+                    }),
+                  });
+                  if (response.ok) {
+                    setShowOfferDetails(false);
+                    setShowProposalRejected(true);
+                  } else {
+                    console.error('Error rejecting proposal:', response.statusText);
+                    setShowOfferDetails(false);
+                  }
+                } catch (err) {
+                  console.error('Network error rejecting proposal:', err);
+                  setShowOfferDetails(false);
+                }
+              } else {
+                setShowOfferDetails(false);
+              }
+            }}>
               <Text style={styles.rejectButtonText}>Rechazar</Text>
             </TouchableOpacity>
           </View>
@@ -485,16 +637,18 @@ export default function InboxScreen() {
             <Text style={styles.offerTitle}>Seleccione donde se{'\n'}depositara la comisión.</Text>
             
             <View style={styles.paymentOptionsContainer}>
-              {bankPaymentMethods.map(method => (
+              {paymentMethods.map(method => (
                 <TouchableOpacity 
                   key={method.id}
                   style={[styles.paymentOption, selectedPayment === method.id && styles.paymentOptionSelected]} 
                   onPress={() => setSelectedPayment(method.id)}
                 >
                   <View style={styles.paymentOptionLeft}>
-                    {/* @ts-ignore */}
-                    <SymbolView name={{ ios: 'building.columns', android: 'account_balance', web: 'account_balance' }} size={24} tintColor="#051C2C" style={styles.paymentIcon} />
-                    <Text style={styles.paymentOptionText}>{method.name}</Text>
+                    {method.type === 'card' ? (
+                      // @ts-ignore
+                      <SymbolView name={{ ios: 'creditcard', android: 'credit_card', web: 'credit_card' }} size={24} tintColor="#051C2C" style={styles.paymentIcon} />
+                    ) : null}
+                    <Text style={[styles.paymentOptionText, method.type !== 'card' && { marginLeft: 0 }]}>{method.name}</Text>
                   </View>
                   <View style={[styles.radioCircle, selectedPayment === method.id && styles.radioCircleSelected]}>
                     {selectedPayment === method.id && <View style={styles.radioInnerCircle} />}
@@ -505,11 +659,109 @@ export default function InboxScreen() {
           </ScrollView>
           
           <View style={styles.offerFooter}>
-            <TouchableOpacity style={[styles.shippingButton, { flex: 1 }]} onPress={() => {
-              setShowPaymentSelection(false);
-              // Aquí podrías redirigir al success state o volver al Inbox con un toast
+            <TouchableOpacity style={[styles.shippingButton, { flex: 1 }]} onPress={async () => {
+              if (selectedRequestId) {
+                try {
+                  const response = await fetch(`${API_URL}/solicitudes-items/${selectedRequestId}/propuesta/aceptar`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Autorizacion': String(loggedInUserId || 1),
+                    },
+                    body: JSON.stringify({
+                      idCuentaDeposito: selectedPayment,
+                    }),
+                  });
+                  if (response.ok) {
+                    setShowPaymentSelection(false);
+                    setShowProposalSuccess(true);
+                  } else {
+                    console.error('Error accepting proposal:', response.statusText);
+                    setShowPaymentSelection(false);
+                  }
+                } catch (err) {
+                  console.error('Network error accepting proposal:', err);
+                  setShowPaymentSelection(false);
+                }
+              } else {
+                setShowPaymentSelection(false);
+              }
             }}>
               <Text style={styles.shippingButtonText}>Finalizar</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Proposal Success Confirmation Modal (Image 2) */}
+      <Modal visible={showProposalSuccess} animationType="slide" presentationStyle="fullScreen">
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => {
+              setShowProposalSuccess(false);
+              checkUserStatusAndFetch();
+            }} style={styles.modalBackButton}>
+              {/* @ts-ignore */}
+              <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
+            </TouchableOpacity>
+            <Text style={styles.modalHeaderTitle}>Oferta del Articulo</Text>
+            <View style={{ width: 40 }} />
+          </View>
+          
+          <View style={styles.modalContent}>
+            <View style={styles.modalIconContainer}>
+              {/* @ts-ignore */}
+              <SymbolView name={{ ios: 'checkmark', android: 'check', web: 'check' }} size={40} tintColor="#2E8B57" weight="bold" />
+            </View>
+            <Text style={styles.modalTitle}>Su articulo ya esta listo{'\n'}para ser subastado.</Text>
+            <Text style={styles.modalSubtitle}>
+              Tu artículo ya está listo para ser subastado. Serás notificado con el resultado y podrás seguir la subasta desde la sección Mis Artículos en la Inbox.
+            </Text>
+          </View>
+          
+          <View style={styles.modalFooter}>
+            <TouchableOpacity style={styles.modalButton} onPress={() => {
+              setShowProposalSuccess(false);
+              checkUserStatusAndFetch();
+            }}>
+              <Text style={styles.modalButtonText}>Continuar</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Proposal Rejected Confirmation Modal (Image 3) */}
+      <Modal visible={showProposalRejected} animationType="slide" presentationStyle="fullScreen">
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => {
+              setShowProposalRejected(false);
+              checkUserStatusAndFetch();
+            }} style={styles.modalBackButton}>
+              {/* @ts-ignore */}
+              <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
+            </TouchableOpacity>
+            <Text style={styles.modalHeaderTitle}>Oferta del Articulo</Text>
+            <View style={{ width: 40 }} />
+          </View>
+          
+          <View style={styles.modalContent}>
+            <Image
+              source={require('@/assets/images/logosintexto.png')}
+              style={{ width: 80, height: 80, resizeMode: 'contain', marginBottom: 32 }}
+            />
+            <Text style={styles.modalTitle}>Respetamos su{'\n'}decisión y su articulo{'\n'}sera devuelto.</Text>
+            <Text style={styles.modalSubtitle}>
+              Su artículo será devuelto por nuestro equipo, asegurando que el proceso se realice de forma clara y pueda continuar con confianza dentro de la plataforma.
+            </Text>
+          </View>
+          
+          <View style={styles.modalFooter}>
+            <TouchableOpacity style={styles.shippingButton} onPress={() => {
+              setShowProposalRejected(false);
+              checkUserStatusAndFetch();
+            }}>
+              <Text style={styles.shippingButtonText}>Entendido</Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -548,6 +800,303 @@ export default function InboxScreen() {
         </SafeAreaView>
       </Modal>
 
+      {/* 1. ¡Ha obtenido un nuevo objeto! Modal (Image 1) */}
+      <Modal visible={showBidWon} animationType="slide" presentationStyle="fullScreen">
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowBidWon(false)} style={styles.modalBackButton}>
+              {/* @ts-ignore */}
+              <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
+            </TouchableOpacity>
+            <Text style={styles.modalHeaderTitle}>Lote Obtenido</Text>
+            <View style={{ width: 40 }} />
+          </View>
+          
+          <ScrollView style={styles.offerContent} showsVerticalScrollIndicator={false}>
+            <Text style={{ fontSize: 24, fontWeight: '700', color: '#051C2C', marginHorizontal: 20, marginTop: 16, marginBottom: 8 }}>
+              ¡Ha obtenido un nuevo objeto!
+            </Text>
+            <Text style={{ color: '#2E8B57', fontWeight: 'bold', fontSize: 18, marginHorizontal: 20, marginBottom: 16 }}>
+              {wonItemDetails?.subastaTitle}
+            </Text>
+            
+            <View style={[styles.offerCard, { flexDirection: 'row', alignItems: 'center', padding: 16, marginHorizontal: 20 }]}>
+              <Image 
+                source={require('@/assets/images/rolling_stone_auction.png')} 
+                style={{ width: 80, height: 120, resizeMode: 'contain', marginRight: 16 }} 
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, color: '#8A8A8A', marginBottom: 4 }}>
+                  Lote {wonItemDetails?.loteIndex} / {wonItemDetails?.totalLotes}
+                </Text>
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#051C2C', marginBottom: 8 }}>
+                  {wonItemDetails?.itemTitle}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                  <Text style={{ fontSize: 16, color: '#2E8B57', fontWeight: 'bold' }}>Mi Puja: </Text>
+                  <Text style={{ fontSize: 16, color: '#051C2C', fontWeight: 'bold' }}>
+                    {wonItemDetails?.importe ? (Number(wonItemDetails.importe).toLocaleString('es-AR') + ' AR$') : ''}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 12, color: '#8A8A8A', textDecorationLine: 'underline' }}>
+                  Su puja fue la puja maxima.
+                </Text>
+              </View>
+            </View>
+
+            <Text style={[styles.modalSubtitle, { textAlign: 'left', marginHorizontal: 20, marginTop: 24, color: '#555', lineHeight: 22 }]}>
+              Te entregaremos la factura correspondiente para formalizar la operación. A continuación, podrás confirmar la modalidad de entrega.
+            </Text>
+          </ScrollView>
+          
+          <View style={styles.modalFooter}>
+            <TouchableOpacity style={styles.modalButton} onPress={() => {
+              setShowBidWon(false);
+              setShowDeliverySelection(true);
+            }}>
+              <Text style={styles.modalButtonText}>Ver Factura y Envio</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* 2. Elegí cómo querés recibir tu objeto Modal (Image 2) */}
+      <Modal visible={showDeliverySelection} animationType="slide" presentationStyle="fullScreen">
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => {
+              setShowDeliverySelection(false);
+              setShowBidWon(true);
+            }} style={styles.modalBackButton}>
+              {/* @ts-ignore */}
+              <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
+            </TouchableOpacity>
+            <Text style={styles.modalHeaderTitle}>Factura de Puja</Text>
+            <View style={{ width: 40 }} />
+          </View>
+          
+          <ScrollView style={styles.offerContent} showsVerticalScrollIndicator={false}>
+            <Text style={{ fontSize: 28, fontWeight: '700', color: '#051C2C', marginHorizontal: 20, marginTop: 16 }}>
+              Elegí cómo querés recibir tu objeto
+            </Text>
+
+            {/* Custom Tab Segment */}
+            <View style={[styles.tabsContainer, { marginHorizontal: 20, marginTop: 24, marginBottom: 20 }]}>
+              <TouchableOpacity
+                style={[styles.tab, deliveryType === 'envio' && styles.tabActive]}
+                onPress={() => setDeliveryType('envio')}
+              >
+                <Text style={[styles.tabText, deliveryType === 'envio' && styles.tabTextActive]}>
+                  Envio
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.tab, deliveryType === 'retiro' && styles.tabActive]}
+                onPress={() => setDeliveryType('retiro')}
+              >
+                <Text style={[styles.tabText, deliveryType === 'retiro' && styles.tabTextActive]}>
+                  Retirarlo
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {deliveryType === 'envio' ? (
+              <View style={[styles.offerCard, { marginHorizontal: 20, padding: 16 }]}>
+                <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Domicilio Legal</Text>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C', marginBottom: 16 }}>
+                  {wonItemDetails?.domicilio || 'No especificado'}
+                </Text>
+                <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Costo de Envio</Text>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C' }}>
+                  {wonItemDetails?.costoEnvio ? (Number(wonItemDetails.costoEnvio).toLocaleString('es-AR') + ' AR$') : '20.000 AR$'}
+                </Text>
+              </View>
+            ) : (
+              <View style={{ marginHorizontal: 20 }}>
+                <View style={[styles.offerCard, { padding: 16, marginBottom: 12 }]}>
+                  <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Retiro Personal</Text>
+                  <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#051C2C', marginBottom: 16 }}>
+                    Depósito Central BidOwl Pilar
+                  </Text>
+                  <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Costo de Envio</Text>
+                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C' }}>
+                    0 AR$
+                  </Text>
+                </View>
+                
+                {/* Warning Card */}
+                <View style={[styles.warningCard, { padding: 16, marginBottom: 20 }]}>
+                  <Text style={styles.warningText}>
+                    ⚠️ Al retirar el bien personalmente, se perderá la cobertura del seguro contratado.
+                  </Text>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+          
+          <View style={styles.modalFooter}>
+            <TouchableOpacity 
+              style={[styles.modalButton, { backgroundColor: '#ADFF2F', borderColor: '#ADFF2F' }]} 
+              onPress={() => {
+                setShowDeliverySelection(false);
+                setShowWonInvoice(true);
+              }}
+            >
+              <Text style={[styles.modalButtonText, { color: '#051C2C', fontWeight: 'bold' }]}>Finalizar</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* 3. Factura de Puja Realizada Modal (Image 3) */}
+      <Modal visible={showWonInvoice} animationType="slide" presentationStyle="fullScreen">
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => {
+              setShowWonInvoice(false);
+              setShowDeliverySelection(true);
+            }} style={styles.modalBackButton}>
+              {/* @ts-ignore */}
+              <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
+            </TouchableOpacity>
+            <Text style={styles.modalHeaderTitle}>Factura de Puja</Text>
+            <View style={{ width: 40 }} />
+          </View>
+          
+          <ScrollView style={styles.offerContent} showsVerticalScrollIndicator={false}>
+            <Text style={{ fontSize: 28, fontWeight: '700', color: '#051C2C', marginHorizontal: 20, marginTop: 16 }}>
+              Factura de Puja Realizada.
+            </Text>
+            
+            <View style={[styles.offerCard, { marginHorizontal: 20, padding: 16, marginTop: 24 }]}>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Nombre del Bien</Text>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C' }}>
+                  {wonItemDetails?.itemTitle}
+                </Text>
+              </View>
+
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Valor Base Propuesto</Text>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C' }}>
+                  {wonItemDetails?.importe ? (Number(wonItemDetails.importe).toLocaleString('es-AR') + ' AR$') : ''}
+                </Text>
+              </View>
+
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Costo de Envio</Text>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C' }}>
+                  {deliveryType === 'envio' 
+                    ? (wonItemDetails?.costoEnvio ? (Number(wonItemDetails.costoEnvio).toLocaleString('es-AR') + ' AR$') : '20.000 AR$')
+                    : '0 AR$'
+                  }
+                </Text>
+              </View>
+
+              <View style={{ height: 1, backgroundColor: '#E0E0E0', marginVertical: 8 }} />
+
+              <View style={{ marginTop: 8 }}>
+                <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Total</Text>
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#051C2C' }}>
+                  {(() => {
+                    const base = wonItemDetails?.importe ? Number(wonItemDetails.importe) : 0;
+                    const shipping = (deliveryType === 'envio' && wonItemDetails?.costoEnvio) ? Number(wonItemDetails.costoEnvio) : 0;
+                    return (base + shipping).toLocaleString('es-AR') + ' AR$';
+                  })()}
+                </Text>
+              </View>
+            </View>
+          </ScrollView>
+          
+          <View style={styles.modalFooter}>
+            <TouchableOpacity 
+              style={[styles.modalButton, { backgroundColor: '#ADFF2F', borderColor: '#ADFF2F' }]} 
+              onPress={async () => {
+                if (wonItemDetails && wonItemDetails.itemId) {
+                  try {
+                    const base = wonItemDetails.importe ? Number(wonItemDetails.importe) : 0;
+                    const shipping = (deliveryType === 'envio' && wonItemDetails.costoEnvio) ? Number(wonItemDetails.costoEnvio) : 0;
+                    
+                    const response = await fetch(`${API_URL}/inbox/won-item/${wonItemDetails.itemId}/confirmar-entrega`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Autorizacion': String(loggedInUserId || 1),
+                      },
+                      body: JSON.stringify({
+                        tipoEntrega: deliveryType,
+                        costoEnvio: shipping,
+                        total: base + shipping
+                      }),
+                    });
+                    
+                    if (response.ok) {
+                      setShowWonInvoice(false);
+                      setShowDeliverySuccess(true);
+                    } else {
+                      console.error('Error confirming delivery details:', response.statusText);
+                      setShowWonInvoice(false);
+                    }
+                  } catch (err) {
+                    console.error('Network error confirming delivery details:', err);
+                    setShowWonInvoice(false);
+                  }
+                } else {
+                  setShowWonInvoice(false);
+                }
+              }}
+            >
+              <Text style={[styles.modalButtonText, { color: '#051C2C', fontWeight: 'bold' }]}>Finalizar</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* 4. Envio del Articulo Success Modal (Image 4) */}
+      <Modal visible={showDeliverySuccess} animationType="slide" presentationStyle="fullScreen">
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => {
+              setShowDeliverySuccess(false);
+              checkUserStatusAndFetch();
+            }} style={styles.modalBackButton}>
+              {/* @ts-ignore */}
+              <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
+            </TouchableOpacity>
+            <Text style={styles.modalHeaderTitle}>{deliveryType === 'envio' ? 'Envio del Articulo' : 'Retiro del Articulo'}</Text>
+            <View style={{ width: 40 }} />
+          </View>
+          
+          <View style={styles.modalContent}>
+            <View style={styles.modalIconContainer}>
+              {/* @ts-ignore */}
+              <SymbolView name={{ ios: 'checkmark', android: 'check', web: 'check' }} size={40} tintColor="#2E8B57" weight="bold" />
+            </View>
+            <Text style={[styles.modalTitle, { fontSize: 24 }]}>
+              {deliveryType === 'envio' 
+                ? 'Su articulo sera\nenviado a su domicilio\nen a lo largo de la\nsemana.'
+                : 'Su articulo esta\nlisto para ser retirado\nen nuestro deposito.'
+              }
+            </Text>
+            <Text style={styles.modalSubtitle}>
+              {deliveryType === 'envio'
+                ? 'Nuestro equipo se encargará de coordinar la logística para garantizar una entrega segura y en tiempo estimado.'
+                : 'Podes pasar a buscarlo de lunes a viernes de 9 a 18 hs con tu DNI y el código de transacción de la subasta.'
+              }
+            </Text>
+          </View>
+          
+          <View style={styles.modalFooter}>
+            <TouchableOpacity style={styles.modalButton} onPress={() => {
+              setShowDeliverySuccess(false);
+              checkUserStatusAndFetch();
+            }}>
+              <Text style={styles.modalButtonText}>Continuar</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
       {/* Shipping Instructions Modal (Map) */}
       <Modal visible={showShippingInstructions} animationType="slide" presentationStyle="fullScreen">
         <SafeAreaView style={styles.modalContainer}>
@@ -579,15 +1128,117 @@ export default function InboxScreen() {
           </ScrollView>
           
           <View style={styles.modalFooter}>
-            <TouchableOpacity style={styles.shippingButton} onPress={() => {
-              // Aquí se podrían enviar las coordenadas y la dirección al backend
+            <TouchableOpacity style={styles.shippingButton} onPress={async () => {
               console.log('Ubicación seleccionada:', selectedLocation, 'Dirección:', selectedAddress);
+              if (selectedRequestId) {
+                try {
+                  const response = await fetch(`${API_URL}/solicitudes-items/${selectedRequestId}/acuerdo-envio`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Autorizacion': String(loggedInUserId || 1),
+                    },
+                    body: JSON.stringify({
+                      aceptaTerminos: true,
+                    }),
+                  });
+                  if (response.ok) {
+                    checkUserStatusAndFetch();
+                  } else {
+                    console.error('Error accepting shipping agreement:', response.statusText);
+                  }
+                } catch (err) {
+                  console.error('Network error accepting shipping agreement:', err);
+                }
+              }
               setShowShippingInstructions(false);
             }}>
               <Text style={styles.shippingButtonText}>Entendido</Text>
             </TouchableOpacity>
           </View>
         </SafeAreaView>
+      </Modal>
+
+      {/* Insurance Drawer Modal */}
+      <Modal visible={showInsuranceDetails} animationType="slide" transparent={true} onRequestClose={() => setShowInsuranceDetails(false)}>
+        <View style={styles.drawerOverlay}>
+          <View style={styles.drawerContainer}>
+            <View style={styles.drawerHeader}>
+              <Text style={styles.drawerTitle}>Seguro y Depósito</Text>
+              <TouchableOpacity onPress={() => setShowInsuranceDetails(false)} style={styles.drawerCloseButton}>
+                {/* @ts-ignore */}
+                <SymbolView name={{ ios: 'xmark', android: 'close', web: 'close' }} size={24} tintColor="#051C2C" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.drawerContent} showsVerticalScrollIndicator={false}>
+              <View style={styles.insuranceDetailCard}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 8 }}>
+                  <SymbolView 
+                    // @ts-ignore
+                    name={{ ios: 'shield.fill', android: 'shield', web: 'shield' }} 
+                    size={24} 
+                    tintColor="#2E8B57" 
+                  />
+                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C' }}>Póliza Activa</Text>
+                </View>
+
+                <View style={styles.drawerRow}>
+                  <Text style={styles.drawerLabel}>Compañía Aseguradora</Text>
+                  <Text style={styles.drawerValue}>{selectedProductInsurance?.compania || 'La Segunda Cooperativa de Seguros'}</Text>
+                </View>
+
+                <View style={styles.drawerRow}>
+                  <Text style={styles.drawerLabel}>Número de Póliza</Text>
+                  <Text style={styles.drawerValue}>{selectedProductInsurance?.nroPoliza || 'N/A'}</Text>
+                </View>
+
+                <View style={styles.drawerRow}>
+                  <Text style={styles.drawerLabel}>Cobertura Asegurada</Text>
+                  <Text style={[styles.drawerValue, { color: '#2E8B57', fontSize: 18 }]}>
+                    {selectedProductInsurance?.importe != null 
+                      ? `${Number(selectedProductInsurance.importe).toLocaleString('es-AR')} AR$` 
+                      : 'N/A'}
+                  </Text>
+                </View>
+
+                <View style={[styles.drawerRow, { marginBottom: 0 }]}>
+                  <Text style={styles.drawerLabel}>Póliza Combinada</Text>
+                  <Text style={styles.drawerValue}>{selectedProductInsurance?.polizaCombinada === 'si' ? 'Sí' : 'No'}</Text>
+                </View>
+              </View>
+
+              <View style={styles.insuranceDetailCard}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 8 }}>
+                  <SymbolView 
+                    // @ts-ignore
+                    name={{ ios: 'mappin.and.ellipse', android: 'location_on', web: 'location_on' }} 
+                    size={24} 
+                    tintColor="#051C2C" 
+                  />
+                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C' }}>Ubicación Física</Text>
+                </View>
+
+                <View style={[styles.drawerRow, { marginBottom: 0 }]}>
+                  <Text style={styles.drawerLabel}>Depósito de Custodia</Text>
+                  <Text style={styles.drawerValue}>{selectedProductInsurance?.ubicacionDeposito || 'Depósito Central BidOwl Pilar, Estantería B4'}</Text>
+                </View>
+              </View>
+            </ScrollView>
+
+            <View style={styles.drawerFooter}>
+              <TouchableOpacity 
+                style={styles.expandInsuranceButton}
+                onPress={() => {
+                  alert("¡Solicitud enviada! Nos contactaremos a la brevedad con la aseguradora para ampliar su cobertura.");
+                  setShowInsuranceDetails(false);
+                }}
+              >
+                <Text style={styles.expandInsuranceButtonText}>Aumentar Cobertura</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
 
     </SafeAreaView>
@@ -1076,6 +1727,104 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: '#051C2C',
     fontSize: 14,
+    fontWeight: '700',
+  },
+  warningCard: {
+    backgroundColor: '#FFF2E6',
+    borderWidth: 1,
+    borderColor: '#FFA500',
+    borderRadius: 8,
+  },
+  warningText: {
+    color: '#D45B00',
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  auctionCardContainer: {
+    marginBottom: 16,
+  },
+  insuranceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#F2F6E6',
+    borderWidth: 1,
+    borderColor: '#BEE757',
+    borderRadius: 8,
+    paddingVertical: 10,
+    marginTop: -4,
+  },
+  insuranceButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#051C2C',
+  },
+  drawerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  drawerContainer: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    paddingBottom: 40,
+  },
+  drawerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  drawerTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#051C2C',
+  },
+  drawerCloseButton: {
+    padding: 4,
+  },
+  drawerContent: {
+    padding: 20,
+  },
+  insuranceDetailCard: {
+    backgroundColor: '#F9F9F9',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+    padding: 16,
+    marginBottom: 16,
+  },
+  drawerRow: {
+    marginBottom: 16,
+  },
+  drawerLabel: {
+    fontSize: 12,
+    color: '#8A8A8A',
+    marginBottom: 4,
+  },
+  drawerValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#051C2C',
+  },
+  drawerFooter: {
+    paddingHorizontal: 20,
+  },
+  expandInsuranceButton: {
+    backgroundColor: '#BEE757',
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  expandInsuranceButtonText: {
+    color: '#051C2C',
+    fontSize: 16,
     fontWeight: '700',
   },
 });
