@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-
 import { SymbolView } from 'expo-symbols';
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import JoinAuctionBar from './JoinAuctionBar';
 
 export default function AppTabs() {
@@ -43,6 +44,21 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
 
   const activeRoute = state.routes[state.index];
 
+  const [isGuest, setIsGuest] = React.useState<boolean>(true);
+
+  React.useEffect(() => {
+    async function loadGuest() {
+      try {
+        const userStr = await AsyncStorage.getItem('user');
+        const isGuestStr = await AsyncStorage.getItem('isGuest');
+        setIsGuest((isGuestStr === 'true' || isGuestStr === null) && !userStr);
+      } catch {
+        setIsGuest(true);
+      }
+    }
+    loadGuest();
+  }, [state.index]);
+
   // Hide the bottom tab bar completely for all other auction screens (catalog, bidding, history)
   if (activeRoute && (activeRoute.name.startsWith('auction') || activeRoute.name.includes('inspection-result'))) {
     return null;
@@ -62,6 +78,10 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
         const label = options.title !== undefined ? options.title : route.name;
 
         if (options.href === null || route.name.startsWith('auction') || ['_layout', '+not-found'].includes(route.name) || route.name.includes('inspection-result')) {
+          return null;
+        }
+
+        if (route.name === 'publish' && isGuest) {
           return null;
         }
 

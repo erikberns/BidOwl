@@ -228,6 +228,41 @@ export default function PublishScreen() {
     );
   }
 
+  if (isGuest) {
+    return (
+      <SafeAreaView style={styles.container}>
+        {/* Header with Back Button */}
+        <View style={styles.headerBar}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Text style={styles.backButtonText}>‹</Text>
+          </TouchableOpacity>
+          <ThemedText style={styles.headerTitle}>Solicitar Subasta de Articulo</ThemedText>
+          <View style={styles.backButtonPlaceholder} />
+        </View>
+
+        <View style={styles.successContainer}>
+          <View style={{ alignItems: 'center', marginTop: 80 }}>
+            <Text style={{ fontSize: 48, color: '#8A8A8A', marginBottom: 24 }}>🔒</Text>
+            <Text style={styles.successTitle}>Acceso Restringido</Text>
+            <Text style={[styles.successSubtitle, { textAlign: 'center', marginTop: 12, paddingHorizontal: 16 }]}>
+              Para poder solicitar una subasta y publicar tus artículos, debes tener una cuenta registrada en BidOwl.
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.successFooter}>
+          <TouchableOpacity
+            style={styles.successButton}
+            activeOpacity={0.8}
+            onPress={() => router.push('/profile')}
+          >
+            <Text style={styles.successButtonText}>Registrarse o Iniciar Sesión</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header with Back Button */}

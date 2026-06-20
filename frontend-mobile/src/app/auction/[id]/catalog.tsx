@@ -3,6 +3,7 @@ import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import JoinAuctionBar from '@/components/JoinAuctionBar';
 import { MOCK_AUCTION_ITEMS } from '@/constants/mockData';
 import { API_URL } from '@/constants/api';
@@ -31,6 +32,20 @@ export default function CatalogScreen() {
   const { id } = useLocalSearchParams();
   const auctionIdStr = Array.isArray(id) ? id[0] : id || '1';
   const [items, setItems] = useState<any[]>([]);
+  const [isGuest, setIsGuest] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    async function loadGuestStatus() {
+      try {
+        const userStr = await AsyncStorage.getItem('user');
+        const isGuestStr = await AsyncStorage.getItem('isGuest');
+        setIsGuest((isGuestStr === 'true' || isGuestStr === null) && !userStr);
+      } catch (e) {
+        setIsGuest(true);
+      }
+    }
+    loadGuestStatus();
+  }, []);
 
   useEffect(() => {
     async function loadItems() {
@@ -97,7 +112,9 @@ export default function CatalogScreen() {
                 <View style={styles.itemInfo}>
                   <Text style={styles.itemNumber}>{item.number} Articulo</Text>
                   <Text style={styles.itemTitle}>{item.title}</Text>
-                  <Text style={styles.itemPrice}>Valor Base: {item.price}</Text>
+                  {!isGuest && (
+                    <Text style={styles.itemPrice}>Valor Base: {item.price}</Text>
+                  )}
                 </View>
               </View>
             );

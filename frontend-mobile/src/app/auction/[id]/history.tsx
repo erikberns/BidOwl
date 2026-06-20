@@ -74,7 +74,7 @@ export default function BidsHistoryScreen() {
         const data = await res.json();
         const mappedBids = data.map((bid: any, idx: number) => ({
           name: bid.nombre,
-          time: bid.hace || 'Hace unos instantes',
+          time: (bid.hace && bid.hace !== 'N/A') ? bid.hace : 'Hace unos instantes',
           amount: formatPrice(bid.monto),
           isLead: idx === 0
         }));

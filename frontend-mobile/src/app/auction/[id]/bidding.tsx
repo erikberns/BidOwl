@@ -227,7 +227,7 @@ export default function BiddingScreen() {
         const mappedBids = data.map((bid: any, idx: number) => ({
           idpersona: bid.idpersona,
           name: bid.nombre,
-          time: bid.hace || 'Hace unos instantes',
+          time: (bid.hace && bid.hace !== 'N/A') ? bid.hace : 'Hace unos instantes',
           amount: formatPrice(bid.monto),
           isLead: idx === 0
         }));

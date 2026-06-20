@@ -163,8 +163,38 @@ public class SubastaService {
                     dto.setIdpersona(puja.getAsistente().getCliente().getIdentificador().toString());
                     dto.setNombre(puja.getAsistente().getCliente().getNombre());
                     dto.setMonto(puja.getImporte());
-                    // Como la tabla 'pujos' no tiene columna de fecha/hora en la base de datos, siempre mostramos N/A
-                    dto.setHace("N/A");
+                    
+                    LocalDateTime fechaHora = puja.getFechaHora();
+                    if (fechaHora == null) {
+                        dto.setHace("N/A");
+                    } else {
+                        LocalDateTime now = LocalDateTime.now();
+                        Duration duration = Duration.between(fechaHora, now);
+                        long seconds = duration.getSeconds();
+                        if (seconds < 0) {
+                            dto.setHace("hace unos segundos");
+                        } else if (seconds < 60) {
+                            dto.setHace("hace " + seconds + (seconds == 1 ? " segundo" : " segundos"));
+                        } else {
+                            long minutes = duration.toMinutes();
+                            if (minutes < 60) {
+                                dto.setHace("hace " + minutes + (minutes == 1 ? " minuto" : " minutos"));
+                            } else {
+                                long hours = duration.toHours();
+                                if (hours < 24) {
+                                    dto.setHace("hace " + hours + (hours == 1 ? " hora" : " horas"));
+                                } else {
+                                    long days = duration.toDays();
+                                    if (days < 30) {
+                                        dto.setHace("hace " + days + (days == 1 ? " día" : " días"));
+                                    } else {
+                                        long months = days / 30;
+                                        dto.setHace("hace " + months + (months == 1 ? " mes" : " meses"));
+                                    }
+                                }
+                            }
+                        }
+                    }
                     return dto;
                 })
                 .collect(Collectors.toList());
@@ -284,6 +314,7 @@ public class SubastaService {
         puja.setItem(itemCatalogo);
         puja.setImporte(monto);
         puja.setGanador("no");
+        puja.setFechaHora(LocalDateTime.now());
 
         Pujo pujaSaved = pujoRepository.save(puja);
 

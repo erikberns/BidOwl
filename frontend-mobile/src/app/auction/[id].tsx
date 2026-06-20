@@ -424,9 +424,13 @@ export default function AuctionDetailScreen() {
             <Text style={styles.itemCountText}>{detail.cantidadTotalitems || previews.length} Articulos Totales</Text>
           </View>
           <Text style={styles.dateTimeText}>{detail.ubicacion || 'Pilar'} · {detail.fecha || '15/4/2026'} · {detail.hora || '18:30 UDT-3'}</Text>
-          <View style={{ height: 16 }} />
-          <Text style={styles.baseValueText}>{formatPrice(baseValue)}</Text>
-          <Text style={styles.baseValueLabel}>Valor Base</Text>
+          {!isGuest && (
+            <>
+              <View style={{ height: 16 }} />
+              <Text style={styles.baseValueText}>{formatPrice(baseValue)}</Text>
+              <Text style={styles.baseValueLabel}>Valor Base</Text>
+            </>
+          )}
         </View>
 
         <View style={styles.divider} />
@@ -532,7 +536,9 @@ export default function AuctionDetailScreen() {
                   <View style={styles.itemInfo}>
                     <Text style={styles.itemNumber}>{idx + 1}º Articulo</Text>
                     <Text style={styles.itemTitle}>{item.nombre}</Text>
-                    <Text style={styles.itemPrice}>Valor Base: {formatPrice(item.valorBase)}</Text>
+                    {!isGuest && (
+                      <Text style={styles.itemPrice}>Valor Base: {formatPrice(item.valorBase)}</Text>
+                    )}
                   </View>
                 </View>
               );

@@ -3,6 +3,7 @@ import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Modal } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, Stack, Tabs } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import MapComponent from '@/components/Map';
 
@@ -10,10 +11,25 @@ import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 
 import { API_URL } from '@/constants/api';
 
-type Tab = 'activos' | 'miSubasta' | 'notificaciones' | 'historial';
+type Tab = 'miSubasta' | 'notificaciones' | 'historial';
 
 export default function InboxScreen() {
   const [activeTab, setActiveTab] = React.useState<Tab>('notificaciones');
+  const [isGuest, setIsGuest] = React.useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    async function checkUserStatus() {
+      try {
+        const isGuestStr = await AsyncStorage.getItem('isGuest');
+        const userStr = await AsyncStorage.getItem('user');
+        setIsGuest((isGuestStr === 'true' || isGuestStr === null) && !userStr);
+      } catch (e) {
+        setIsGuest(true);
+      }
+    }
+    checkUserStatus();
+  }, []);
+
   const [expandedNotifIds, setExpandedNotifIds] = React.useState<string[]>([]);
   const toggleNotif = (id: string) => {
     setExpandedNotifIds(prev => 
@@ -192,6 +208,43 @@ export default function InboxScreen() {
     );
   };
 
+  if (isGuest) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <Tabs.Screen options={{ headerShown: false }} />
+        
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Inbox</Text>
+          <Image
+            source={require('@/assets/images/SplashBidOwl.png')}
+            style={styles.logo}
+          />
+        </View>
+
+        <View style={styles.centeredContent}>
+          <SymbolView
+            tintColor="#8A8A8A"
+            // @ts-ignore
+            name={{ ios: 'lock.fill', android: 'lock', web: 'lock' }}
+            size={48}
+          />
+          <Text style={styles.lockTitle}>Acceso Restringido</Text>
+          <Text style={styles.lockSubtitle}>
+            El inbox solamente está disponible para usuarios registrados.
+          </Text>
+          <TouchableOpacity 
+            style={styles.loginButton}
+            onPress={() => router.push('/profile')}
+          >
+            <Text style={styles.loginButtonText}>Registrarse o Iniciar Sesión</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -212,20 +265,6 @@ export default function InboxScreen() {
 
         {/* Tabs */}
         <View style={styles.tabsContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'activos' && styles.tabActive]}
-            onPress={() => setActiveTab('activos')}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={[styles.tabText, activeTab === 'activos' && styles.tabTextActive]}>
-                Activos
-              </Text>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>1</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={[styles.tab, activeTab === 'miSubasta' && styles.tabActive]}
             onPress={() => setActiveTab('miSubasta')}
@@ -259,25 +298,6 @@ export default function InboxScreen() {
         </View>
 
         {/* Content based on active tab */}
-        {activeTab === 'activos' && (
-          <View style={styles.contentContainer}>
-            {activeBids.length > 0 ? (
-              activeBids.map(renderBidCard)
-            ) : (
-              <View style={styles.emptyState}>
-                <SymbolView
-                  tintColor="#8A8A8A"
-                  // @ts-ignore
-                  name={{ ios: 'heart.slash', android: 'favorite_border', web: 'favorite_border' }}
-                  size={48}
-                />
-                <Text style={styles.emptyTitle}>Sin pujas activas</Text>
-                <Text style={styles.emptySubtitle}>Comienza a pujar en subastas</Text>
-              </View>
-            )}
-          </View>
-        )}
-
         {activeTab === 'miSubasta' && (
           <View style={styles.contentContainer}>
             {activeAuctions.length > 0 ? (
@@ -1024,5 +1044,38 @@ const styles = StyleSheet.create({
     width: 12,
     borderRadius: 6,
     backgroundColor: '#BEE757',
+  },
+  centeredContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 80,
+  },
+  lockTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#051C2C',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  lockSubtitle: {
+    fontSize: 14,
+    color: '#8A8A8A',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  loginButton: {
+    backgroundColor: '#BEE757',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  loginButtonText: {
+    color: '#051C2C',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

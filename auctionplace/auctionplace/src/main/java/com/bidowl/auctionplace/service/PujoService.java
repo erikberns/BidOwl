@@ -101,6 +101,7 @@ public class PujoService {
         nuevaPuja.setItem(item);
         nuevaPuja.setImporte(importe);
         nuevaPuja.setGanador("no");
+        nuevaPuja.setFechaHora(java.time.LocalDateTime.now());
 
         Pujo guardada = pujoRepository.save(nuevaPuja);
 

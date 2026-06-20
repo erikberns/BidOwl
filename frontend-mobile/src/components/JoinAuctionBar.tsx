@@ -16,7 +16,7 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
   const isDark = false;
   const insets = useSafeAreaInsets();
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isGuest, setIsGuest] = useState<boolean | null>(null);
+  const [isGuest, setIsGuest] = useState<boolean>(true);
   const [isActive, setIsActive] = useState<boolean>(propIsActive !== undefined ? propIsActive : true);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [selectedMethod, setSelectedMethod] = useState<any>(null);
@@ -232,12 +232,12 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
       </TouchableOpacity>
 
       <TouchableOpacity 
-        style={[styles.joinBtn, !isActive ? styles.disabledJoinBtn : null]}
+        style={[styles.joinBtn, (!isActive || isGuest) ? styles.disabledJoinBtn : null]}
         onPress={handleJoinPress}
         activeOpacity={0.8}
         disabled={!isActive}
       >
-        <Text style={[styles.joinBtnText, !isActive ? styles.disabledJoinBtnText : null]}>
+        <Text style={[styles.joinBtnText, (!isActive || isGuest) ? styles.disabledJoinBtnText : null]}>
           {isActive ? 'Unirse a Subasta' : 'Subasta Inactiva'}
         </Text>
       </TouchableOpacity>
