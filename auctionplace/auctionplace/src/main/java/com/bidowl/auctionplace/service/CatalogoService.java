@@ -9,6 +9,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.Optional;
 
+/**
+ * Servicio encargado de gestionar los catálogos de artículos y asociarlos a remates/subastas.
+ * Administra la creación de artículos a partir de propuestas comerciales aprobadas.
+ */
 @Service
 public class CatalogoService {
 

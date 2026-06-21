@@ -24,6 +24,10 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * Servicio encargado de gestionar las notificaciones del buzón (inbox) del usuario,
+ * incluyendo las pujas activas, subastas ganadas e historial de pujas.
+ */
 @Service
 public class InboxService {
 

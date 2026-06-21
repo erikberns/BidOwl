@@ -3,8 +3,12 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platfo
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_URL } from '../constants/api';
+import { API_URL } from '@/constants/api';
 import { SymbolView } from 'expo-symbols';
+import { PaymentLoadingContext } from './FormFields';
+import { BankAccountForm } from './BankAccountForm';
+import { CreditCardForm } from './CreditCardForm';
+import { CertifiedChequeForm } from './CertifiedChequeForm';
 
 interface PaymentMethodsScreenProps {
   userId?: number;
@@ -50,8 +54,6 @@ const showAlert = (title: string, message: string) => {
     Alert.alert(title, message);
   }
 };
-
-const PaymentLoadingContext = React.createContext({ isLoading: false, availablePaises: [] as any[] });
 
 export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ userId, onBack, onComplete }) => {
   const [currentView, setCurrentView] = useState<'list' | 'select' | 'form_bank' | 'form_card' | 'form_check'>('list');
@@ -828,7 +830,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
               disabled={isLoading}
             >
               <Image
-                source={require('../../assets/images/botton de agregar.png')}
+                source={require('@/assets/images/botton de agregar.png')}
                 style={styles.addIconImage}
                 resizeMode="contain"
               />
@@ -845,7 +847,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
                 {/* Left edit pencil badge */}
                 <TouchableOpacity onPress={() => handleEditPress(m)} style={styles.editButton}>
                   <Image
-                    source={require('../../assets/images/editar.png')}
+                    source={require('@/assets/images/editar.png')}
                     style={styles.buttonImage}
                     resizeMode="contain"
                   />
@@ -868,7 +870,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
 
                 <TouchableOpacity onPress={() => removeMethod(m.id)} style={styles.removeButton} disabled={isLoading}>
                   <Image
-                    source={require('../../assets/images/borrar.png')}
+                    source={require('@/assets/images/borrar.png')}
                     style={styles.buttonImage}
                     resizeMode="contain"
                   />
@@ -1005,240 +1007,95 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
   };
 
   const renderBankForm = () => (
-    <View style={styles.container}>
-      {renderHeader('Agregar Metodo de Pago', () => setCurrentView('select'), true)}
-      <ScrollView style={styles.content}>
-        <Text style={styles.mainTitle}>Agregar Cuenta Bancaria.</Text>
-        <InputField
-          label="Titular"
-          placeholder="Juan Pérez"
-          value={bankTitular}
-          onChangeText={(val: string) => {
-            setBankTitular(val);
-            if (bankTitularError) setBankTitularError('');
-          }}
-          error={bankTitularError}
-        />
-        <InputField
-          label="Banco"
-          placeholder="Banco Galicia"
-          value={bankBanco}
-          onChangeText={(val: string) => {
-            setBankBanco(val);
-            if (bankBancoError) setBankBancoError('');
-          }}
-          error={bankBancoError}
-        />
-        <View style={[styles.row, { zIndex: isBankDropdownOpen || isBankCurrencyDropdownOpen ? 1000 : 1, position: 'relative' }]}> 
-          <CountryDropdownField label="País" value={bankPais} onSelect={setBankPais} isOpen={isBankDropdownOpen} setIsOpen={setIsBankDropdownOpen} />
-          <View style={{ width: 15 }} />
-          <CurrencyDropdownField
-            label="Moneda"
-            value={bankMoneda}
-            onSelect={setBankMoneda}
-            isOpen={isBankCurrencyDropdownOpen}
-            setIsOpen={setIsBankCurrencyDropdownOpen}
-            options={currencyOptions}
-          />
-        </View>
-        <InputField
-          label="Número de Cuenta"
-          placeholder="1234567890"
-          value={bankCbuIban}
-          onChangeText={(val: string) => {
-            setBankCbuIban(val);
-            if (bankCbuIbanError) setBankCbuIbanError('');
-          }}
-          error={bankCbuIbanError}
-        />
-
-        <View style={styles.tabsRow}>
-          <TouchableOpacity style={[styles.tab, bankTab === 'CBU' && styles.activeTab]} onPress={() => setBankTab('CBU')} disabled={isLoading}>
-            <Text style={[styles.tabText, bankTab === 'CBU' && styles.activeTabText]}>CBU</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.tab, bankTab === 'IBAN' && styles.activeTab]} onPress={() => setBankTab('IBAN')} disabled={isLoading}>
-            <Text style={[styles.tabText, bankTab === 'IBAN' && styles.activeTabText]}>IBAN</Text>
-          </TouchableOpacity>
-        </View>
-        <InputField
-          label={bankTab}
-          placeholder="0720123456789012345678"
-          value={bankCbuIban}
-          onChangeText={(val: string) => {
-            setBankCbuIban(val);
-            if (bankCbuIbanError) setBankCbuIbanError('');
-          }}
-          error={bankCbuIbanError}
-        />
-      </ScrollView>
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.acceptButton} onPress={handleAddBank} disabled={isLoading}>
-          {isLoading ? (
-            <ActivityIndicator color="#001b2a" />
-          ) : (
-            <Text style={styles.acceptButtonText}>Aceptar</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </View>
+    <BankAccountForm
+      renderHeader={renderHeader}
+      onCancel={() => setCurrentView('select')}
+      bankTitular={bankTitular}
+      setBankTitular={setBankTitular}
+      bankTitularError={bankTitularError}
+      setBankTitularError={setBankTitularError}
+      bankBanco={bankBanco}
+      setBankBanco={setBankBanco}
+      bankBancoError={bankBancoError}
+      setBankBancoError={setBankBancoError}
+      bankPais={bankPais}
+      setBankPais={setBankPais}
+      isBankDropdownOpen={isBankDropdownOpen}
+      setIsBankDropdownOpen={setIsBankDropdownOpen}
+      bankMoneda={bankMoneda}
+      setBankMoneda={setBankMoneda}
+      isBankCurrencyDropdownOpen={isBankCurrencyDropdownOpen}
+      setIsBankCurrencyDropdownOpen={setIsBankCurrencyDropdownOpen}
+      bankCbuIban={bankCbuIban}
+      setBankCbuIban={setBankCbuIban}
+      bankCbuIbanError={bankCbuIbanError}
+      setBankCbuIbanError={setBankCbuIbanError}
+      bankTab={bankTab}
+      setBankTab={setBankTab}
+      currencyOptions={currencyOptions}
+      handleAddBank={handleAddBank}
+      isLoading={isLoading}
+    />
   );
 
   const renderCardForm = () => (
-    <View style={styles.container}>
-      {renderHeader('Agregar Metodo de Pago', () => setCurrentView('select'), true)}
-      <ScrollView style={styles.content}>
-        <Text style={styles.mainTitle}>Agregar Tarjeta.</Text>
-
-        {/* Mock Card */}
-        <View style={styles.mockCard}>
-          <View style={styles.mockCardTop}>
-            <View style={styles.chipIcon} />
-            <Text style={styles.visaText}>VISA</Text>
-          </View>
-          <Text style={styles.cardNumber}>
-            {cardNumero ? cardNumero.replace(/(\d{4})/g, '$1 ').trim() : '**** **** **** ****'}
-          </Text>
-          <View style={styles.mockCardBottom}>
-            <View>
-              <Text style={styles.cardInfoLabel}>Card Holder name</Text>
-              <Text style={styles.cardInfoValue}>{cardTitular || 'Noman Manzoor'}</Text>
-            </View>
-            <View>
-              <Text style={styles.cardInfoLabel}>Expiry Date</Text>
-              <Text style={styles.cardInfoValue}>{cardVencimiento || '02 / 30'}</Text>
-            </View>
-          </View>
-        </View>
-
-        <InputField
-          label="Numero de Tarjeta"
-          placeholder="0123 4567 8901 2345"
-          value={cardNumero}
-          onChangeText={(val: string) => {
-            setCardNumero(val);
-            if (cardNumeroError) setCardNumeroError('');
-          }}
-          keyboardType="numeric"
-          error={cardNumeroError}
-        />
-        <InputField
-          label="Nombre de Dueño de Tarjeta"
-          placeholder="Noman Manzoor"
-          value={cardTitular}
-          onChangeText={(val: string) => {
-            setCardTitular(val);
-            if (cardTitularError) setCardTitularError('');
-          }}
-          error={cardTitularError}
-        />
-        <View style={styles.row}>
-          <InputField
-            label="Fecha Vencimiento"
-            placeholder="02 / 30"
-            value={cardVencimiento}
-            onChangeText={(val: string) => {
-              setCardVencimiento(val);
-              if (cardVencimientoError) setCardVencimientoError('');
-            }}
-            error={cardVencimientoError}
-          />
-          <View style={{ width: 15 }} />
-          <InputField
-            label="CVV"
-            placeholder="892"
-            value={cardCvv}
-            onChangeText={(val: string) => {
-              setCardCvv(val);
-              if (cardCvvError) setCardCvvError('');
-            }}
-            keyboardType="numeric"
-            error={cardCvvError}
-          />
-        </View>
-      </ScrollView>
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.acceptButton} onPress={handleAddCard} disabled={isLoading}>
-          {isLoading ? (
-            <ActivityIndicator color="#001b2a" />
-          ) : (
-            <Text style={styles.acceptButtonText}>Aceptar</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </View>
+    <CreditCardForm
+      renderHeader={renderHeader}
+      onCancel={() => setCurrentView('select')}
+      cardNumero={cardNumero}
+      setCardNumero={setCardNumero}
+      cardNumeroError={cardNumeroError}
+      setCardNumeroError={setCardNumeroError}
+      cardTitular={cardTitular}
+      setCardTitular={setCardTitular}
+      cardTitularError={cardTitularError}
+      setCardTitularError={setCardTitularError}
+      cardVencimiento={cardVencimiento}
+      setCardVencimiento={setCardVencimiento}
+      cardVencimientoError={cardVencimientoError}
+      setCardVencimientoError={setCardVencimientoError}
+      cardCvv={cardCvv}
+      setCardCvv={setCardCvv}
+      cardCvvError={cardCvvError}
+      setCardCvvError={setCardCvvError}
+      handleAddCard={handleAddCard}
+      isLoading={isLoading}
+    />
   );
 
   const renderCheckForm = () => (
-    <View style={styles.container}>
-      {renderHeader('Agregar Metodo de Pago', () => setCurrentView('select'), true)}
-      <ScrollView style={styles.content}>
-        <Text style={styles.mainTitle}>Agregar Cheque Certificado.</Text>
-        <InputField
-          label="Titular"
-          placeholder="Juan Pérez"
-          value={checkTitular}
-          onChangeText={(val: string) => {
-            setCheckTitular(val);
-            if (checkTitularError) setCheckTitularError('');
-          }}
-          error={checkTitularError}
-        />
-        <InputField
-          label="Banco Emisor"
-          placeholder="Banco Nación"
-          value={checkBanco}
-          onChangeText={(val: string) => {
-            setCheckBanco(val);
-            if (checkBancoError) setCheckBancoError('');
-          }}
-          error={checkBancoError}
-        />
-        <InputField
-          label="Numero de Cheque"
-          placeholder="00045821"
-          value={checkNumero}
-          onChangeText={(val: string) => {
-            setCheckNumero(val);
-            if (checkNumeroError) setCheckNumeroError('');
-          }}
-          error={checkNumeroError}
-        />
-        <InputField
-          label="Monto Certificado"
-          placeholder="1.500.000"
-          value={checkMonto}
-          onChangeText={(val: string) => {
-            setCheckMonto(val);
-            if (checkMontoError) setCheckMontoError('');
-          }}
-          keyboardType="numeric"
-          error={checkMontoError}
-        />
-<View style={[styles.row, { zIndex: isCheckDropdownOpen || isCheckCurrencyDropdownOpen ? 1000 : 1, position: 'relative' }]}> 
-          <CountryDropdownField label="País" value={checkPais} onSelect={setCheckPais} isOpen={isCheckDropdownOpen} setIsOpen={setIsCheckDropdownOpen} />
-          <View style={{ width: 15 }} />
-          <CurrencyDropdownField
-            label="Moneda"
-            value={checkMoneda}
-            onSelect={setCheckMoneda}
-            isOpen={isCheckCurrencyDropdownOpen}
-            setIsOpen={setIsCheckCurrencyDropdownOpen}
-            options={currencyOptions}
-          />
-        </View>
-
-        {renderFileUpload('check')}
-      </ScrollView>
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.acceptButton} onPress={handleAddCheck} disabled={isLoading}>
-          {isLoading ? (
-            <ActivityIndicator color="#001b2a" />
-          ) : (
-            <Text style={styles.acceptButtonText}>Aceptar</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </View>
+    <CertifiedChequeForm
+      renderHeader={renderHeader}
+      onCancel={() => setCurrentView('select')}
+      checkTitular={checkTitular}
+      setCheckTitular={setCheckTitular}
+      checkTitularError={checkTitularError}
+      setCheckTitularError={setCheckTitularError}
+      checkBanco={checkBanco}
+      setCheckBanco={setCheckBanco}
+      checkBancoError={checkBancoError}
+      setCheckBancoError={setCheckBancoError}
+      checkNumero={checkNumero}
+      setCheckNumero={setCheckNumero}
+      checkNumeroError={checkNumeroError}
+      setCheckNumeroError={setCheckNumeroError}
+      checkMonto={checkMonto}
+      setCheckMonto={setCheckMonto}
+      checkMontoError={checkMontoError}
+      setCheckMontoError={setCheckMontoError}
+      checkPais={checkPais}
+      setCheckPais={setCheckPais}
+      isCheckDropdownOpen={isCheckDropdownOpen}
+      setIsCheckDropdownOpen={setIsCheckDropdownOpen}
+      checkMoneda={checkMoneda}
+      setCheckMoneda={setCheckMoneda}
+      isCheckCurrencyDropdownOpen={isCheckCurrencyDropdownOpen}
+      setIsCheckCurrencyDropdownOpen={setIsCheckCurrencyDropdownOpen}
+      currencyOptions={currencyOptions}
+      handleAddCheck={handleAddCheck}
+      isLoading={isLoading}
+      renderFileUpload={renderFileUpload}
+    />
   );
 
   const renderContent = () => {

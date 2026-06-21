@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { API_URL } from '../constants/api';
-import { InputField } from './ui/InputField';
+import { API_URL } from '@/constants/api';
+import { InputField } from '../ui/InputField';
 import * as ImagePicker from 'expo-image-picker';
 
 export interface RegisterData {
@@ -271,7 +271,7 @@ export function RegisterScreen({ onBack, onComplete }: Props) {
           <InputField
             label="Nombre"
             value={nombre}
-            onChangeText={(val) => {
+            onChangeText={(val: string) => {
               setNombre(val);
               if (nombreError) setNombreError('');
             }}
@@ -281,7 +281,7 @@ export function RegisterScreen({ onBack, onComplete }: Props) {
           <InputField
             label="Apellido/s"
             value={apellido}
-            onChangeText={(val) => {
+            onChangeText={(val: string) => {
               setApellido(val);
               if (apellidoError) setApellidoError('');
             }}
@@ -325,7 +325,7 @@ export function RegisterScreen({ onBack, onComplete }: Props) {
           <InputField
             label="DNI"
             value={dni}
-            onChangeText={(val) => {
+            onChangeText={(val: string) => {
               setDni(val);
               if (dniError) setDniError('');
             }}
@@ -336,7 +336,7 @@ export function RegisterScreen({ onBack, onComplete }: Props) {
           <InputField
             label="Domicilio Legal"
             value={domicilio}
-            onChangeText={(val) => {
+            onChangeText={(val: string) => {
               setDomicilio(val);
               if (domicilioError) setDomicilioError('');
             }}

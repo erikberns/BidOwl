@@ -4,7 +4,6 @@ import { SymbolView } from 'expo-symbols';
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import JoinAuctionBar from './JoinAuctionBar';
 
 export default function AppTabs() {
   return (

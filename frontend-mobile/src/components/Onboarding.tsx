@@ -9,21 +9,21 @@ const slides = [
     title: 'Todas las subastas,\nen un solo lugar',
     subtitle: 'Seguí cada puja en vivo y encontrá\noportunidades únicas antes que el resto.',
     buttonText: 'Continuar',
-    image: require('../../assets/images/onboarding1.png'),
+    image: require('@/assets/images/onboarding1.png'),
   },
   {
     id: 2,
     title: 'Publicá lo que tenés,\nnosotros hacemos el resto',
     subtitle: 'Subí tus artículos en minutos y dejá\nque compitan por el mejor precio.',
     buttonText: 'Continuar',
-    image: require('../../assets/images/onboarding2.png'),
+    image: require('@/assets/images/onboarding2.png'),
   },
   {
     id: 3,
     title: 'Cuando llega el momento,\ntu oferta decide',
     subtitle: 'Reaccioná en tiempo real, superá a otros\npostores y quedate con lo que querés.',
     buttonText: 'Comenzar',
-    image: require('../../assets/images/onboarding3.png'),
+    image: require('@/assets/images/onboarding3.png'),
     buttonColor: '#B6E64B', // The greenish-yellow in the screenshot
     buttonTextColor: '#000',
   }

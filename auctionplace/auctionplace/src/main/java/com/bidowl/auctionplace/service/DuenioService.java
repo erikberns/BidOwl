@@ -12,6 +12,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+/**
+ * Servicio de backend encargado de gestionar las operaciones asociadas a los Dueños (vendedores) en la plataforma.
+ * Administra el alta de nuevos dueños y la asignación automática de verificadores financieros y judiciales.
+ */
 @Service
 public class DuenioService {
 

@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert, ActivityIndicator, Platform, Image, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { API_URL } from '../constants/api';
+import { API_URL } from '@/constants/api';
 import { RegisterData } from './RegisterScreen';
-import { InputField } from './ui/InputField';
+import { InputField } from '../ui/InputField';
 
 // Helper to show alert on both native and web platforms
 const showAlert = (title: string, message: string, buttons?: { text: string; onPress?: () => void }[]) => {
@@ -294,7 +294,7 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
           <InputField
             label="Email"
             value={email}
-            onChangeText={(val) => {
+            onChangeText={(val: string) => {
               setEmail(val);
               if (emailError) setEmailError('');
             }}

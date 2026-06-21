@@ -16,6 +16,10 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * Servicio principal encargado de la gestión del ciclo de vida de las subastas/remates,
+ * la unión de asistentes, el flujo de lotes y el cierre automático.
+ */
 @Service
 public class SubastaService {
 

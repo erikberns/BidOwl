@@ -11,7 +11,7 @@ export const WelcomeScreen: React.FC<Props> = ({ onStart }) => {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Image 
-          source={require('../../assets/images/SplashBidOwl.png')} 
+          source={require('@/assets/images/SplashBidOwl.png')} 
           style={styles.logo} 
         />
         

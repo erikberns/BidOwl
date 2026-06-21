@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, Pressable, ActivityIndicator, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_URL } from '../constants/api';
-import { InputField } from './ui/InputField';
+import { API_URL } from '@/constants/api';
+import { InputField } from '../ui/InputField';
 
 interface Props {
   onComplete: () => void;
@@ -115,7 +115,7 @@ export function AuthScreen({ onComplete, onRegister, onLogin, onLoginSuccess, on
       {/* Top Section */}
       <View style={styles.topSection}>
         <Image
-          source={require('../../assets/images/LogoGrande.png')}
+          source={require('@/assets/images/LogoGrande.png')}
           style={styles.logo}
           resizeMode="contain"
         />
@@ -160,7 +160,7 @@ export function AuthScreen({ onComplete, onRegister, onLogin, onLoginSuccess, on
               <InputField
                 label="Email"
                 value={email}
-                onChangeText={(val) => {
+                onChangeText={(val: string) => {
                   setEmail(val);
                   if (emailError) setEmailError('');
                 }}
@@ -174,7 +174,7 @@ export function AuthScreen({ onComplete, onRegister, onLogin, onLoginSuccess, on
               <InputField
                 label="Contraseña"
                 value={password}
-                onChangeText={(val) => {
+                onChangeText={(val: string) => {
                   setPassword(val);
                   if (passwordError) setPasswordError('');
                 }}

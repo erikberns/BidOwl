@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Platform, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { API_URL } from '../constants/api';
-import { InputField } from './ui/InputField';
+import { API_URL } from '@/constants/api';
+import { InputField } from '../ui/InputField';
 
 // Helper to show alert on both native and web platforms
 const showAlert = (title: string, message: string, buttons?: { text: string; onPress?: () => void }[]) => {
@@ -229,7 +229,7 @@ export function PasswordRecoveryScreen({ onBack, onComplete }: Props) {
         <InputField
           label="Email"
           value={email}
-          onChangeText={(val) => {
+          onChangeText={(val: string) => {
             setEmail(val);
             if (emailError) setEmailError('');
           }}
@@ -304,7 +304,7 @@ export function PasswordRecoveryScreen({ onBack, onComplete }: Props) {
           <InputField
             label="Crear Contraseña"
             value={password}
-            onChangeText={(val) => {
+            onChangeText={(val: string) => {
               setPassword(val);
               if (passwordError) setPasswordError('');
             }}
@@ -323,7 +323,7 @@ export function PasswordRecoveryScreen({ onBack, onComplete }: Props) {
           <InputField
             label="Confirmar Contraseña"
             value={confirmPassword}
-            onChangeText={(val) => {
+            onChangeText={(val: string) => {
               setConfirmPassword(val);
               if (confirmPasswordError) setConfirmPasswordError('');
             }}

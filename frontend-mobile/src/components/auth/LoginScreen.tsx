@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_URL } from '../constants/api';
-import { InputField } from './ui/InputField';
+import { API_URL } from '@/constants/api';
+import { InputField } from '../ui/InputField';
 
 interface Props {
   onBack: () => void;
@@ -113,7 +113,7 @@ export function LoginScreen({ onBack, onSuccess, onForgotPassword }: Props) {
         <InputField
           label="Email"
           value={email}
-          onChangeText={(val) => {
+          onChangeText={(val: string) => {
             setEmail(val);
             if (emailError) setEmailError('');
           }}
@@ -128,7 +128,7 @@ export function LoginScreen({ onBack, onSuccess, onForgotPassword }: Props) {
         <InputField
           label="Contraseña"
           value={password}
-          onChangeText={(val) => {
+          onChangeText={(val: string) => {
             setPassword(val);
             if (passwordError) setPasswordError('');
           }}

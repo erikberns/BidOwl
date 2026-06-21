@@ -6,6 +6,10 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+/**
+ * Servicio encargado de gestionar el envío de notificaciones y tokens por correo electrónico.
+ * Implementa una simulación en consola en caso de que el servidor SMTP no esté configurado.
+ */
 @Service
 public class EmailService {
 

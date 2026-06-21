@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_URL } from '../constants/api';
-import { InputField } from './ui/InputField';
+import { API_URL } from '@/constants/api';
+import { InputField } from '../ui/InputField';
 
 interface Props {
   userId?: number;
@@ -140,7 +140,7 @@ export function PasswordScreen({ userId, onBack, onComplete, isEditing = false }
           <InputField
             label={isEditing ? 'Nueva Contraseña' : 'Crear Contraseña'}
             value={password}
-            onChangeText={(val) => {
+            onChangeText={(val: string) => {
               setPassword(val);
               if (passwordError) setPasswordError('');
             }}
@@ -158,7 +158,7 @@ export function PasswordScreen({ userId, onBack, onComplete, isEditing = false }
           <InputField
             label="Confirmar Contraseña"
             value={confirmPassword}
-            onChangeText={(val) => {
+            onChangeText={(val: string) => {
               setConfirmPassword(val);
               if (confirmPasswordError) setConfirmPasswordError('');
             }}

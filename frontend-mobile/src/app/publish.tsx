@@ -16,8 +16,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import * as ImagePicker from 'expo-image-picker';
 import { API_URL } from '@/constants/api';
 
@@ -295,7 +293,7 @@ export default function PublishScreen() {
           >
             <Text style={styles.backButtonText}>‹</Text>
           </TouchableOpacity>
-          <ThemedText style={styles.headerTitle}>Solicitar Subasta de Articulo</ThemedText>
+          <Text style={styles.headerTitle}>Solicitar Subasta de Articulo</Text>
           <View style={styles.backButtonPlaceholder} />
         </View>
 
@@ -335,7 +333,7 @@ export default function PublishScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Text style={styles.backButtonText}>‹</Text>
           </TouchableOpacity>
-          <ThemedText style={styles.headerTitle}>Solicitar Subasta de Articulo</ThemedText>
+          <Text style={styles.headerTitle}>Solicitar Subasta de Articulo</Text>
           <View style={styles.backButtonPlaceholder} />
         </View>
 
@@ -369,7 +367,7 @@ export default function PublishScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Text style={styles.backButtonText}>‹</Text>
         </TouchableOpacity>
-        <ThemedText style={styles.headerTitle}>Solicitar Subasta de Articulo</ThemedText>
+        <Text style={styles.headerTitle}>Solicitar Subasta de Articulo</Text>
         <View style={styles.backButtonPlaceholder} />
       </View>
 
@@ -380,17 +378,17 @@ export default function PublishScreen() {
       >
         {/* Main Title Section */}
         <View style={styles.titleSection}>
-          <ThemedText style={styles.mainTitle}>Cuentanos sobre su Articulo</ThemedText>
-          <ThemedText style={styles.mainSubtitle}>
+          <Text style={styles.mainTitle}>Cuentanos sobre su Articulo</Text>
+          <Text style={styles.mainSubtitle}>
             Describe características, estado y cualidad relevante para atraer mejores ofertas
-          </ThemedText>
+          </Text>
         </View>
         {/* Images Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <ThemedText style={styles.sectionTitle}>
+            <Text style={styles.sectionTitle}>
               Imagenes del Articulo (Minimo 6 imagenes)
-            </ThemedText>
+            </Text>
             <View style={styles.infoIcon}>
               <Text style={styles.infoIconText}>ⓘ</Text>
             </View>
@@ -569,12 +567,12 @@ export default function PublishScreen() {
               {isBelonging && <Text style={styles.checkmark}>✓</Text>}
             </View>
             <View style={styles.checkboxContent}>
-              <ThemedText style={styles.checkboxLabel}>
+              <Text style={styles.checkboxLabel}>
                 Éste bien me pertenece
-              </ThemedText>
-              <ThemedText style={styles.checkboxDisclaimer}>
+              </Text>
+              <Text style={styles.checkboxDisclaimer}>
                 Declaro que el bien a subastar mi pertenencia y no poseen ningún impedimiento para subastarlo.
-              </ThemedText>
+              </Text>
             </View>
           </Pressable>
           {!!isBelongingError && <Text style={[styles.errorText, { marginTop: 0, marginBottom: 0 }]}>{isBelongingError}</Text>}

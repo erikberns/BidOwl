@@ -9,7 +9,11 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
+/**
+ * Servicio que administra las operaciones del catálogo de productos y artículos validados.
+ * Permite buscar productos disponibles, administrar el inventario de dueños específicos,
+ * y gestionar la disponibilidad y los seguros vinculados a los artículos.
+ */
 @Service
 public class ProductoService {
 

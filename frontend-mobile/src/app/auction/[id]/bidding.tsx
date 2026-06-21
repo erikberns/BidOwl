@@ -9,6 +9,8 @@ import { useIsFocused } from '@react-navigation/native';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { MOCK_AUCTIONS, MOCK_AUCTION_ITEMS } from '@/constants/mockData';
 import { API_URL } from '@/constants/api';
+import { BiddingWizardModal } from '@/components/auction/BiddingWizardModal';
+import { ImageCarouselModal } from '@/components/auction/ImageCarouselModal';
 
 const { width } = Dimensions.get('window');
 
@@ -857,230 +859,31 @@ export default function BiddingScreen() {
       </View>
 
       {/* Multi-step Bidding Wizard Modal */}
-      <Modal
+      <BiddingWizardModal
         visible={bidStep !== null}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setBidStep(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          {bidStep === 'input' && (
-            <View style={styles.modalContent}>
-              {/* Header */}
-              <View style={styles.modalHeader}>
-                <TouchableOpacity onPress={() => setBidStep(null)} style={styles.modalCloseButton}>
-                  <Text style={styles.modalCloseText}>✕</Text>
-                </TouchableOpacity>
-                <Text style={styles.modalTitle}>Realizar Puja</Text>
-                <View style={styles.modalHeaderPlaceholder} />
-              </View>
-
-              {/* Body */}
-              <View style={styles.modalBody}>
-                {minBid !== null && maxBid !== null && (
-                  <>
-                    <Text style={styles.restrictionsTitle}>Restricción de Categoria</Text>
-                    <View style={styles.restrictionsRow}>
-                      <TouchableOpacity 
-                        style={styles.restrictionBox}
-                        activeOpacity={0.7}
-                        onPress={() => {
-                          const numericValue = Math.round(minBid).toString();
-                          const formatted = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-                          setBidValue(formatted);
-                        }}
-                      >
-                        <Text style={styles.restrictionLabel}>Puja Minima</Text>
-                        <Text style={styles.restrictionAmount}>{formatPrice(minBid)}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity 
-                        style={styles.restrictionBox}
-                        activeOpacity={0.7}
-                        onPress={() => {
-                          const numericValue = Math.round(maxBid).toString();
-                          const formatted = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-                          setBidValue(formatted);
-                        }}
-                      >
-                        <Text style={styles.restrictionLabel}>Puja Maxima</Text>
-                        <Text style={styles.restrictionAmount}>{formatPrice(maxBid)}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </>
-                )}
-
-                <Text style={styles.modalLabel}>Ingrese su Monto a Pujar</Text>
-                
-                <View style={styles.inputWrapper}>
-                  <TextInput
-                    style={[styles.textInput, { outlineStyle: 'none' } as any]}
-                    value={bidValue}
-                    onChangeText={handleBidValueChange}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#666"
-                    underlineColorAndroid="transparent"
-                  />
-                  <Text style={styles.currencySuffix}>ARS</Text>
-                </View>
-
-                <TouchableOpacity 
-                  style={styles.modalEnterButton}
-                  onPress={() => setBidStep('confirm')}
-                >
-                  <Text style={styles.modalEnterButtonText}>¡Pujar!</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {bidStep === 'confirm' && (
-            <View style={styles.modalContent}>
-              {/* Header */}
-              <View style={styles.modalHeader}>
-                <TouchableOpacity onPress={() => setBidStep('input')} style={styles.modalCloseButton}>
-                  <SymbolView
-                    tintColor="#051C2C"
-                    // @ts-ignore
-                    name={{ ios: 'chevron.left', android: 'chevron_left', web: 'chevron_left' }}
-                    size={20}
-                  />
-                </TouchableOpacity>
-                <Text style={styles.modalTitle}>Confirmar Puja</Text>
-                <View style={styles.modalHeaderPlaceholder} />
-              </View>
-
-              {/* Body */}
-              <View style={styles.modalBody}>
-                <Text style={styles.modalLabel}>¿Usted desea pujar?</Text>
-                <Text style={styles.confirmPrice}>{formatPrice(bidValue)}</Text>
-
-                <TouchableOpacity 
-                  style={styles.modalEnterButton}
-                  onPress={handleConfirmBid}
-                >
-                  <Text style={styles.modalEnterButtonText}>Deseo Pujar Ese Monto</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {bidStep === 'success' && (
-            <View style={styles.modalContent}>
-              {/* Header */}
-              <View style={styles.modalHeader}>
-                <TouchableOpacity onPress={() => setBidStep(null)} style={styles.modalCloseButton}>
-                  <Text style={styles.modalCloseText}>✕</Text>
-                </TouchableOpacity>
-                <Text style={styles.modalTitle}>Confirmar Puja</Text>
-                <View style={styles.modalHeaderPlaceholder} />
-              </View>
-
-              {/* Body */}
-              <View style={styles.modalBody}>
-                <View style={styles.successIconCircle}>
-                  <Text style={styles.successCheckMark}>✓</Text>
-                </View>
-
-                <Text style={styles.successText}>Su puja se ha realizado exitosamente.</Text>
-
-                <TouchableOpacity 
-                  style={styles.modalEnterButton}
-                  onPress={() => setBidStep(null)}
-                >
-                  <Text style={styles.modalEnterButtonText}>¡Genial!</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {bidStep === 'error' && (
-            <View style={styles.modalContent}>
-              {/* Header */}
-              <View style={styles.modalHeader}>
-                <TouchableOpacity onPress={() => setBidStep(null)} style={styles.modalCloseButton}>
-                  <Text style={styles.modalCloseText}>✕</Text>
-                </TouchableOpacity>
-                <Text style={styles.modalTitle}>{errorTitle || 'Error al Ofertar'}</Text>
-                <View style={styles.modalHeaderPlaceholder} />
-              </View>
-
-              {/* Body */}
-              <View style={styles.modalBody}>
-                <View style={styles.errorIconCircle}>
-                  <Text style={styles.errorXMark}>✕</Text>
-                </View>
-
-                <Text style={styles.errorModalText}>{errorMessage || 'No se pudo realizar la puja.'}</Text>
-
-                <TouchableOpacity 
-                  style={styles.modalErrorCloseButton}
-                  onPress={() => setBidStep(null)}
-                >
-                  <Text style={styles.modalErrorCloseButtonText}>Entendido</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-        </View>
-      </Modal>
+        bidStep={bidStep}
+        setBidStep={setBidStep}
+        minBid={minBid}
+        maxBid={maxBid}
+        bidValue={bidValue}
+        handleBidValueChange={handleBidValueChange}
+        setBidValue={setBidValue}
+        handleConfirmBid={handleConfirmBid}
+        errorMessage={errorMessage}
+        errorTitle={errorTitle}
+        formatPrice={formatPrice}
+      />
 
       {/* Image Viewer / Carousel Modal */}
-      <Modal
+      <ImageCarouselModal
         visible={isPhotoModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setIsPhotoModalVisible(false)}
-      >
-        <View style={styles.modalCarouselBackdrop}>
-          {/* Close button */}
-          <TouchableOpacity 
-            style={styles.modalCarouselCloseButton} 
-            onPress={() => setIsPhotoModalVisible(false)}
-          >
-            <Text style={styles.modalCarouselCloseText}>✕</Text>
-          </TouchableOpacity>
-
-          {loadingPhotos ? (
-            <ActivityIndicator size="large" color="#fff" />
-          ) : (
-            <>
-              {/* Swipeable Horizontal ScrollView */}
-              <ScrollView
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                onScroll={(event) => {
-                  const offset = event.nativeEvent.contentOffset.x;
-                  const index = Math.round(offset / windowWidth);
-                  if (!isNaN(index)) {
-                    setPhotoIndex(Math.max(0, Math.min(index, itemPhotos.length - 1)));
-                  }
-                }}
-                scrollEventThrottle={16}
-                style={[styles.modalCarouselScroll, { width: windowWidth }]}
-              >
-                {itemPhotos.map((img, index) => (
-                  <View key={index} style={[styles.modalCarouselSlide, { width: windowWidth }]}>
-                    <Image 
-                      source={typeof img === 'string' ? { uri: img } : img} 
-                      style={[styles.modalCarouselImage, { width: windowWidth * 0.95 }]} 
-                      resizeMode="contain" 
-                    />
-                  </View>
-                ))}
-              </ScrollView>
-
-              {/* Page Indicator */}
-              <View style={styles.modalCarouselIndicator}>
-                <Text style={styles.modalCarouselIndicatorText}>
-                  {photoIndex + 1} / {itemPhotos.length}
-                </Text>
-              </View>
-            </>
-          )}
-        </View>
-      </Modal>
+        onClose={() => setIsPhotoModalVisible(false)}
+        loading={loadingPhotos}
+        images={itemPhotos}
+        imageIndex={photoIndex}
+        setImageIndex={setPhotoIndex}
+        windowWidth={windowWidth}
+      />
     </SafeAreaView>
   );
 }
@@ -1398,120 +1201,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 2,
   },
-  // Modal Styles
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 24,
-    width: '90%',
-    maxWidth: 360,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 5,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  modalCloseButton: {
-    padding: 4,
-  },
-  modalCloseText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#051C2C',
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#051C2C',
-    textAlign: 'center',
-  },
-  modalHeaderPlaceholder: {
-    width: 24,
-  },
-  modalBody: {
-    width: '100%',
-    alignItems: 'center',
-  },
-  modalLabel: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#051C2C',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  textInput: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#2E9F64',
-    textAlign: 'center',
-    padding: 0,
-    marginRight: 6,
-  },
-  currencySuffix: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#2E9F64',
-  },
-  confirmPrice: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: '#2E9F64',
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  successIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 3,
-    borderColor: '#2E9F64',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  successCheckMark: {
-    color: '#2E9F64',
-    fontSize: 32,
-    fontWeight: 'bold',
-  },
-  successText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#051C2C',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
-  },
-  modalEnterButton: {
-    backgroundColor: '#BEE757', // Lime yellow
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    width: '100%',
-  },
-  modalEnterButtonText: {
-    color: '#051C2C',
-    fontSize: 16,
-    fontWeight: '800',
-  },
   soldBadgeContainer: {
     backgroundColor: '#FFF2F2',
     borderColor: '#FFAEAE',
@@ -1529,123 +1218,5 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.5,
   },
-  errorIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 3,
-    borderColor: '#D32F2F',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  errorXMark: {
-    color: '#D32F2F',
-    fontSize: 32,
-    fontWeight: 'bold',
-  },
-  errorModalText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#051C2C',
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
-    paddingHorizontal: 12,
-  },
-  modalErrorCloseButton: {
-    backgroundColor: '#051C2C',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    width: '100%',
-  },
-  modalErrorCloseButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  modalCarouselBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.95)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalCarouselCloseButton: {
-    position: 'absolute',
-    top: 48,
-    right: 24,
-    zIndex: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalCarouselCloseText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  modalCarouselScroll: {
-    flex: 1,
-    width: '100%',
-  },
-  modalCarouselSlide: {
-    width: width,
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalCarouselImage: {
-    width: width * 0.95,
-    height: '80%',
-  },
-  modalCarouselIndicator: {
-    position: 'absolute',
-    bottom: 48,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  modalCarouselIndicatorText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  restrictionsTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#051C2C',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  restrictionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginBottom: 24,
-    gap: 12,
-  },
-  restrictionBox: {
-    flex: 1,
-    backgroundColor: '#051C2C',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    alignItems: 'center',
-  },
-  restrictionLabel: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  restrictionAmount: {
-    color: '#BEE757', // Lime green
-    fontSize: 14,
-    fontWeight: '700',
-  },
+
 });

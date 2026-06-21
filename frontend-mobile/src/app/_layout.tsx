@@ -5,20 +5,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppTabs from '@/components/app-tabs';
 import { Onboarding } from '@/components/Onboarding';
 import { API_URL } from '@/constants/api';
-import { AuthScreen } from '@/components/AuthScreen';
-import { RegisterScreen, RegisterData } from '@/components/RegisterScreen';
-import { EmailConfirmationScreen } from '@/components/EmailConfirmationScreen';
-import { PasswordScreen } from '@/components/PasswordScreen';
-import { PaymentMethodsScreen } from '@/components/PaymentMethodsScreen';
-import { CategoryGrantedScreen } from '@/components/CategoryGrantedScreen';
+import { AuthScreen } from '@/components/auth/AuthScreen';
+import { RegisterScreen, RegisterData } from '@/components/auth/RegisterScreen';
+import { EmailConfirmationScreen } from '@/components/auth/EmailConfirmationScreen';
+import { PasswordScreen } from '@/components/auth/PasswordScreen';
+import { PaymentMethodsScreen } from '@/components/payment/PaymentMethodsScreen';
+import { CategoryGrantedScreen } from '@/components/auth/CategoryGrantedScreen';
 import { WelcomeScreen } from '@/components/WelcomeScreen';
-import { LoginScreen } from '@/components/LoginScreen';
-import { ProfilePhotoScreen } from '@/components/ProfilePhotoScreen';
-import { PasswordRecoveryScreen } from '@/components/PasswordRecoveryScreen';
+import { LoginScreen } from '@/components/auth/LoginScreen';
+import { ProfilePhotoScreen } from '@/components/auth/ProfilePhotoScreen';
+import { PasswordRecoveryScreen } from '@/components/auth/PasswordRecoveryScreen';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -372,12 +371,7 @@ export default function TabLayout() {
       );
     }
 
-    return (
-      <>
-        <AnimatedSplashOverlay />
-        <AppTabs />
-      </>
-    );
+    return <AppTabs />;
   };
 
   return (

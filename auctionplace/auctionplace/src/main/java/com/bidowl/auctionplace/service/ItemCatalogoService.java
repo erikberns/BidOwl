@@ -7,7 +7,11 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
-
+/**
+ * Servicio encargado de gestionar los artículos individuales que pertenecen a un catálogo.
+ * Controla el proceso de finalización de subastas por ítem, determina ganadores basándose en ofertas máximas,
+ * transfiere propiedad a compradores y ejecuta la auto-compra por parte de la empresa si no hay pujas.
+ */
 @Service
 public class ItemCatalogoService {
 

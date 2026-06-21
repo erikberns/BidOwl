@@ -7,7 +7,11 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
-
+/**
+ * Servicio encargado de gestionar las ofertas y pujas de los participantes durante una subasta activa.
+ * Controla que el importe ofertado sea válido respecto al precio base o a la oferta anterior,
+ * y aplica reglas de incrementos mínimos y máximos según la categoría de la subasta.
+ */
 @Service
 public class PujoService {
 

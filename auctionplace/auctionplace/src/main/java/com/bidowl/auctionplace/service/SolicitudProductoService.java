@@ -14,7 +14,11 @@ import java.util.stream.Collectors;
 import org.springframework.jdbc.core.JdbcTemplate;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-
+/**
+ * Servicio encargado de gestionar las solicitudes de artículos publicadas por los clientes.
+ * Administra el proceso de revisión inicial, carga de fotos, aceptación de términos de envío,
+ * emisión automática de pólizas de seguro al aceptar propuestas, y la aceptación/rechazo de propuestas comerciales.
+ */
 @Service
 public class SolicitudProductoService {
 

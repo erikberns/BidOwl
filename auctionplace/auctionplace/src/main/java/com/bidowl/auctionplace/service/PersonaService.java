@@ -11,7 +11,11 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.transaction.annotation.Transactional;
-
+/**
+ * Servicio encargado de gestionar el ciclo de vida de los usuarios (Persona, Cliente, Empleado, Dueño) en la plataforma.
+ * Administra el proceso de registro multifase (Paso 1: Datos y DNI, Paso 2: Contraseña definitiva), el inicio de sesión,
+ * la aprobación o rechazo de solicitudes de registro, y la registración y eliminación de métodos de pago (Tarjetas, Cuentas, Cheques).
+ */
 @Service
 @Transactional
 public class PersonaService implements PersonaServiceInterface {

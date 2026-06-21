@@ -7,9 +7,9 @@ import { useIsFocused } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
-import { PaymentMethodsScreen } from '@/components/PaymentMethodsScreen';
+import { PaymentMethodsScreen } from '@/components/payment/PaymentMethodsScreen';
 import { API_URL } from '@/constants/api';
-import { PasswordScreen } from '@/components/PasswordScreen';
+import { PasswordScreen } from '@/components/auth/PasswordScreen';
 
 export default function ProfileScreen() {
   const router = useRouter();
