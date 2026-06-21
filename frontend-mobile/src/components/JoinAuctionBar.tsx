@@ -536,13 +536,16 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   selectorLeftRow: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    marginRight: 8,
   },
   cardIcon: {
     marginRight: 12,
   },
   selectorText: {
+    flex: 1,
     fontSize: 13,
     fontWeight: '600',
     color: '#666',
@@ -577,6 +580,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F0F0F0',
   },
   dropdownOptionText: {
+    flex: 1,
     fontSize: 13,
     fontWeight: '600',
     color: '#333',

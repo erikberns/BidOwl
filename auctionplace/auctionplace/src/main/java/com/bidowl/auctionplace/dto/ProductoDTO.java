@@ -22,4 +22,7 @@ public class ProductoDTO {
     private String seguroNumeroPoliza;
     private String nombre;
     private String descripcion;
+    private Boolean esArteODisenador;
+    private String nombreCreador;
+    private String historia;
 }

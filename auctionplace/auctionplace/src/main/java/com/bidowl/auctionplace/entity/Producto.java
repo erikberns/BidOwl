@@ -48,4 +48,13 @@ public class Producto {
 
     @Column(table = "productos_datos_adicionales", name = "descripcion", columnDefinition = "TEXT")
     private String descripcion;
+
+    @Column(table = "productos_datos_adicionales", name = "esArteODisenador")
+    private Boolean esArteODisenador;
+
+    @Column(table = "productos_datos_adicionales", name = "nombreCreador", length = 250)
+    private String nombreCreador;
+
+    @Column(table = "productos_datos_adicionales", name = "historia", columnDefinition = "TEXT")
+    private String historia;
 }

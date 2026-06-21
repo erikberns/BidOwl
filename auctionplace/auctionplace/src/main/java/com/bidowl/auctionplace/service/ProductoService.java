@@ -105,6 +105,19 @@ public class ProductoService {
         producto.setRevisor(revisor.get());
         producto.setDuenio(duenio.get());
 
+        producto.setNombre(productoDTO.getNombre());
+        producto.setDescripcion(productoDTO.getDescripcion());
+
+        if (Boolean.TRUE.equals(productoDTO.getEsArteODisenador())) {
+            producto.setEsArteODisenador(true);
+            producto.setNombreCreador(productoDTO.getNombreCreador());
+            producto.setHistoria(productoDTO.getHistoria());
+        } else {
+            producto.setEsArteODisenador(null);
+            producto.setNombreCreador(null);
+            producto.setHistoria(null);
+        }
+
         // Asignar seguro si existe
         if (productoDTO.getSeguroNumeroPoliza() != null && !productoDTO.getSeguroNumeroPoliza().isEmpty()) {
             Optional<Seguro> seguro = seguroRepository.findById(productoDTO.getSeguroNumeroPoliza());
@@ -140,6 +153,30 @@ public class ProductoService {
         }
         if (productoDTO.getDescripcionCompleta() != null) {
             producto.setDescripcionCompleta(productoDTO.getDescripcionCompleta());
+        }
+        if (productoDTO.getNombre() != null) {
+            producto.setNombre(productoDTO.getNombre());
+        }
+        if (productoDTO.getDescripcion() != null) {
+            producto.setDescripcion(productoDTO.getDescripcion());
+        }
+        if (productoDTO.getEsArteODisenador() != null) {
+            if (Boolean.TRUE.equals(productoDTO.getEsArteODisenador())) {
+                producto.setEsArteODisenador(true);
+                producto.setNombreCreador(productoDTO.getNombreCreador());
+                producto.setHistoria(productoDTO.getHistoria());
+            } else {
+                producto.setEsArteODisenador(null);
+                producto.setNombreCreador(null);
+                producto.setHistoria(null);
+            }
+        } else {
+            if (productoDTO.getNombreCreador() != null) {
+                producto.setNombreCreador(productoDTO.getNombreCreador());
+            }
+            if (productoDTO.getHistoria() != null) {
+                producto.setHistoria(productoDTO.getHistoria());
+            }
         }
 
         // Actualizar revisor si se proporciona
@@ -219,12 +256,22 @@ public class ProductoService {
      * Marca un producto como no disponible
      */
     public ProductoDTO marcarComoNoDisponible(Integer id) throws Exception {
+        return marcarComoNoDisponible(id, null);
+    }
+
+    /**
+     * Marca un producto como no disponible y guarda la descripción o motivo de rechazo
+     */
+    public ProductoDTO marcarComoNoDisponible(Integer id, String descripcionCatalogo) throws Exception {
         Optional<Producto> productoOptional = productoRepository.findById(id);
         if (productoOptional.isEmpty()) {
             throw new Exception("Producto no encontrado con ID: " + id);
         }
         Producto producto = productoOptional.get();
         producto.setDisponible("no");
+        if (descripcionCatalogo != null) {
+            producto.setDescripcionCatalogo(descripcionCatalogo);
+        }
         Producto actualizado = productoRepository.save(producto);
 
         if (producto.getDuenio() != null) {
@@ -269,6 +316,9 @@ public class ProductoService {
         
         dto.setNombre(producto.getNombre());
         dto.setDescripcion(producto.getDescripcion());
+        dto.setEsArteODisenador(producto.getEsArteODisenador());
+        dto.setNombreCreador(producto.getNombreCreador());
+        dto.setHistoria(producto.getHistoria());
         
         return dto;
     }

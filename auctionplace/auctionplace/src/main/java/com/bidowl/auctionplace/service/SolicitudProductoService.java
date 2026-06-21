@@ -126,6 +126,17 @@ public class SolicitudProductoService {
         // Guardar nombre y descripción en la tabla productos_datos_adicionales
         producto.setNombre(nombre);
         producto.setDescripcion(descripcion);
+
+        // Guardar atributos adicionales de obra de arte/diseñador si aplica
+        if (Boolean.TRUE.equals(esArteODisenador)) {
+            producto.setEsArteODisenador(true);
+            producto.setNombreCreador(nombreCreador);
+            producto.setHistoria(historia);
+        } else {
+            producto.setEsArteODisenador(null);
+            producto.setNombreCreador(null);
+            producto.setHistoria(null);
+        }
         
         // Seteo de descripción del catálogo por defecto ("No Posee") ya que se actualiza al aprobar
         producto.setDescripcionCatalogo("No Posee");

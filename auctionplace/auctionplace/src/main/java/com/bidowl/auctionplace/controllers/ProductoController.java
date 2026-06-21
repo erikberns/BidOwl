@@ -128,7 +128,13 @@ public class ProductoController {
             @PathVariable Integer id,
             @RequestBody(required = false) Map<String, String> body) {
         try {
-            String descripcionCatalogo = body != null ? body.get("descripcionCatalogo") : null;
+            String descripcionCatalogo = null;
+            if (body != null) {
+                descripcionCatalogo = body.get("descripcionCatalogo");
+                if (descripcionCatalogo == null) {
+                    descripcionCatalogo = body.get("motivo");
+                }
+            }
             ProductoDTO producto = productoService.marcarComoDisponible(id, descripcionCatalogo);
             return ResponseEntity.ok(producto);
         } catch (Exception e) {
@@ -141,9 +147,18 @@ public class ProductoController {
      * PATCH /api/productos/{id}/rechazar
      */
     @PatchMapping("/{id}/rechazar")
-    public ResponseEntity<?> marcarComoNoDisponible(@PathVariable Integer id) {
+    public ResponseEntity<?> marcarComoNoDisponible(
+            @PathVariable Integer id,
+            @RequestBody(required = false) Map<String, String> body) {
         try {
-            ProductoDTO producto = productoService.marcarComoNoDisponible(id);
+            String descripcionCatalogo = null;
+            if (body != null) {
+                descripcionCatalogo = body.get("descripcionCatalogo");
+                if (descripcionCatalogo == null) {
+                    descripcionCatalogo = body.get("motivo");
+                }
+            }
+            ProductoDTO producto = productoService.marcarComoNoDisponible(id, descripcionCatalogo);
             return ResponseEntity.ok(producto);
         } catch (Exception e) {
             return crearRespuestaError(e.getMessage(), HttpStatus.NOT_FOUND);

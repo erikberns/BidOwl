@@ -843,6 +843,10 @@ public class SubastaService {
             Catalogo catalogo = catalogoRepository.findById(request.getCatalogoId())
                     .orElseThrow(() -> new java.util.NoSuchElementException("Catálogo no encontrado con ID: " + request.getCatalogoId()));
             
+            if (catalogo.getSubasta() != null) {
+                throw new IllegalStateException("El catálogo ya se encuentra vinculado a otra subasta.");
+            }
+            
             catalogo.setSubasta(subastaGuardada);
             catalogoRepository.save(catalogo);
 
