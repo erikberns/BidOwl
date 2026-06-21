@@ -51,11 +51,8 @@ export default function InboxScreen() {
   const [showProposalRejected, setShowProposalRejected] = React.useState(false);
   
   // Payment Methods Data
-  const [paymentMethods, setPaymentMethods] = React.useState<any[]>([
-    { id: 'pm_1', type: 'card', name: 'VISA **** **** **** 2345' },
-    { id: 'pm_2', type: 'bank', name: 'Cuenta Bancaria Galicia' },
-  ]);
-  const [selectedPayment, setSelectedPayment] = React.useState('pm_1');
+  const [paymentMethods, setPaymentMethods] = React.useState<any[]>([]);
+  const [selectedPayment, setSelectedPayment] = React.useState('');
 
   const [selectedLocation, setSelectedLocation] = React.useState({
     latitude: -34.6037, // Default a Buenos Aires
@@ -385,7 +382,7 @@ export default function InboxScreen() {
             <Text
               style={[styles.tabText, activeTab === 'miSubasta' && styles.tabTextActive]}
             >
-              Mi Subasta
+              Mis Artículos
             </Text>
           </TouchableOpacity>
 
@@ -423,8 +420,8 @@ export default function InboxScreen() {
                   name={{ ios: 'gavel', android: 'gavel', web: 'gavel' }}
                   size={48}
                 />
-                <Text style={styles.emptyTitle}>Sin subastas publicadas</Text>
-                <Text style={styles.emptySubtitle}>Publica tu primera subasta</Text>
+                <Text style={styles.emptyTitle}>Sin artículos en subasta</Text>
+                <Text style={styles.emptySubtitle}>Tus artículos en subasta aparecerán aquí</Text>
               </View>
             )}
           </View>
@@ -651,29 +648,39 @@ export default function InboxScreen() {
             <Text style={styles.offerTitle}>Seleccione donde se{'\n'}depositara la comisión.</Text>
             
             <View style={styles.paymentOptionsContainer}>
-              {paymentMethods.map(method => (
-                <TouchableOpacity 
-                  key={method.id}
-                  style={[styles.paymentOption, selectedPayment === method.id && styles.paymentOptionSelected]} 
-                  onPress={() => setSelectedPayment(method.id)}
-                >
-                  <View style={styles.paymentOptionLeft}>
-                    {method.type === 'card' ? (
-                      // @ts-ignore
-                      <SymbolView name={{ ios: 'creditcard', android: 'credit_card', web: 'credit_card' }} size={24} tintColor="#051C2C" style={styles.paymentIcon} />
-                    ) : null}
-                    <Text style={[styles.paymentOptionText, method.type !== 'card' && { marginLeft: 0 }]}>{method.name}</Text>
-                  </View>
-                  <View style={[styles.radioCircle, selectedPayment === method.id && styles.radioCircleSelected]}>
-                    {selectedPayment === method.id && <View style={styles.radioInnerCircle} />}
-                  </View>
-                </TouchableOpacity>
-              ))}
+              {paymentMethods.length > 0 ? (
+                paymentMethods.map(method => (
+                  <TouchableOpacity 
+                    key={method.id}
+                    style={[styles.paymentOption, selectedPayment === method.id && styles.paymentOptionSelected]} 
+                    onPress={() => setSelectedPayment(method.id)}
+                  >
+                    <View style={styles.paymentOptionLeft}>
+                      {method.type === 'card' ? (
+                        // @ts-ignore
+                        <SymbolView name={{ ios: 'creditcard', android: 'credit_card', web: 'credit_card' }} size={24} tintColor="#051C2C" style={styles.paymentIcon} />
+                      ) : null}
+                      <Text style={[styles.paymentOptionText, method.type !== 'card' && { marginLeft: 0 }]}>{method.name}</Text>
+                    </View>
+                    <View style={[styles.radioCircle, selectedPayment === method.id && styles.radioCircleSelected]}>
+                      {selectedPayment === method.id && <View style={styles.radioInnerCircle} />}
+                    </View>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={styles.noPaymentContainer}>
+                  <Text style={styles.noPaymentText}>No posee tarjetas o cuentas bancarias registradas en su perfil.</Text>
+                  <Text style={styles.noPaymentSubtext}>Debe registrar al menos un método de pago válido para poder continuar.</Text>
+                </View>
+              )}
             </View>
           </ScrollView>
           
           <View style={styles.offerFooter}>
-            <TouchableOpacity style={[styles.shippingButton, { flex: 1 }]} onPress={async () => {
+            <TouchableOpacity 
+              style={[styles.shippingButton, { flex: 1 }, (!selectedPayment || paymentMethods.length === 0) && { backgroundColor: '#ccc' }]} 
+              disabled={!selectedPayment || paymentMethods.length === 0}
+              onPress={async () => {
               if (selectedRequestId) {
                 try {
                   const response = await fetch(`${API_URL}/solicitudes-items/${selectedRequestId}/propuesta/aceptar`, {
@@ -852,9 +859,6 @@ export default function InboxScreen() {
                     {wonItemDetails?.importe ? (Number(wonItemDetails.importe).toLocaleString('es-AR') + ' AR$') : ''}
                   </Text>
                 </View>
-                <Text style={{ fontSize: 12, color: '#8A8A8A', textDecorationLine: 'underline' }}>
-                  Su puja fue la puja maxima.
-                </Text>
               </View>
             </View>
 
@@ -1678,6 +1682,29 @@ const styles = StyleSheet.create({
   },
   paymentOptionSelected: {
     borderColor: '#E5E5E5', // Keep border the same or highlight if desired
+  },
+  noPaymentContainer: {
+    backgroundColor: '#FFF2E6',
+    borderWidth: 1,
+    borderColor: '#FFA500',
+    borderRadius: 8,
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  noPaymentText: {
+    color: '#D45B00',
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  noPaymentSubtext: {
+    color: '#8A8A8A',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   paymentOptionLeft: {
     flexDirection: 'row',

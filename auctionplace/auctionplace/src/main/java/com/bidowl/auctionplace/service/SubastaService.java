@@ -58,6 +58,9 @@ public class SubastaService {
     @Autowired
     private MetodoPagoRepository metodoPagoRepository;
 
+    @Autowired
+    private FotoRepository fotoRepository;
+
     public List<Subasta> obtenerTodas() {
         return subastaRepository.findAll();
     }
@@ -97,9 +100,7 @@ public class SubastaService {
         Asistente nuevoAsistente = new Asistente();
         nuevoAsistente.setCliente(cliente);
         nuevoAsistente.setSubasta(subasta);
-        // Generar número de postor secuencial/aleatorio para la demo
-        int numeroPostor = (int) (Math.random() * 9000) + 1000;
-        nuevoAsistente.setNumeroPostor(numeroPostor);
+        nuevoAsistente.setNumeroPostor(generarNumeroPostorUnico(subasta));
 
         // Actualizar estadísticas de la persona
         cliente.setRematesAsistidos(cliente.getRematesAsistidos() + 1);
@@ -372,6 +373,11 @@ public class SubastaService {
 
         Pujo pujaSaved = pujoRepository.save(puja);
 
+        // Incrementar métrica del cliente
+        Cliente cliente = asistente.getCliente();
+        cliente.setPujasRealizadas((cliente.getPujasRealizadas() != null ? cliente.getPujasRealizadas() : 0) + 1);
+        clienteRepository.save(cliente);
+
         CrearPujaResponse respuesta = new CrearPujaResponse();
         respuesta.setExito(true);
         respuesta.setPujaActual(monto);
@@ -526,15 +532,15 @@ public class SubastaService {
     }
 
     public byte[] obtenerFotoSubastaBytes(Integer subastaId) {
-        Optional<Subasta> subastaOpt = subastaRepository.findById(subastaId);
-        if (subastaOpt.isPresent()) {
-            Subasta s = subastaOpt.get();
-            if (s.getFoto() != null && s.getFoto().length > 0) {
-                return s.getFoto();
+        Optional<Catalogo> catalogoOpt = catalogoRepository.findBySubastaIdentificador(subastaId);
+        if (catalogoOpt.isPresent()) {
+            Catalogo catalogo = catalogoOpt.get();
+            if (catalogo.getFoto() != null) {
+                return catalogo.getFoto();
             }
-            Optional<Catalogo> catalogoOpt = catalogoRepository.findBySubastaIdentificador(subastaId);
-            if (catalogoOpt.isPresent() && catalogoOpt.get().getFoto() != null) {
-                return catalogoOpt.get().getFoto();
+            List<Foto> fotos = fotoRepository.findByCatalogoId(catalogo.getIdentificador());
+            if (fotos != null && !fotos.isEmpty()) {
+                return fotos.get(0).getFoto();
             }
         }
         return null;
@@ -628,7 +634,7 @@ public class SubastaService {
                     Asistente nuevoAsistente = new Asistente();
                     nuevoAsistente.setCliente(cliente);
                     nuevoAsistente.setSubasta(subasta);
-                    nuevoAsistente.setNumeroPostor((int) (Math.random() * 10000));
+                    nuevoAsistente.setNumeroPostor(generarNumeroPostorUnico(subasta));
                     
                     cliente.setRematesAsistidos(cliente.getRematesAsistidos() + 1);
                     clienteRepository.save(cliente);
@@ -770,7 +776,21 @@ public class SubastaService {
                     base64Data = base64Data.split(",")[1];
                 }
                 byte[] decodedBytes = java.util.Base64.getDecoder().decode(base64Data.trim());
-                subasta.setFoto(decodedBytes);
+                // Guardar la foto de portada de subasta en el catálogo
+                if (request.getCatalogoId() != null) {
+                    Optional<Catalogo> catalogoOpt = catalogoRepository.findById(request.getCatalogoId());
+                    if (catalogoOpt.isPresent()) {
+                        Catalogo catalogo = catalogoOpt.get();
+                        catalogo.setFoto(decodedBytes);
+                        catalogoRepository.save(catalogo);
+
+                        // También guardar en la tabla de fotos
+                        Foto foto = new Foto();
+                        foto.setCatalogo(catalogo);
+                        foto.setFoto(decodedBytes);
+                        fotoRepository.save(foto);
+                    }
+                }
             } catch (Exception e) {
                 System.err.println("Error decodificando fotoBase64 de la subasta: " + e.getMessage());
             }
@@ -801,9 +821,45 @@ public class SubastaService {
 
     @Transactional
     public Subasta guardarFotoSubasta(Integer subastaId, byte[] fotoBytes) {
-        Subasta subasta = obtenerPorId(subastaId);
-        subasta.setFoto(fotoBytes);
-        return subastaRepository.save(subasta);
+        Optional<Catalogo> catalogoOpt = catalogoRepository.findBySubastaIdentificador(subastaId);
+        if (catalogoOpt.isPresent()) {
+            Catalogo catalogo = catalogoOpt.get();
+            catalogo.setFoto(fotoBytes);
+            catalogoRepository.save(catalogo);
+
+            // También guardar en la tabla de fotos
+            Foto foto = new Foto();
+            foto.setCatalogo(catalogo);
+            foto.setFoto(fotoBytes);
+            fotoRepository.save(foto);
+        }
+        return obtenerPorId(subastaId);
+    }
+
+    private int generarNumeroPostorUnico(Subasta subasta) {
+        int capacidad = (subasta.getCapacidadAsistentes() != null && subasta.getCapacidadAsistentes() > 0)
+                ? subasta.getCapacidadAsistentes()
+                : 100;
+
+        List<Asistente> asistentesSubasta = asistenteRepository.findBySubastaIdentificador(subasta.getIdentificador());
+        java.util.Set<Integer> numerosUsados = asistentesSubasta.stream()
+                .map(Asistente::getNumeroPostor)
+                .collect(java.util.stream.Collectors.toSet());
+
+        java.util.Random random = new java.util.Random();
+        
+        if (numerosUsados.size() >= capacidad) {
+            capacidad = capacidad * 2;
+        }
+
+        int numeroPostor;
+        int intentos = 0;
+        do {
+            numeroPostor = random.nextInt(capacidad) + 1;
+            intentos++;
+        } while (numerosUsados.contains(numeroPostor) && intentos < 1000);
+
+        return numeroPostor;
     }
 
     @Transactional

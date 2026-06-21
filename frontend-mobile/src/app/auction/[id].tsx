@@ -368,10 +368,9 @@ export default function AuctionDetailScreen() {
     ? getImageUrl(detail.imagenPortada)
     : require('@/assets/images/rolling_stone_auction.png');
 
-  // Setup list of images for the carousel (cover + items)
+  // Setup list of images for the carousel (only catalog cover image)
   const collectionImages = [
-    coverImage,
-    ...previews.map((item: any) => item.imagen ? getImageUrl(item.imagen) : require('@/assets/images/rolling_stone_auction.png'))
+    coverImage
   ];
 
   // Timer UI state configuration
@@ -424,13 +423,6 @@ export default function AuctionDetailScreen() {
             <Text style={styles.itemCountText}>{detail.cantidadTotalitems || previews.length} Articulos Totales</Text>
           </View>
           <Text style={styles.dateTimeText}>{detail.ubicacion || 'Pilar'} · {detail.fecha || '15/4/2026'} · {detail.hora || '18:30 UDT-3'}</Text>
-          {!isGuest && (
-            <>
-              <View style={{ height: 16 }} />
-              <Text style={styles.baseValueText}>{formatPrice(baseValue)}</Text>
-              <Text style={styles.baseValueLabel}>Valor Base</Text>
-            </>
-          )}
         </View>
 
         <View style={styles.divider} />

@@ -18,8 +18,12 @@ public class Foto {
     private Integer identificador;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "producto", nullable = false)
+    @JoinColumn(name = "producto", nullable = true)
     private Producto producto;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "catalogo", nullable = true)
+    private Catalogo catalogo;
 
     @Lob
     @Column(name = "foto", columnDefinition = "LONGBLOB", nullable = false)

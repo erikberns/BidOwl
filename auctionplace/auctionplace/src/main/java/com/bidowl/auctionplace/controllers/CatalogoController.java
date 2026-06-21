@@ -37,17 +37,35 @@ public class CatalogoController {
     }
 
     @PostMapping(value = "/{id}/foto", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> subirFotoCatalogo(
+    public ResponseEntity<?> subirFotosCatalogo(
             @PathVariable Integer id,
-            @RequestParam("foto") MultipartFile foto) {
+            @RequestParam("foto") MultipartFile[] fotos) {
         try {
-            if (foto == null || foto.isEmpty()) {
+            if (fotos == null || fotos.length == 0 || (fotos.length == 1 && fotos[0].isEmpty())) {
                 Map<String, Object> error = new HashMap<>();
-                error.put("error", "El archivo de foto es requerido.");
+                error.put("error", "Al menos un archivo de foto es requerido.");
                 return ResponseEntity.badRequest().body(error);
             }
-            Catalogo catalogo = catalogoService.guardarFotoCatalogo(id, foto.getBytes());
-            return ResponseEntity.ok(catalogo);
+            
+            java.util.List<byte[]> fotosBytes = new java.util.ArrayList<>();
+            for (MultipartFile file : fotos) {
+                if (!file.isEmpty()) {
+                    fotosBytes.add(file.getBytes());
+                }
+            }
+
+            if (fotosBytes.isEmpty()) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("error", "Los archivos proporcionados están vacíos.");
+                return ResponseEntity.badRequest().body(error);
+            }
+
+            catalogoService.guardarFotosCatalogo(id, fotosBytes);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("identificador", id);
+            response.put("mensaje", "Fotos subidas con éxito. Cantidad: " + fotosBytes.size());
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             Map<String, Object> error = new HashMap<>();
             error.put("error", e.getMessage());

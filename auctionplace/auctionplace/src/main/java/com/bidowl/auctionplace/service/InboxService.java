@@ -114,58 +114,34 @@ public class InboxService {
         List<MiSubastaDTO> dtos = new ArrayList<>();
         
         for (Producto p : productos) {
-            // Find if this product is in any ItemCatalogo to get lot info and subasta title
             List<ItemCatalogo> items = itemCatalogoRepository.findByProductoIdentificador(p.getIdentificador());
+            if (items.isEmpty()) {
+                continue;
+            }
+            ItemCatalogo item = items.get(0);
+            if (item.getCatalogo() == null || item.getCatalogo().getSubasta() == null) {
+                continue;
+            }
             
             MiSubastaDTO dto = new MiSubastaDTO();
             dto.setId(p.getIdentificador());
             dto.setArticuloTitle(p.getNombre());
-            dto.setUbicacion("Depósito Central BidOwl Pilar, Estantería B4");
+            dto.setSubastaTitle(item.getCatalogo().getSubasta().getTitulo());
+            dto.setUbicacion(item.getCatalogo().getSubasta().getUbicacion());
             
-            if (!items.isEmpty()) {
-                ItemCatalogo item = items.get(0);
-                
-                // Let's compute lote index dynamically:
-                List<ItemCatalogo> allItemsInCatalogo = itemCatalogoRepository.findByCatalogoIdentificador(item.getCatalogo().getIdentificador());
-                int idx = allItemsInCatalogo.indexOf(item);
-                dto.setLote(idx >= 0 ? idx + 1 : 1);
-                dto.setTotalLotes(allItemsInCatalogo.size());
-                
-                if (item.getCatalogo().getSubasta() != null) {
-                    dto.setSubastaTitle(item.getCatalogo().getSubasta().getTitulo());
-                    dto.setUbicacion(item.getCatalogo().getSubasta().getUbicacion());
-                } else {
-                    dto.setSubastaTitle("Subasta de Colección");
-                }
-                
-                // Set max bid or base price formatted
-                Optional<Pujo> pujaLider = pujoRepository.findFirstByItemIdentificadorOrderByImporteDesc(item.getIdentificador());
-                if (pujaLider.isPresent()) {
-                    dto.setPujaMaxima(NumberFormat.getCurrencyInstance(new Locale("es", "ARS")).format(pujaLider.get().getImporte()));
-                } else {
-                    dto.setPujaMaxima(NumberFormat.getCurrencyInstance(new Locale("es", "ARS")).format(item.getPrecioBase()));
-                }
+            List<ItemCatalogo> allItemsInCatalogo = itemCatalogoRepository.findByCatalogoIdentificador(item.getCatalogo().getIdentificador());
+            int idx = allItemsInCatalogo.indexOf(item);
+            dto.setLote(idx >= 0 ? idx + 1 : 1);
+            dto.setTotalLotes(allItemsInCatalogo.size());
+            
+            Optional<Pujo> pujaLider = pujoRepository.findFirstByItemIdentificadorOrderByImporteDesc(item.getIdentificador());
+            if (pujaLider.isPresent()) {
+                dto.setPujaMaxima(NumberFormat.getCurrencyInstance(new Locale("es", "ARS")).format(pujaLider.get().getImporte()));
             } else {
-                dto.setSubastaTitle("Artículo en Revisión / Sin Subasta");
-                dto.setLote(0);
-                dto.setTotalLotes(0);
-                dto.setPujaMaxima("-");
+                dto.setPujaMaxima(NumberFormat.getCurrencyInstance(new Locale("es", "ARS")).format(item.getPrecioBase()));
             }
             
             dtos.add(dto);
-        }
-        
-        // If no products found, fallback to standard mock for backward compatibility
-        if (dtos.isEmpty()) {
-            MiSubastaDTO subasta = new MiSubastaDTO();
-            subasta.setId(1);
-            subasta.setSubastaTitle("Subasta de Colección Original Rolling Stone");
-            subasta.setLote(4);
-            subasta.setTotalLotes(5);
-            subasta.setUbicacion("Depósito Central BidOwl Pilar, Estantería B4");
-            subasta.setArticuloTitle("Guitarra de Keith Richards");
-            subasta.setPujaMaxima("$1.115.000 ARS");
-            dtos.add(subasta);
         }
         
         return dtos;

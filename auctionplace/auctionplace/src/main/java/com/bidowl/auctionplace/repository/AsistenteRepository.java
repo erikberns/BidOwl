@@ -10,4 +10,5 @@ import java.util.List;
 public interface AsistenteRepository extends JpaRepository<Asistente, Integer> {
     Optional<Asistente> findByClienteIdentificadorAndSubastaIdentificador(Integer clienteId, Integer subastaId);
     List<Asistente> findByClienteIdentificador(Integer clienteId);
+    List<Asistente> findBySubastaIdentificador(Integer subastaId);
 }

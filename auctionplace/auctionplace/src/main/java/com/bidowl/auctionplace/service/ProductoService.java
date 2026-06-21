@@ -186,7 +186,7 @@ public class ProductoService {
     /**
      * Marca un producto como disponible
      */
-    public ProductoDTO marcarComoDisponible(Integer id) throws Exception {
+    public ProductoDTO marcarComoDisponible(Integer id, String descripcionCatalogo) throws Exception {
         Optional<Producto> productoOptional = productoRepository.findById(id);
         if (productoOptional.isEmpty()) {
             throw new Exception("Producto no encontrado con ID: " + id);
@@ -196,17 +196,20 @@ public class ProductoService {
         // El producto se mantiene como no disponible ("no") durante la negociación de la propuesta.
         // Solo pasará a estar disponible ("si") cuando el usuario acepte explícitamente la propuesta.
         producto.setDisponible("no");
+        if (descripcionCatalogo != null) {
+            producto.setDescripcionCatalogo(descripcionCatalogo);
+        }
         Producto actualizado = productoRepository.save(producto);
         
         if (producto.getDuenio() != null) {
             Notificacion notificacion = new Notificacion();
             notificacion.setPersonaId(producto.getDuenio().getIdentificador());
             notificacion.setTitulo("Artículo aceptado");
-            notificacion.setCuerpo("Su artículo '" + (producto.getDescripcionCompleta() != null ? producto.getDescripcionCompleta() : "ID " + producto.getIdentificador()) + "' ha pasado la inspección física.");
+            notificacion.setCuerpo("Su artículo '" + (producto.getNombre() != null ? producto.getNombre() : "ID " + producto.getIdentificador()) + "' ha pasado la inspección física.");
             notificacion.setAccion("show_inspection_result:" + producto.getIdentificador());
             notificacion.setLeida(false);
             notificacion.setFecha(java.time.LocalDateTime.now());
-            notificacionRepository.save(notificacion);
+            guardarNotificacionSiNoExiste(notificacion);
         }
 
         return convertToDTO(actualizado);
@@ -228,11 +231,11 @@ public class ProductoService {
             Notificacion notificacion = new Notificacion();
             notificacion.setPersonaId(producto.getDuenio().getIdentificador());
             notificacion.setTitulo("Artículo rechazado");
-            notificacion.setCuerpo("Su artículo '" + (producto.getDescripcionCompleta() != null ? producto.getDescripcionCompleta() : "ID " + producto.getIdentificador()) + "' ha sido marcado como no disponible.");
+            notificacion.setCuerpo("Su artículo '" + (producto.getNombre() != null ? producto.getNombre() : "ID " + producto.getIdentificador()) + "' ha sido marcado como no disponible.");
             notificacion.setAccion("show_inspection_rejected:" + producto.getIdentificador());
             notificacion.setLeida(false);
             notificacion.setFecha(java.time.LocalDateTime.now());
-            notificacionRepository.save(notificacion);
+            guardarNotificacionSiNoExiste(notificacion);
         }
 
         return convertToDTO(actualizado);
@@ -295,5 +298,15 @@ public class ProductoService {
         response.put("importe", s.getImporte());
         response.put("ubicacionDeposito", "Depósito Central BidOwl Pilar, Estantería B4");
         return response;
+    }
+
+    private void guardarNotificacionSiNoExiste(Notificacion notif) {
+        if (notif.getPersonaId() == null) return;
+        List<Notificacion> existencias = notificacionRepository.findByPersonaIdOrderByFechaDesc(notif.getPersonaId());
+        boolean yaExiste = existencias.stream()
+                .anyMatch(n -> notif.getAccion() != null && notif.getAccion().equals(n.getAccion()));
+        if (!yaExiste) {
+            notificacionRepository.save(notif);
+        }
     }
 }

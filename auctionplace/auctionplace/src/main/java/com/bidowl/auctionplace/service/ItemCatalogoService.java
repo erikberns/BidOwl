@@ -94,13 +94,23 @@ public class ItemCatalogoService {
             notificacion.setAccion("show_bid_won:" + item.getIdentificador());
             notificacion.setLeida(false);
             notificacion.setFecha(java.time.LocalDateTime.now());
-            notificacionRepository.save(notificacion);
+            guardarNotificacionSiNoExiste(notificacion);
 
             return guardado;
         } else {
             // Regla TPO: Si nadie puja por un artículo, la empresa compra el mismo por el valor base al finalizar
             item.setSubastado("si");
             return itemCatalogoRepository.save(item);
+        }
+    }
+
+    private void guardarNotificacionSiNoExiste(Notificacion notif) {
+        if (notif.getPersonaId() == null) return;
+        List<Notificacion> existencias = notificacionRepository.findByPersonaIdOrderByFechaDesc(notif.getPersonaId());
+        boolean yaExiste = existencias.stream()
+                .anyMatch(n -> notif.getAccion() != null && notif.getAccion().equals(n.getAccion()));
+        if (!yaExiste) {
+            notificacionRepository.save(notif);
         }
     }
 }

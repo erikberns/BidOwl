@@ -111,7 +111,7 @@ public class PujoService {
 
         // Incrementar métrica del cliente
         Cliente cliente = asistente.getCliente();
-        cliente.setPujasRealizadas(cliente.getPujasRealizadas() + 1);
+        cliente.setPujasRealizadas((cliente.getPujasRealizadas() != null ? cliente.getPujasRealizadas() : 0) + 1);
         clienteRepository.save(cliente);
 
         return guardada;

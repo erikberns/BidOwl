@@ -177,7 +177,9 @@ create table registroDeSubasta(
 	duenio int not null,
 	producto int not null,
 	cliente int not null,
+	-- importe representa el precio final de adjudicación/compra (monto de la puja ganadora) que el cliente debe pagar por el producto
 	importe decimal(18,2) not null constraint chkImportePagado check (importe > 0.01),
+	-- comision representa el monto de la comision calculada para la plataforma de subasta basada en el porcentaje de comision del item catalogo
 	comision decimal(18,2) not null constraint chkComisionPagada check (comision > 0.01),
 	constraint pk_registroDeSubasta primary key (identificador),
 	constraint fk_registroDeSubasta_subastas foreign key (subasta) references subastas,
@@ -260,7 +262,6 @@ create table subastas_datos_adicionales(
 	identificador int not null,
 	titulo varchar(250) not null,
 	descripcion varchar(max) null,
-	foto varbinary(max) null,
 	constraint pk_subastas_datos_adicionales primary key (identificador),
 	constraint fk_subastas_datos_adicionales_subastas foreign key (identificador) references subastas(identificador)
 )

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs, useNavigation } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useIsFocused } from '@react-navigation/native';
 
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { MOCK_AUCTIONS, MOCK_AUCTION_ITEMS } from '@/constants/mockData';
@@ -73,12 +74,14 @@ export default function BiddingScreen() {
   const { id } = useLocalSearchParams();
   const auctionIdStr = Array.isArray(id) ? id[0] : id || '1';
   const navigation = useNavigation();
+  const isFocused = useIsFocused();
 
   const [isGuest, setIsGuest] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [auctionDetail, setAuctionDetail] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isDetailsExpanded, setIsDetailsExpanded] = useState(false);
 
   // Timer Countdown State
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -285,31 +288,32 @@ export default function BiddingScreen() {
   };
 
   useEffect(() => {
+    if (!isFocused) return;
     if (currentItem && currentItem.id) {
       fetchBidsForItem(currentItem.id, currentIndex);
     }
-  }, [currentIndex, currentItem?.id]);
+  }, [currentIndex, currentItem?.id, isFocused]);
 
   useEffect(() => {
-    if (!currentItem || !currentItem.id) return;
+    if (!isFocused || !currentItem || !currentItem.id) return;
     const interval = setInterval(() => {
       fetchBidsForItem(currentItem.id, currentIndex);
     }, 4000);
     return () => clearInterval(interval);
-  }, [currentIndex, currentItem?.id]);
+  }, [currentIndex, currentItem?.id, isFocused]);
 
   // Local Lote Countdown Timer Effect
   useEffect(() => {
-    if (secondsLeft === null || secondsLeft <= 0 || isBiddingFinished) return;
+    if (!isFocused || secondsLeft === null || secondsLeft <= 0 || isBiddingFinished) return;
     const timer = setInterval(() => {
       setSecondsLeft(prev => (prev !== null && prev > 0) ? prev - 1 : 0);
     }, 1000);
     return () => clearInterval(timer);
-  }, [secondsLeft, isBiddingFinished]);
+  }, [secondsLeft, isBiddingFinished, isFocused]);
 
   // Update Countdown Timer
   useEffect(() => {
-    if (!auctionDetail || !auctionDetail.fecha) return;
+    if (!isFocused || !auctionDetail || !auctionDetail.fecha) return;
 
     const startDate = parseAuctionDateTime(auctionDetail.fecha, auctionDetail.hora);
     const endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
@@ -348,7 +352,7 @@ export default function BiddingScreen() {
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, [auctionDetail]);
+  }, [auctionDetail, isFocused]);
 
   const handleNext = () => {
     if (currentIndex < items.length - 1) {
@@ -561,10 +565,26 @@ export default function BiddingScreen() {
         {/* Details Section */}
         <View style={styles.detailsSection}>
           <Text style={styles.sectionHeading}>Detalles del Articulo</Text>
-          <Text style={styles.detailsText}>{currentItem.details}</Text>
-          <TouchableOpacity style={styles.showMoreButton}>
-            <Text style={styles.showMoreText}>Mostrar Más {'>'}</Text>
-          </TouchableOpacity>
+          <Text style={styles.detailsText}>
+            {(() => {
+              const text = currentItem.details || '';
+              const maxChars = 150;
+              if (text.length <= maxChars || isDetailsExpanded) {
+                return text;
+              }
+              return text.substring(0, maxChars) + '...';
+            })()}
+          </Text>
+          {(currentItem.details || '').length > 150 && (
+            <TouchableOpacity 
+              style={styles.showMoreButton}
+              onPress={() => setIsDetailsExpanded(!isDetailsExpanded)}
+            >
+              <Text style={styles.showMoreText}>
+                {isDetailsExpanded ? 'Mostrar Menos <' : 'Mostrar Más >'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.divider} />
@@ -574,7 +594,7 @@ export default function BiddingScreen() {
           <Text style={styles.sectionHeading}>Historial de Pujas</Text>
 
           <View style={styles.bidsList}>
-            {currentItem.bids.map((bid: any, index: number) => (
+            {currentItem.bids.slice(0, 3).map((bid: any, index: number) => (
               <View 
                 key={index} 
                 style={[

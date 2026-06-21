@@ -85,9 +85,11 @@ public class SolicitudProductoService {
             
             // Promover el cliente a dueño insertando el registro en la tabla duenios
             // Con nombres de columnas coincidentes con SQL Server y aportando el verificador por defecto (revisor 1)
+            Integer numeroPais = (personaOpt.get().getPais() != null) ? personaOpt.get().getPais().getNumero() : null;
+            int riesgo = new java.util.Random().nextInt(3) + 1; // random 1-3
             jdbcTemplate.update(
-                "INSERT INTO duenios (identificador, verificaciónFinanciera, verificaciónJudicial, calificacionRiesgo, verificador) VALUES (?, 'no', 'no', 1, 1)",
-                creadorId
+                "INSERT INTO duenios (identificador, numeroPais, verificaciónFinanciera, verificaciónJudicial, calificacionRiesgo, verificador) VALUES (?, ?, 'si', 'si', ?, 1)",
+                creadorId, numeroPais, riesgo
             );
             
             // Limpiar caché de JPA para forzar recarga de la entidad correcta
@@ -120,8 +122,18 @@ public class SolicitudProductoService {
         Producto producto = new Producto();
         producto.setFecha(fechaCreacion != null ? fechaCreacion : LocalDate.now());
         producto.setDisponible("no"); // Inicia como no disponible mientras está en revisión
-        producto.setDescripcionCatalogo(descripcion);
-        producto.setDescripcionCompleta(nombre); // Usar nombre como descripción completa
+        
+        // Guardar nombre y descripción en la tabla productos_datos_adicionales
+        producto.setNombre(nombre);
+        producto.setDescripcion(descripcion);
+        
+        // Seteo de descripción del catálogo por defecto ("No Posee") ya que se actualiza al aprobar
+        producto.setDescripcionCatalogo("No Posee");
+        
+        // Generar un URL firmado randomizado inventado
+        String pdfUrl = "https://bidowl-inspecciones.s3.amazonaws.com/certificados/firmado_" + java.util.UUID.randomUUID().toString().substring(0, 8) + ".pdf";
+        producto.setDescripcionCompleta(pdfUrl);
+        
         producto.setRevisor(revisor.get());
         producto.setDuenio(duenioOpt.get());
 
@@ -143,15 +155,15 @@ public class SolicitudProductoService {
             }
         }
 
-        // Generate notification
+        // Generate initial notification
         Notificacion notificacion = new Notificacion();
         notificacion.setPersonaId(creadorId);
-        notificacion.setTitulo("Su solicitud de artículo publicado fue revisada");
-        notificacion.setCuerpo("Su solicitud del artículo '" + nombre + "' fue revisada por nuestro equipo y está lista para el siguiente paso de inspección física.");
+        notificacion.setTitulo("Solicitud de artículo recibida");
+        notificacion.setCuerpo("Su solicitud del artículo '" + nombre + "' ha sido recibida correctamente y está en proceso de revisión inicial.");
         notificacion.setAccion("show_inspection_request:" + productoGuardado.getIdentificador());
         notificacion.setLeida(false);
         notificacion.setFecha(java.time.LocalDateTime.now());
-        notificacionRepository.save(notificacion);
+        guardarNotificacionSiNoExiste(notificacion);
 
         Map<String, Object> respuesta = new HashMap<>();
         respuesta.put("idSolicitud", productoGuardado.getIdentificador().toString());
@@ -181,7 +193,7 @@ public class SolicitudProductoService {
         return productos.stream()
                 .map(p -> new ItemActivoDTO(
                         p.getIdentificador().toString(),
-                        p.getDescripcionCompleta(),
+                        p.getNombre(),
                         p.getDisponible().equalsIgnoreCase("si") ? "EN_DEPOSITO" : "EN_REVISION",
                         "Depósito Principal",
                         p.getSeguro() != null ? p.getSeguro().getNroPoliza() : null
@@ -206,8 +218,8 @@ public class SolicitudProductoService {
         Producto p = producto.get();
         SolicitudItemDetalleDTO detalle = new SolicitudItemDetalleDTO();
         detalle.setId(p.getIdentificador().toString());
-        detalle.setNombre(p.getDescripcionCompleta());
-        detalle.setDescripcion(p.getDescripcionCatalogo());
+        detalle.setNombre(p.getNombre());
+        detalle.setDescripcion(p.getDescripcion());
         detalle.setFechaCreacion(p.getFecha());
         detalle.setUbicacionDeposito("Depósito Principal");
         
@@ -310,6 +322,9 @@ public class SolicitudProductoService {
         }
 
         PropuestaComercial prop = propuestaOpt.get();
+        if (!"PENDIENTE".equalsIgnoreCase(prop.getEstado())) {
+            throw new IllegalStateException("La propuesta comercial ya ha sido respondida (Estado: " + prop.getEstado() + ").");
+        }
         if (prop.getValorBase() == null || prop.getComision() == null) {
             throw new IllegalStateException("La propuesta comercial no posee valores asignados válidos.");
         }
@@ -335,6 +350,13 @@ public class SolicitudProductoService {
         p.setDisponible("si");
         productoRepository.save(p);
 
+        // Incrementar la métrica de artículos publicados del dueño al aceptar propuesta
+        if (p.getDuenio() != null) {
+            Persona duenioPersona = p.getDuenio();
+            duenioPersona.setArticulosPublicados((duenioPersona.getArticulosPublicados() != null ? duenioPersona.getArticulosPublicados() : 0) + 1);
+            personaRepository.save(duenioPersona);
+        }
+
         Map<String, String> respuesta = new HashMap<>();
         respuesta.put("mensaje", "Propuesta aceptada correctamente");
         respuesta.put("estado", "ACEPTADO");
@@ -354,15 +376,19 @@ public class SolicitudProductoService {
         }
 
         Producto p = producto.get();
-        p.setDisponible("no");
-        productoRepository.save(p);
 
         Optional<PropuestaComercial> propuestaOpt = propuestaComercialRepository.findByProducto(p);
         if (propuestaOpt.isPresent()) {
             PropuestaComercial prop = propuestaOpt.get();
+            if (!"PENDIENTE".equalsIgnoreCase(prop.getEstado())) {
+                throw new IllegalStateException("La propuesta comercial ya ha sido respondida (Estado: " + prop.getEstado() + ").");
+            }
             prop.setEstado("RECHAZADA");
             propuestaComercialRepository.save(prop);
         }
+
+        p.setDisponible("no");
+        productoRepository.save(p);
 
         Map<String, Object> respuesta = new HashMap<>();
         respuesta.put("mensaje", "Propuesta rechazada. Se realizará devolución del artículo");
@@ -406,11 +432,21 @@ public class SolicitudProductoService {
             Notificacion notificacion = new Notificacion();
             notificacion.setPersonaId(p.getDuenio().getIdentificador());
             notificacion.setTitulo("Su solicitud de artículo publicado fue revisada");
-            notificacion.setCuerpo("Su solicitud del artículo '" + (p.getDescripcionCompleta() != null ? p.getDescripcionCompleta() : "ID " + p.getIdentificador()) + "' fue revisada por nuestro equipo y está lista para el siguiente paso de inspección física.");
+            notificacion.setCuerpo("Su solicitud del artículo '" + (p.getNombre() != null ? p.getNombre() : "ID " + p.getIdentificador()) + "' fue revisada por nuestro equipo y está lista para el siguiente paso de inspección física.");
             notificacion.setAccion("show_inspection_result:" + p.getIdentificador());
             notificacion.setLeida(false);
             notificacion.setFecha(java.time.LocalDateTime.now());
-            notificacionRepository.save(notificacion);
+            guardarNotificacionSiNoExiste(notificacion);
+        }
+    }
+
+    private void guardarNotificacionSiNoExiste(Notificacion notif) {
+        if (notif.getPersonaId() == null) return;
+        List<Notificacion> existencias = notificacionRepository.findByPersonaIdOrderByFechaDesc(notif.getPersonaId());
+        boolean yaExiste = existencias.stream()
+                .anyMatch(n -> notif.getAccion() != null && notif.getAccion().equals(n.getAccion()));
+        if (!yaExiste) {
+            notificacionRepository.save(notif);
         }
     }
 

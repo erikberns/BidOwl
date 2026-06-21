@@ -27,6 +27,9 @@ public class CatalogoService {
     @Autowired
     private PropuestaComercialRepository propuestaComercialRepository;
 
+    @Autowired
+    private FotoRepository fotoRepository;
+
     @Transactional
     public Catalogo crearCatalogo(CatalogoCrearRequest request) {
         Empleado responsable = null;
@@ -100,14 +103,40 @@ public class CatalogoService {
 
     @Transactional
     public Catalogo guardarFotoCatalogo(Integer catalogoId, byte[] fotoBytes) {
+        guardarFotosCatalogo(catalogoId, java.util.Collections.singletonList(fotoBytes));
+        return catalogoRepository.findById(catalogoId).orElse(null);
+    }
+
+    @Transactional
+    public void guardarFotosCatalogo(Integer catalogoId, java.util.List<byte[]> fotosBytes) {
         Catalogo catalogo = catalogoRepository.findById(catalogoId)
                 .orElseThrow(() -> new java.util.NoSuchElementException("Catálogo no encontrado con ID: " + catalogoId));
-        catalogo.setFoto(fotoBytes);
-        return catalogoRepository.save(catalogo);
+        
+        for (byte[] bytes : fotosBytes) {
+            Foto foto = new Foto();
+            foto.setCatalogo(catalogo);
+            foto.setFoto(bytes);
+            fotoRepository.save(foto);
+        }
+
+        // Si la foto directa en el catálogo es nula, le asignamos la primera
+        if (catalogo.getFoto() == null && !fotosBytes.isEmpty()) {
+            catalogo.setFoto(fotosBytes.get(0));
+            catalogoRepository.save(catalogo);
+        }
     }
 
     public byte[] obtenerFotoCatalogoBytes(Integer catalogoId) {
         Optional<Catalogo> catalogo = catalogoRepository.findById(catalogoId);
-        return catalogo.map(Catalogo::getFoto).orElse(null);
+        if (catalogo.isPresent()) {
+            if (catalogo.get().getFoto() != null) {
+                return catalogo.get().getFoto();
+            }
+            java.util.List<Foto> fotos = fotoRepository.findByCatalogoId(catalogoId);
+            if (fotos != null && !fotos.isEmpty()) {
+                return fotos.get(0).getFoto();
+            }
+        }
+        return null;
     }
 }

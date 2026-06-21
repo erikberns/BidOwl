@@ -124,9 +124,12 @@ public class ProductoController {
      * PATCH /api/productos/{id}/aceptar
      */
     @PatchMapping("/{id}/aceptar")
-    public ResponseEntity<?> marcarComoDisponible(@PathVariable Integer id) {
+    public ResponseEntity<?> marcarComoDisponible(
+            @PathVariable Integer id,
+            @RequestBody(required = false) Map<String, String> body) {
         try {
-            ProductoDTO producto = productoService.marcarComoDisponible(id);
+            String descripcionCatalogo = body != null ? body.get("descripcionCatalogo") : null;
+            ProductoDTO producto = productoService.marcarComoDisponible(id, descripcionCatalogo);
             return ResponseEntity.ok(producto);
         } catch (Exception e) {
             return crearRespuestaError(e.getMessage(), HttpStatus.NOT_FOUND);

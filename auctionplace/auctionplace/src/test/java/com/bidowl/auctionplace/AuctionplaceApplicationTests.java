@@ -76,6 +76,12 @@ class AuctionplaceApplicationTests {
     @Autowired
     private EmpleadoRepository empleadoRepository;
 
+    @Autowired
+    private NotificacionRepository notificacionRepository;
+
+    @Autowired
+    private PropuestaComercialRepository propuestaComercialRepository;
+
     @Test
     void contextLoads() {
     }
@@ -349,11 +355,18 @@ class AuctionplaceApplicationTests {
         subasta.setTitulo("Subasta Test Foto");
         subasta = subastaRepository.save(subasta);
         
+        Empleado empleadoSeeded = empleadoRepository.findAll().get(0);
+
+        Catalogo catalogo = new Catalogo();
+        catalogo.setDescripcion("Catalogo Test");
+        catalogo.setSubasta(subasta);
+        catalogo.setResponsable(empleadoSeeded);
+        catalogoRepository.save(catalogo);
+        
         byte[] fotoDummy = new byte[]{1, 2, 3, 4, 5};
         Subasta subastaActualizada = subastaService.guardarFotoSubasta(subasta.getIdentificador(), fotoDummy);
         
         assertNotNull(subastaActualizada);
-        assertArrayEquals(fotoDummy, subastaActualizada.getFoto());
         
         byte[] fotoObtenida = subastaService.obtenerFotoSubastaBytes(subasta.getIdentificador());
         assertArrayEquals(fotoDummy, fotoObtenida);
@@ -381,7 +394,6 @@ class AuctionplaceApplicationTests {
         reqSubasta.setSaltarValidacionFecha(true);
         Subasta subasta = subastaService.crearSubastaConCatalogo(reqSubasta);
         
-        assertNull(subasta.getFoto());
         byte[] fotoObtenida = subastaService.obtenerFotoSubastaBytes(subasta.getIdentificador());
         assertArrayEquals(fotoCatalogo, fotoObtenida);
     }
@@ -404,5 +416,76 @@ class AuctionplaceApplicationTests {
         Subasta subastaEnDb = subastaRepository.findById(subasta.getIdentificador()).orElse(null);
         assertNotNull(subastaEnDb);
         assertEquals("abierta", subastaEnDb.getEstado());
+    }
+
+    @Test
+    @Transactional
+    void testMegaPruebaSeeder() {
+        for (int i = 1; i <= 10; i++) {
+            String email;
+            if (i == 1) {
+                email = "comprador@bidowl.com";
+            } else if (i == 2) {
+                email = "vendedor@bidowl.com";
+            } else {
+                email = "usuario_seeder_" + i + "@bidowl.com";
+            }
+            
+            // Verificamos que el cliente exista y esté admitido
+            Optional<Cliente> clienteOpt = clienteRepository.findByEmail(email);
+            assertTrue(clienteOpt.isPresent(), "El cliente seeder " + i + " debe existir");
+            Cliente cliente = clienteOpt.get();
+            assertEquals("si", cliente.getAdmitido());
+            
+            // Verificamos que sea dueño
+            Optional<Duenio> duenioOpt = duenioRepository.findById(cliente.getIdentificador());
+            assertTrue(duenioOpt.isPresent(), "El cliente seeder " + i + " debe ser dueño");
+            Duenio duenio = duenioOpt.get();
+            assertEquals("si", duenio.getVerificacionFinanciera());
+            assertEquals("si", duenio.getVerificacionJudicial());
+            
+            // Verificamos que tenga método de pago
+            List<MetodoPago> metodos = metodoPagoRepository.findByPersonaIdentificador(cliente.getIdentificador());
+            assertFalse(metodos.isEmpty(), "El cliente seeder " + i + " debe tener un método de pago");
+            assertNotNull(metodos.get(0).getTarjetaCredito(), "El método de pago debe tener una tarjeta de crédito");
+            
+            // Verificamos estadísticas
+            assertEquals(2, duenio.getArticulosPublicados(), "El dueño debe tener 2 artículos publicados");
+            
+            // Verificamos notificaciones
+            List<Notificacion> notifs = notificacionRepository.findByPersonaIdOrderByFechaDesc(duenio.getIdentificador());
+            assertTrue(notifs.size() >= 3, "El dueño debe tener al menos 3 notificaciones");
+            
+            boolean tieneRecibida = notifs.stream().anyMatch(n -> n.getTitulo().equals("Solicitud de artículo recibida"));
+            boolean tieneRevisada = notifs.stream().anyMatch(n -> n.getTitulo().equals("Su solicitud de artículo publicado fue revisada"));
+            boolean tieneAceptada = notifs.stream().anyMatch(n -> n.getTitulo().equals("Artículo aceptado"));
+            
+            assertTrue(tieneRecibida, "Debe tener notificación de recibido");
+            assertTrue(tieneRevisada, "Debe tener notificación de revisado");
+            assertTrue(tieneAceptada, "Debe tener notificación de aceptado");
+        }
+        
+        // Verificamos que existan al menos 20 productos creados por los seeders
+        List<Producto> productosSeeder = productoRepository.findAll().stream()
+            .filter(p -> p.getDuenio().getEmail().contains("usuario_seeder_")
+                      || p.getDuenio().getEmail().equals("comprador@bidowl.com")
+                      || p.getDuenio().getEmail().equals("vendedor@bidowl.com"))
+            .toList();
+        assertEquals(20, productosSeeder.size(), "Deben existir exactamente 20 productos de los seeders");
+        
+        for (Producto prod : productosSeeder) {
+            assertEquals("si", prod.getDisponible());
+            assertNotNull(prod.getSeguro());
+            assertTrue(prod.getSeguro().getNroPoliza().startsWith("POL-SEED-"));
+            
+            Optional<PropuestaComercial> propOpt = propuestaComercialRepository.findByProducto(prod);
+            assertTrue(propOpt.isPresent());
+            PropuestaComercial prop = propOpt.get();
+            assertEquals("ACEPTADA", prop.getEstado());
+            
+            // El importe del seguro debe ser 110% de la propuesta base
+            BigDecimal esperado = prop.getValorBase().multiply(BigDecimal.valueOf(1.10)).setScale(2, java.math.RoundingMode.HALF_UP);
+            assertEquals(esperado, prod.getSeguro().getImporte());
+        }
     }
 }

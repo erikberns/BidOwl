@@ -39,9 +39,15 @@ public class RegistroDeSubasta {
     @JoinColumn(table = "registro_de_subasta_datos_adicionales", name = "metodoPago", nullable = false)
     private MetodoPago metodoPago;
 
+    /**
+     * El precio final de adjudicación/compra (monto de la puja ganadora) que el cliente debe pagar por el producto.
+     */
     @Column(name = "importe", precision = 18, scale = 2, nullable = false)
     private BigDecimal importe;
 
+    /**
+     * El monto de la comisión calculada para la plataforma de subasta basada en el porcentaje de comisión del ítem sobre el importe final de la puja ganadora.
+     */
     @Column(name = "comision", precision = 18, scale = 2, nullable = false)
     private BigDecimal comision;
 }
