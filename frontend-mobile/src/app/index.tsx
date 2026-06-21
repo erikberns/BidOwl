@@ -11,6 +11,45 @@ import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { MOCK_AUCTIONS } from '@/constants/mockData';
 import { API_URL } from '@/constants/api';
 
+function parseAuctionDateTime(dateStr: string, timeStr: string): Date {
+  try {
+    if (!dateStr) return new Date();
+    const cleanDate = dateStr.replace(/\s+/g, '');
+    const cleanTime = timeStr ? timeStr.split(' ')[0].replace(/\s+/g, '') : "00:00";
+
+    const dateParts = cleanDate.split('/');
+    if (dateParts.length === 3) {
+      const day = parseInt(dateParts[0], 10);
+      const month = parseInt(dateParts[1], 10) - 1;
+      const year = parseInt(dateParts[2], 10);
+
+      const timeParts = cleanTime.split(':');
+      const hours = timeParts[0] ? parseInt(timeParts[0], 10) : 0;
+      const minutes = timeParts[1] ? parseInt(timeParts[1], 10) : 0;
+      const seconds = timeParts[2] ? parseInt(timeParts[2], 10) : 0;
+
+      return new Date(year, month, day, hours, minutes, seconds);
+    }
+
+    const isoParts = cleanDate.split('-');
+    if (isoParts.length === 3) {
+      const year = parseInt(isoParts[0], 10);
+      const month = parseInt(isoParts[1], 10) - 1;
+      const day = parseInt(isoParts[2], 10);
+
+      const timeParts = cleanTime.split(':');
+      const hours = timeParts[0] ? parseInt(timeParts[0], 10) : 0;
+      const minutes = timeParts[1] ? parseInt(timeParts[1], 10) : 0;
+      const seconds = timeParts[2] ? parseInt(timeParts[2], 10) : 0;
+
+      return new Date(year, month, day, hours, minutes, seconds);
+    }
+  } catch (e) {
+    console.error("Error parsing date-time:", e);
+  }
+  return new Date();
+}
+
 export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = React.useState('');
   const isFocused = useIsFocused();
@@ -62,6 +101,11 @@ export default function HomeScreen() {
   }, [isFocused]);
 
   const filteredAuctions = auctions.filter(item => {
+    // End subastas should not appear on the home screen
+    if (item.estado === 'finalizada' || item.estado === 'finalizadas') {
+      return false;
+    }
+
     const query = searchQuery.toLowerCase();
     const titulo = item.titulo || item.title || '';
     const categoria = item.categoria || item.category || '';
@@ -72,6 +116,22 @@ export default function HomeScreen() {
       ubicacion.toLowerCase().includes(query)
     );
   });
+
+  // Active subastas (estado === 'abierta', fallback for mock data is id === '1')
+  const activeAuctions = filteredAuctions.filter(item => 
+    item.estado === 'abierta' || (item.estado === undefined && item.id === '1')
+  );
+
+  // Upcoming subastas (estado === 'cerrada', fallback for mock data is id === '2'), sorted by remaining time to begin ascending
+  const upcomingAuctions = filteredAuctions
+    .filter(item => 
+      item.estado === 'cerrada' || (item.estado === undefined && item.id === '2')
+    )
+    .sort((a, b) => {
+      const dateA = parseAuctionDateTime(a.fecha || a.date, a.hora || a.time);
+      const dateB = parseAuctionDateTime(b.fecha || b.date, b.hora || b.time);
+      return dateA.getTime() - dateB.getTime();
+    });
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -120,7 +180,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Section 1: Subastas Activas */}
-        {filteredAuctions.length > 0 ? (
+        {activeAuctions.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Subastas Activas.</Text>
             <ScrollView
@@ -128,7 +188,7 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.horizontalScrollContent}
             >
-              {filteredAuctions.map(item => {
+              {activeAuctions.map(item => {
                 const imageSource = item.imagenPortada
                   ? { uri: API_URL.replace('/api', '') + item.imagenPortada }
                   : require('@/assets/images/rolling_stone_auction.png');
@@ -151,7 +211,7 @@ export default function HomeScreen() {
         ) : null}
 
         {/* Section 2: Subastas a Punto de Comenzar */}
-        {filteredAuctions.length > 0 ? (
+        {upcomingAuctions.length > 0 ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Subastas a Punto de Comenzar.</Text>
             <ScrollView
@@ -159,7 +219,7 @@ export default function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.horizontalScrollContent}
             >
-              {filteredAuctions.map(item => {
+              {upcomingAuctions.map(item => {
                 const imageSource = item.imagenPortada
                   ? { uri: API_URL.replace('/api', '') + item.imagenPortada }
                   : require('@/assets/images/rolling_stone_auction.png');
@@ -179,7 +239,9 @@ export default function HomeScreen() {
               })}
             </ScrollView>
           </View>
-        ) : (
+        ) : null}
+
+        {activeAuctions.length === 0 && upcomingAuctions.length === 0 && (
           <View style={styles.emptyState}>
             <SymbolView
               tintColor="#8A8A8A"

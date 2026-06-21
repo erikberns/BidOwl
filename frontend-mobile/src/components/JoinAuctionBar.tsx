@@ -171,7 +171,7 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
             const startDate = parseAuctionDateTime(detail.fecha, detail.hora);
             const endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
             const now = new Date();
-            const active = now.getTime() >= startDate.getTime() && now.getTime() < endDate.getTime();
+            const active = now.getTime() >= startDate.getTime() && now.getTime() < endDate.getTime() && detail.estado !== 'finalizada';
             setIsActive(active);
           }
         }

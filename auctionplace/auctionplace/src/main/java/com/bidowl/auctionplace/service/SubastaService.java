@@ -62,7 +62,9 @@ public class SubastaService {
     private FotoRepository fotoRepository;
 
     public List<Subasta> obtenerTodas() {
-        return subastaRepository.findAll();
+        List<Subasta> subastas = subastaRepository.findAll();
+        subastas.forEach(this::checkAndAutoOpen);
+        return subastas;
     }
 
     public List<Subasta> obtenerPorEstado(String estado) {
@@ -146,7 +148,7 @@ public class SubastaService {
         }
 
         // Lógica de temporizador de 1 minuto y auto-cierre
-        if (itemCatalogo.getFechaFinPuja() != null) {
+        if (itemCatalogo.getFechaFinPuja() != null && pujaLider.isPresent()) {
             boolean expiro = LocalDateTime.now().isAfter(itemCatalogo.getFechaFinPuja());
             if (expiro && !"si".equalsIgnoreCase(itemCatalogo.getSubastado())) {
                 try {
@@ -391,9 +393,10 @@ public class SubastaService {
      * GET /api/subastas?estado=activa&categoria=oro&pagina=1&limite=10
      */
     public List<SubastaPublicaDTO> obtenerCatalogoPublico(String estado, String categoria, int pagina, int limite) {
+        List<Subasta> subastas = subastaRepository.findAll();
+        subastas.forEach(this::checkAndAutoOpen);
+        
         Pageable pageable = PageRequest.of(pagina - 1, limite);
-        // REESTRUCTURADO: Esta llamada ahora es altamente eficiente.
-        // Utiliza la consulta JPQL personalizada en SubastaRepository para evitar el problema N+1.
         return subastaRepository.findCatalogoPublico(estado, categoria, pageable).getContent();
     }
 
@@ -428,6 +431,7 @@ public class SubastaService {
         dto.setFecha(s.getFecha() != null ? s.getFecha().toString() : "");
         dto.setHora(s.getHora() != null ? s.getHora().toString() : "");
         dto.setCategoria(s.getCategoria());
+        dto.setEstado(s.getEstado());
 
         // Obtener items
         List<ItemCatalogo> items = itemCatalogoRepository.findByCatalogoSubastaIdentificador(idSubasta);
@@ -508,21 +512,25 @@ public class SubastaService {
                     
                     String imagen = "https://via.placeholder.com/200x150?text=" + nombreProducto;
                     if (item.getProducto() != null) {
+                        dto.setProductoId(item.getProducto().getIdentificador());
                         imagen = "/api/productos/" + item.getProducto().getIdentificador() + "/foto";
                     }
                     dto.setImagen(imagen);
 
                     String duenioNombre = "Dueño Desconocido";
+                    Integer duenioId = null;
                     String desc = "";
                     if (item.getProducto() != null) {
                         if (item.getProducto().getDuenio() != null) {
                             String nom = item.getProducto().getDuenio().getNombre() != null ? item.getProducto().getDuenio().getNombre() : "";
                             String ape = item.getProducto().getDuenio().getApellido() != null ? item.getProducto().getDuenio().getApellido() : "";
                             duenioNombre = (nom + " " + ape).trim();
+                            duenioId = item.getProducto().getDuenio().getIdentificador();
                         }
                         desc = item.getProducto().getDescripcion() != null ? item.getProducto().getDescripcion() : item.getProducto().getDescripcionCatalogo();
                     }
                     dto.setDuenioNombre(duenioNombre);
+                    dto.setDuenioId(duenioId);
                     dto.setDescripcion(desc);
                     dto.setSubastado(item.getSubastado());
 
@@ -544,6 +552,24 @@ public class SubastaService {
             }
         }
         return null;
+    }
+
+    public List<Integer> obtenerIdsFotosSubasta(Integer subastaId) {
+        Optional<Catalogo> catalogoOpt = catalogoRepository.findBySubastaIdentificador(subastaId);
+        if (catalogoOpt.isPresent()) {
+            Catalogo catalogo = catalogoOpt.get();
+            List<Foto> fotos = fotoRepository.findByCatalogoId(catalogo.getIdentificador());
+            if (fotos != null) {
+                return fotos.stream().map(Foto::getIdentificador).collect(Collectors.toList());
+            }
+        }
+        return java.util.Collections.emptyList();
+    }
+
+    public byte[] obtenerFotoSubastaBytesPorId(Integer fotoId) {
+        return fotoRepository.findById(fotoId)
+                .map(Foto::getFoto)
+                .orElse(null);
     }
 
     /**
@@ -736,6 +762,12 @@ public class SubastaService {
             throw new IllegalArgumentException("Formato de hora inválido. Debe ser HH:mm:ss o HH:mm.");
         }
 
+        // Validar que la fecha y hora no estén en el pasado
+        java.time.LocalDateTime subastaDateTime = java.time.LocalDateTime.of(dateFecha, timeHora);
+        if (subastaDateTime.isBefore(java.time.LocalDateTime.now())) {
+            throw new IllegalArgumentException("La fecha y hora de la subasta no pueden estar en el pasado.");
+        }
+
         // 2. Buscar y validar Subastador
         Subastador subastador = null;
         if (request.getSubastadorId() != null) {
@@ -864,10 +896,22 @@ public class SubastaService {
 
     @Transactional
     public Subasta checkAndAutoOpen(Subasta subasta) {
-        if (subasta != null && subasta.getFecha() != null && subasta.getHora() != null && "cerrada".equalsIgnoreCase(subasta.getEstado())) {
+        if (subasta == null) return null;
+
+        if ("cerrada".equalsIgnoreCase(subasta.getEstado()) && subasta.getFecha() != null && subasta.getHora() != null) {
             java.time.LocalDateTime inicio = java.time.LocalDateTime.of(subasta.getFecha(), subasta.getHora());
             if (java.time.LocalDateTime.now().isAfter(inicio)) {
-                subasta.setEstado("abierta");
+                if (java.time.LocalDateTime.now().isAfter(inicio.plusHours(24))) {
+                    subasta.setEstado("finalizada");
+                } else {
+                    subasta.setEstado("abierta");
+                }
+                subasta = subastaRepository.save(subasta);
+            }
+        } else if ("abierta".equalsIgnoreCase(subasta.getEstado()) && subasta.getFecha() != null && subasta.getHora() != null) {
+            java.time.LocalDateTime inicio = java.time.LocalDateTime.of(subasta.getFecha(), subasta.getHora());
+            if (java.time.LocalDateTime.now().isAfter(inicio.plusHours(24))) {
+                subasta.setEstado("finalizada");
                 subasta = subastaRepository.save(subasta);
             }
         }

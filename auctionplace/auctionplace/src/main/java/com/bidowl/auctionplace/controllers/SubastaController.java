@@ -95,6 +95,34 @@ public class SubastaController {
         }
     }
 
+    @GetMapping("/{id}/fotos")
+    public ResponseEntity<?> obtenerIdsFotosSubasta(@PathVariable Integer id) {
+        try {
+            List<Integer> ids = subastaService.obtenerIdsFotosSubasta(id);
+            List<String> urls = ids.stream()
+                    .map(fotoId -> "/api/subastas/fotos/" + fotoId)
+                    .collect(java.util.stream.Collectors.toList());
+            return ResponseEntity.ok(urls);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/fotos/{fotoId}")
+    public ResponseEntity<byte[]> obtenerFotoPorId(@PathVariable Integer fotoId) {
+        try {
+            byte[] foto = subastaService.obtenerFotoSubastaBytesPorId(fotoId);
+            if (foto == null) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok()
+                    .contentType(org.springframework.http.MediaType.IMAGE_JPEG)
+                    .body(foto);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @PostMapping("/{id}/unirse")
     public ResponseEntity<?> unirse(
             @PathVariable Integer id,

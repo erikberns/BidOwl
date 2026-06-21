@@ -492,12 +492,14 @@ public class DataInitializer implements CommandLineRunner {
                     
                     Producto prodGuardado = productoRepository.save(prod);
 
-                    // Guardar Foto
+                    // Guardar Foto (Se guardan 6 fotos por producto para cumplir con el requisito)
                     if (avatarBytes != null) {
-                        Foto foto = new Foto();
-                        foto.setProducto(prodGuardado);
-                        foto.setFoto(avatarBytes);
-                        fotoRepository.save(foto);
+                        for (int f = 0; f < 6; f++) {
+                            Foto foto = new Foto();
+                            foto.setProducto(prodGuardado);
+                            foto.setFoto(avatarBytes);
+                            fotoRepository.save(foto);
+                        }
                     }
 
                     // Crear Propuesta Comercial

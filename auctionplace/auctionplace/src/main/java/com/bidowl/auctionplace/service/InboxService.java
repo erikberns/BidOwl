@@ -4,6 +4,7 @@ import com.bidowl.auctionplace.dto.MiSubastaDTO;
 import com.bidowl.auctionplace.dto.NotificacionDTO;
 import com.bidowl.auctionplace.dto.PujaActivaDTO;
 import com.bidowl.auctionplace.dto.WonItemDetailDTO;
+import com.bidowl.auctionplace.dto.HistorialPujaUsuarioDTO;
 import com.bidowl.auctionplace.entity.Notificacion;
 import com.bidowl.auctionplace.entity.Pujo;
 import com.bidowl.auctionplace.entity.Producto;
@@ -38,6 +39,9 @@ public class InboxService {
     @Autowired
     private ItemCatalogoRepository itemCatalogoRepository;
 
+    @Autowired
+    private com.bidowl.auctionplace.repository.PropuestaComercialRepository propuestaComercialRepository;
+
     public List<NotificacionDTO> obtenerNotificaciones(Integer personaId) {
         List<Notificacion> notificaciones = notificacionRepository.findByPersonaIdOrderByFechaDesc(personaId);
         return notificaciones.stream().map(n -> {
@@ -64,7 +68,27 @@ public class InboxService {
                 if (accion.startsWith("show_inspection_request")) {
                     dto.setButtonText("Ver resultado de solicitud de articulo");
                 } else if (accion.startsWith("show_inspection_result")) {
-                    dto.setButtonText("Revisar Oferta del Articulo");
+                    String[] parts = accion.split(":");
+                    boolean yaRespondida = false;
+                    if (parts.length > 1) {
+                        try {
+                            Integer prodId = Integer.parseInt(parts[1]);
+                            Optional<com.bidowl.auctionplace.entity.PropuestaComercial> propOpt = propuestaComercialRepository.findByProductoIdentificador(prodId);
+                            if (propOpt.isPresent()) {
+                                String est = propOpt.get().getEstado();
+                                if ("ACEPTADA".equalsIgnoreCase(est) || "RECHAZADA".equalsIgnoreCase(est)) {
+                                    yaRespondida = true;
+                                }
+                            }
+                        } catch (Exception e) {
+                            // Ignorar error de parseo o DB
+                        }
+                    }
+                    if (yaRespondida) {
+                        dto.setButtonText("Ver Detalles Oferta");
+                    } else {
+                        dto.setButtonText("Revisar Oferta del Articulo");
+                    }
                 } else if (accion.startsWith("show_inspection_rejected")) {
                     dto.setButtonText("Revisar Oferta del Articulo");
                 } else if (accion.startsWith("show_bid_won")) {
@@ -125,6 +149,7 @@ public class InboxService {
             
             MiSubastaDTO dto = new MiSubastaDTO();
             dto.setId(p.getIdentificador());
+            dto.setSubastaId(item.getCatalogo().getSubasta().getIdentificador());
             dto.setArticuloTitle(p.getNombre());
             dto.setSubastaTitle(item.getCatalogo().getSubasta().getTitulo());
             dto.setUbicacion(item.getCatalogo().getSubasta().getUbicacion());
@@ -194,5 +219,42 @@ public class InboxService {
         dto.setCostoEnvio(new BigDecimal("20000.00")); // Costo de envío dinámico de 20.000 AR$
 
         return dto;
+    }
+
+    public List<HistorialPujaUsuarioDTO> obtenerHistorial(Integer personaId) {
+        List<Pujo> pujas = pujoRepository.findByAsistenteClienteIdentificador(personaId);
+        List<HistorialPujaUsuarioDTO> dtos = new ArrayList<>();
+        
+        // Sort bids by date/time descending so that the most recent bids appear first
+        pujas.sort((a, b) -> {
+            if (a.getFechaHora() == null && b.getFechaHora() == null) return 0;
+            if (a.getFechaHora() == null) return 1;
+            if (b.getFechaHora() == null) return -1;
+            return b.getFechaHora().compareTo(a.getFechaHora());
+        });
+
+        for (Pujo p : pujas) {
+            ItemCatalogo item = p.getItem();
+            if (item == null || item.getCatalogo() == null || item.getCatalogo().getSubasta() == null) {
+                continue;
+            }
+            
+            HistorialPujaUsuarioDTO dto = new HistorialPujaUsuarioDTO();
+            dto.setId(p.getIdentificador());
+            dto.setSubastaId(item.getCatalogo().getSubasta().getIdentificador());
+            dto.setSubastaTitle(item.getCatalogo().getSubasta().getTitulo());
+            dto.setArticuloTitle(item.getProducto() != null ? item.getProducto().getNombre() : "Artículo " + item.getIdentificador());
+            dto.setImage(item.getProducto() != null ? "/api/productos/" + item.getProducto().getIdentificador() + "/foto" : null);
+            dto.setMonto(NumberFormat.getCurrencyInstance(new Locale("es", "ARS")).format(p.getImporte()));
+            dto.setGanador("si".equalsIgnoreCase(p.getGanador()));
+            
+            List<ItemCatalogo> allItemsInCatalogo = itemCatalogoRepository.findByCatalogoIdentificador(item.getCatalogo().getIdentificador());
+            int idx = allItemsInCatalogo.indexOf(item);
+            dto.setLote(idx >= 0 ? idx + 1 : 1);
+            dto.setTotalLotes(allItemsInCatalogo.size());
+            
+            dtos.add(dto);
+        }
+        return dtos;
     }
 }

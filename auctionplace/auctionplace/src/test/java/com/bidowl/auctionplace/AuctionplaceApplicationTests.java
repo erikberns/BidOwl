@@ -402,8 +402,9 @@ class AuctionplaceApplicationTests {
     @Transactional
     void testAutoOpenSubasta() throws Exception {
         Subasta subasta = new Subasta();
-        subasta.setFecha(LocalDate.now());
-        subasta.setHora(java.time.LocalTime.now().minusHours(1));
+        java.time.LocalDateTime inicio = java.time.LocalDateTime.now().minusHours(2);
+        subasta.setFecha(inicio.toLocalDate());
+        subasta.setHora(inicio.toLocalTime());
         subasta.setEstado("cerrada");
         subasta = subastaRepository.save(subasta);
         
@@ -416,6 +417,20 @@ class AuctionplaceApplicationTests {
         Subasta subastaEnDb = subastaRepository.findById(subasta.getIdentificador()).orElse(null);
         assertNotNull(subastaEnDb);
         assertEquals("abierta", subastaEnDb.getEstado());
+    }
+
+    @Test
+    @Transactional
+    void testAutoCloseSubasta() throws Exception {
+        Subasta subasta = new Subasta();
+        java.time.LocalDateTime inicio = java.time.LocalDateTime.now().minusDays(2);
+        subasta.setFecha(inicio.toLocalDate());
+        subasta.setHora(inicio.toLocalTime());
+        subasta.setEstado("cerrada");
+        subasta = subastaRepository.save(subasta);
+        
+        Subasta subastaRecuperada = subastaService.obtenerPorId(subasta.getIdentificador());
+        assertEquals("finalizada", subastaRecuperada.getEstado());
     }
 
     @Test

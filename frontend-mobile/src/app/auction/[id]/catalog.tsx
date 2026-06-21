@@ -23,7 +23,13 @@ const getImageUrl = (path: string) => {
 // Helper to format prices
 const formatPrice = (value: number | string) => {
   if (value === undefined || value === null) return '';
-  const num = typeof value === 'number' ? value : parseFloat(value.toString().replace(/[^0-9.]/g, ''));
+  let num: number;
+  if (typeof value === 'number') {
+    num = value;
+  } else {
+    const clean = value.toString().replace(/\./g, '').replace(/[^0-9-]/g, '');
+    num = parseFloat(clean);
+  }
   if (isNaN(num)) return value.toString();
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " ARS";
 };

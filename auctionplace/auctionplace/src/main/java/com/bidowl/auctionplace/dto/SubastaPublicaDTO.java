@@ -16,8 +16,9 @@ public class SubastaPublicaDTO {
     private String categoria;
     private Integer cantidaditems;
     private String imagenPortada;
+    private String estado;
 
-    public SubastaPublicaDTO(Integer id, String titulo, LocalDate fecha, LocalTime hora, String ubicacion, String categoria, Long cantidaditems, String imagenPortada) {
+    public SubastaPublicaDTO(Integer id, String titulo, LocalDate fecha, LocalTime hora, String ubicacion, String categoria, Long cantidaditems, String imagenPortada, String estado) {
         this.id = id != null ? id.toString() : null;
         this.titulo = titulo;
         this.fecha = fecha != null ? fecha.toString() : null;
@@ -26,5 +27,6 @@ public class SubastaPublicaDTO {
         this.categoria = categoria;
         this.cantidaditems = cantidaditems != null ? cantidaditems.intValue() : 0;
         this.imagenPortada = imagenPortada;
+        this.estado = estado;
     }
 }

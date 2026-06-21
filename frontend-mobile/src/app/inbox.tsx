@@ -12,6 +12,16 @@ import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 
 import { API_URL } from '@/constants/api';
 
+// Helper to resolve Image URLs
+const getImageUrl = (path: string) => {
+  if (!path) return null;
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return { uri: path };
+  }
+  const baseUrl = API_URL.replace('/api', '');
+  return { uri: baseUrl + path };
+};
+
 type Tab = 'miSubasta' | 'notificaciones' | 'historial';
 
 export default function InboxScreen() {
@@ -53,6 +63,7 @@ export default function InboxScreen() {
   // Payment Methods Data
   const [paymentMethods, setPaymentMethods] = React.useState<any[]>([]);
   const [selectedPayment, setSelectedPayment] = React.useState('');
+  const [bidHistory, setBidHistory] = React.useState<any[]>([]);
 
   const [selectedLocation, setSelectedLocation] = React.useState({
     latitude: -34.6037, // Default a Buenos Aires
@@ -60,9 +71,9 @@ export default function InboxScreen() {
   });
   const [selectedAddress, setSelectedAddress] = React.useState('');
 
-  const checkUserStatusAndFetch = React.useCallback(async () => {
+  const checkUserStatusAndFetch = React.useCallback(async (silent: boolean = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const isGuestStr = await AsyncStorage.getItem('isGuest');
       const userStr = await AsyncStorage.getItem('user');
       const guestVal = (isGuestStr === 'true' || isGuestStr === null) && !userStr;
@@ -78,16 +89,17 @@ export default function InboxScreen() {
         }
         setLoggedInUserId(personaId);
 
-        const [notifRes, bidsRes, auctionsRes] = await Promise.all([
+        const [notifRes, bidsRes, auctionsRes, historyRes] = await Promise.all([
           fetch(`${API_URL}/inbox/${personaId}/notificaciones`).catch(() => null),
           fetch(`${API_URL}/inbox/${personaId}/pujas-activas`).catch(() => null),
-          fetch(`${API_URL}/inbox/${personaId}/mis-subastas`).catch(() => null)
+          fetch(`${API_URL}/inbox/${personaId}/mis-subastas`).catch(() => null),
+          fetch(`${API_URL}/inbox/${personaId}/historial`).catch(() => null)
         ]);
 
         if (notifRes && notifRes.ok) {
           const notifs = await notifRes.json();
           setNotifications(notifs);
-          if (notifs.length > 0) {
+          if (notifs.length > 0 && expandedNotifIds.length === 0) {
             setExpandedNotifIds([notifs[0].id?.toString()]);
           }
         }
@@ -111,6 +123,10 @@ export default function InboxScreen() {
 
         if (auctionsRes && auctionsRes.ok) {
           setActiveAuctions(await auctionsRes.json());
+        }
+
+        if (historyRes && historyRes.ok) {
+          setBidHistory(await historyRes.json());
         }
 
         const pmResponse = await fetch(`${API_URL}/personas/${personaId}/metodos-pago`).catch(() => null);
@@ -144,13 +160,17 @@ export default function InboxScreen() {
     } catch (error) {
       console.error("Error fetching inbox data:", error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  }, []);
+  }, [expandedNotifIds]);
 
   React.useEffect(() => {
     if (!isFocused) return;
     checkUserStatusAndFetch();
+    const interval = setInterval(() => {
+      checkUserStatusAndFetch(true);
+    }, 5000);
+    return () => clearInterval(interval);
   }, [isFocused, checkUserStatusAndFetch]);
 
   const renderBidCard = (bid: typeof activeBids[0]) => (
@@ -180,7 +200,7 @@ export default function InboxScreen() {
     <View key={auction.id} style={styles.auctionCardContainer}>
       <TouchableOpacity
         style={styles.bidCard}
-        onPress={() => router.push(('/auction/' + auction.id) as any)}
+        onPress={() => router.push(('/auction/' + auction.subastaId) as any)}
       >
         <Image source={auction.image ? { uri: auction.image } : require('@/assets/images/rolling_stone_auction.png')} style={styles.bidImage} />
         <View style={styles.bidContent}>
@@ -224,6 +244,32 @@ export default function InboxScreen() {
       </TouchableOpacity>
     </View>
   );
+
+  const renderHistoryCard = (bid: any) => {
+    const itemImageSource = bid.image
+      ? getImageUrl(bid.image)
+      : require('@/assets/images/rolling_stone_auction.png');
+
+    return (
+      <View key={bid.id} style={styles.bidCard}>
+        <Image source={itemImageSource} style={styles.bidImage} />
+        <View style={styles.bidContent}>
+          <Text style={styles.subastaTitle}>{bid.subastaTitle}</Text>
+          <Text style={styles.lote}>Lote {bid.lote} / {bid.totalLotes}</Text>
+          <Text style={styles.articuloTitle}>{bid.articuloTitle}</Text>
+          <View style={styles.pujaInfo}>
+            <Text style={styles.miPujaLabel}>Ofertado:</Text>
+            <Text style={styles.miPujaValue}>{bid.monto}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: bid.ganador ? '#2E9F64' : '#8A8A8A' }}>
+              {bid.ganador ? '¡Puja Ganada! ✓' : 'Finalizada'}
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
 
   const renderNotificationCard = (notif: typeof notifications[0]) => {
     const isExpanded = expandedNotifIds.includes(notif.id);
@@ -297,7 +343,11 @@ export default function InboxScreen() {
                   }
 
                   if (actionType === 'show_inspection_result') {
-                    setShowInspectionResult(true);
+                    if (notif.buttonText === 'Ver Detalles Oferta') {
+                      setShowOfferDetails(true);
+                    } else {
+                      setShowInspectionResult(true);
+                    }
                   } else if (actionType === 'show_inspection_rejected') {
                     setShowInspectionRejected(true);
                   } else if (actionType === 'show_inspection_request') {
@@ -429,26 +479,45 @@ export default function InboxScreen() {
 
         {activeTab === 'notificaciones' && (
           <View style={styles.contentContainer}>
-            {notifications.map(renderNotificationCard)}
+            {notifications.length > 0 ? (
+              notifications.map(renderNotificationCard)
+            ) : (
+              <View style={styles.emptyState}>
+                <SymbolView
+                  tintColor="#8A8A8A"
+                  // @ts-ignore
+                  name={{ ios: 'bell.slash', android: 'notifications_off', web: 'notifications_off' }}
+                  size={48}
+                />
+                <Text style={styles.emptyTitle}>Sin notificaciones</Text>
+                <Text style={styles.emptySubtitle}>Tus notificaciones y avisos aparecerán aquí</Text>
+              </View>
+            )}
           </View>
         )}
 
         {activeTab === 'historial' && (
-          <View style={styles.emptyState}>
-            <SymbolView
-              tintColor="#8A8A8A"
-              // @ts-ignore
-              name={{ ios: 'clock', android: 'history', web: 'history' }}
-              size={48}
-            />
-            <Text style={styles.emptyTitle}>Sin historial</Text>
-            <Text style={styles.emptySubtitle}>Tu historial de pujas aparecerá aquí</Text>
+          <View style={styles.contentContainer}>
+            {bidHistory.length > 0 ? (
+              bidHistory.map(renderHistoryCard)
+            ) : (
+              <View style={styles.emptyState}>
+                <SymbolView
+                  tintColor="#8A8A8A"
+                  // @ts-ignore
+                  name={{ ios: 'clock', android: 'history', web: 'history' }}
+                  size={48}
+                />
+                <Text style={styles.emptyTitle}>Sin historial</Text>
+                <Text style={styles.emptySubtitle}>Tu historial de pujas aparecerá aquí</Text>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
 
       {/* Inspection Request Modal (Intermediate) */}
-      <Modal visible={showInspectionRequest} animationType="slide" presentationStyle="fullScreen">
+      <Modal visible={showInspectionRequest} animationType="none" presentationStyle="fullScreen">
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setShowInspectionRequest(false)} style={styles.modalBackButton}>
@@ -482,7 +551,7 @@ export default function InboxScreen() {
       </Modal>
 
       {/* Inspection Result Modal (Oferta Aceptada) */}
-      <Modal visible={showInspectionResult} animationType="slide" presentationStyle="fullScreen">
+      <Modal visible={showInspectionResult} animationType="none" presentationStyle="fullScreen">
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setShowInspectionResult(false)} style={styles.modalBackButton}>
@@ -516,12 +585,14 @@ export default function InboxScreen() {
       </Modal>
 
       {/* Offer Details Modal */}
-      <Modal visible={showOfferDetails} animationType="slide" presentationStyle="fullScreen">
+      <Modal visible={showOfferDetails} animationType="none" presentationStyle="fullScreen">
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => {
               setShowOfferDetails(false);
-              setShowInspectionResult(true);
+              if (selectedProposal?.propuesta?.estado !== 'ACEPTADA' && selectedProposal?.propuesta?.estado !== 'RECHAZADA') {
+                setShowInspectionResult(true);
+              }
             }} style={styles.modalBackButton}>
               {/* @ts-ignore */}
               <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
@@ -575,62 +646,81 @@ export default function InboxScreen() {
               <Text style={[styles.offerDecisionTitle, { color: '#E30613', fontWeight: 'bold' }]}>
                 La propuesta comercial aún no ha sido cargada por el revisor/tasador. Por favor regrese más tarde.
               </Text>
+            ) : selectedProposal?.propuesta?.estado === 'ACEPTADA' ? (
+              <Text style={[styles.offerDecisionTitle, { color: '#2E9F64', fontWeight: 'bold' }]}>
+                Esta propuesta ya ha sido ACEPTADA por usted.
+              </Text>
+            ) : selectedProposal?.propuesta?.estado === 'RECHAZADA' ? (
+              <Text style={[styles.offerDecisionTitle, { color: '#BA4B4B', fontWeight: 'bold' }]}>
+                Esta propuesta ya ha sido RECHAZADA por usted.
+              </Text>
             ) : (
               <Text style={styles.offerDecisionTitle}>Usted tiene la ultima palabra en esta negociación.</Text>
             )}
           </ScrollView>
 
           <View style={styles.offerFooter}>
-            <TouchableOpacity
-              style={[
-                styles.shippingButton,
-                { flex: 1, marginRight: 8 },
-                (!selectedProposal?.propuesta || selectedProposal.propuesta.valorBase == null) && { backgroundColor: '#ccc' }
-              ]}
-              disabled={!selectedProposal?.propuesta || selectedProposal.propuesta.valorBase == null}
-              onPress={() => {
-                setShowOfferDetails(false);
-                setShowPaymentSelection(true);
-              }}
-            >
-              <Text style={styles.shippingButtonText}>Aceptar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.rejectButton, { flex: 1, marginLeft: 8 }]} onPress={async () => {
-              if (selectedRequestId) {
-                try {
-                  const response = await fetch(`${API_URL}/solicitudes-items/${selectedRequestId}/propuesta/rechazar`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Autorizacion': String(loggedInUserId || 1),
-                    },
-                    body: JSON.stringify({
-                      costoDevolucion: 0,
-                    }),
-                  });
-                  if (response.ok) {
+            {selectedProposal?.propuesta?.estado === 'ACEPTADA' || selectedProposal?.propuesta?.estado === 'RECHAZADA' ? (
+              <TouchableOpacity 
+                style={[styles.shippingButton, { flex: 1 }]} 
+                onPress={() => setShowOfferDetails(false)}
+              >
+                <Text style={styles.shippingButtonText}>Volver</Text>
+              </TouchableOpacity>
+            ) : (
+              <>
+                <TouchableOpacity
+                  style={[
+                    styles.shippingButton,
+                    { flex: 1, marginRight: 8 },
+                    (!selectedProposal?.propuesta || selectedProposal.propuesta.valorBase == null) && { backgroundColor: '#ccc' }
+                  ]}
+                  disabled={!selectedProposal?.propuesta || selectedProposal.propuesta.valorBase == null}
+                  onPress={() => {
                     setShowOfferDetails(false);
-                    setShowProposalRejected(true);
+                    setShowPaymentSelection(true);
+                  }}
+                >
+                  <Text style={styles.shippingButtonText}>Aceptar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.rejectButton, { flex: 1, marginLeft: 8 }]} onPress={async () => {
+                  if (selectedRequestId) {
+                    try {
+                      const response = await fetch(`${API_URL}/solicitudes-items/${selectedRequestId}/propuesta/rechazar`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Autorizacion': String(loggedInUserId || 1),
+                        },
+                        body: JSON.stringify({
+                          costoDevolucion: 0,
+                        }),
+                      });
+                      if (response.ok) {
+                        setShowOfferDetails(false);
+                        setShowProposalRejected(true);
+                      } else {
+                        console.error('Error rejecting proposal:', response.statusText);
+                        setShowOfferDetails(false);
+                      }
+                    } catch (err) {
+                      console.error('Network error rejecting proposal:', err);
+                      setShowOfferDetails(false);
+                    }
                   } else {
-                    console.error('Error rejecting proposal:', response.statusText);
                     setShowOfferDetails(false);
                   }
-                } catch (err) {
-                  console.error('Network error rejecting proposal:', err);
-                  setShowOfferDetails(false);
-                }
-              } else {
-                setShowOfferDetails(false);
-              }
-            }}>
-              <Text style={styles.rejectButtonText}>Rechazar</Text>
-            </TouchableOpacity>
+                }}>
+                  <Text style={styles.rejectButtonText}>Rechazar</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </SafeAreaView>
       </Modal>
 
       {/* Payment Selection Modal */}
-      <Modal visible={showPaymentSelection} animationType="slide" presentationStyle="fullScreen">
+      <Modal visible={showPaymentSelection} animationType="none" presentationStyle="fullScreen">
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => {
@@ -715,7 +805,7 @@ export default function InboxScreen() {
       </Modal>
 
       {/* Proposal Success Confirmation Modal (Image 2) */}
-      <Modal visible={showProposalSuccess} animationType="slide" presentationStyle="fullScreen">
+      <Modal visible={showProposalSuccess} animationType="none" presentationStyle="fullScreen">
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => {
@@ -752,7 +842,7 @@ export default function InboxScreen() {
       </Modal>
 
       {/* Proposal Rejected Confirmation Modal (Image 3) */}
-      <Modal visible={showProposalRejected} animationType="slide" presentationStyle="fullScreen">
+      <Modal visible={showProposalRejected} animationType="none" presentationStyle="fullScreen">
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => {
@@ -789,7 +879,7 @@ export default function InboxScreen() {
       </Modal>
 
       {/* Inspection Rejected Modal (Oferta Rechazada) */}
-      <Modal visible={showInspectionRejected} animationType="slide" presentationStyle="fullScreen">
+      <Modal visible={showInspectionRejected} animationType="none" presentationStyle="fullScreen">
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setShowInspectionRejected(false)} style={styles.modalBackButton}>
@@ -822,7 +912,7 @@ export default function InboxScreen() {
       </Modal>
 
       {/* 1. ¡Ha obtenido un nuevo objeto! Modal (Image 1) */}
-      <Modal visible={showBidWon} animationType="slide" presentationStyle="fullScreen">
+      <Modal visible={showBidWon} animationType="none" presentationStyle="fullScreen">
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setShowBidWon(false)} style={styles.modalBackButton}>
@@ -879,7 +969,7 @@ export default function InboxScreen() {
       </Modal>
 
       {/* 2. Elegí cómo querés recibir tu objeto Modal (Image 2) */}
-      <Modal visible={showDeliverySelection} animationType="slide" presentationStyle="fullScreen">
+      <Modal visible={showDeliverySelection} animationType="none" presentationStyle="fullScreen">
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => {
@@ -967,7 +1057,7 @@ export default function InboxScreen() {
       </Modal>
 
       {/* 3. Factura de Puja Realizada Modal (Image 3) */}
-      <Modal visible={showWonInvoice} animationType="slide" presentationStyle="fullScreen">
+      <Modal visible={showWonInvoice} animationType="none" presentationStyle="fullScreen">
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => {
@@ -1071,7 +1161,7 @@ export default function InboxScreen() {
       </Modal>
 
       {/* 4. Envio del Articulo Success Modal (Image 4) */}
-      <Modal visible={showDeliverySuccess} animationType="slide" presentationStyle="fullScreen">
+      <Modal visible={showDeliverySuccess} animationType="none" presentationStyle="fullScreen">
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => {
@@ -1116,7 +1206,7 @@ export default function InboxScreen() {
       </Modal>
 
       {/* Shipping Instructions Modal (Map) */}
-      <Modal visible={showShippingInstructions} animationType="slide" presentationStyle="fullScreen">
+      <Modal visible={showShippingInstructions} animationType="none" presentationStyle="fullScreen">
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => {

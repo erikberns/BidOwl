@@ -12,9 +12,36 @@ import { API_URL } from '@/constants/api';
 // Helper to format prices
 const formatPrice = (value: number | string) => {
   if (value === undefined || value === null) return '';
-  const num = typeof value === 'number' ? value : parseFloat(value.toString().replace(/[^0-9.]/g, ''));
+  let num: number;
+  if (typeof value === 'number') {
+    num = value;
+  } else {
+    const clean = value.toString().replace(/\./g, '').replace(/[^0-9-]/g, '');
+    num = parseFloat(clean);
+  }
   if (isNaN(num)) return value.toString();
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " ARS";
+};
+
+const BidderAvatar = ({ idpersona, style }: { idpersona: string | number; style: any }) => {
+  const [error, setError] = useState(false);
+  
+  if (error || !idpersona) {
+    return (
+      <Image 
+        source={require('@/assets/images/auctioneer_avatar.png')} 
+        style={style} 
+      />
+    );
+  }
+
+  return (
+    <Image 
+      source={{ uri: `${API_URL}/personas/${idpersona}/foto` }} 
+      style={style}
+      onError={() => setError(true)}
+    />
+  );
 };
 
 export default function BidsHistoryScreen() {
@@ -73,6 +100,7 @@ export default function BidsHistoryScreen() {
       if (res.ok) {
         const data = await res.json();
         const mappedBids = data.map((bid: any, idx: number) => ({
+          idpersona: bid.idpersona,
           name: bid.nombre,
           time: (bid.hace && bid.hace !== 'N/A') ? bid.hace : 'Hace unos instantes',
           amount: formatPrice(bid.monto),
@@ -178,8 +206,8 @@ export default function BidsHistoryScreen() {
                     bid.isLead ? styles.leadBidRow : styles.normalBidRow
                   ]}
                 >
-                  <Image 
-                    source={require('@/assets/images/auctioneer_avatar.png')} 
+                  <BidderAvatar 
+                    idpersona={bid.idpersona} 
                     style={styles.bidderAvatar} 
                   />
                   <View style={styles.bidderInfo}>

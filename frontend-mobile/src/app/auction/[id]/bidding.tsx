@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Modal, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Modal, TextInput, ActivityIndicator, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs, useNavigation } from 'expo-router';
@@ -22,12 +22,38 @@ const getImageUrl = (path: string) => {
   return { uri: baseUrl + path };
 };
 
-// Helper to format prices
 const formatPrice = (value: number | string) => {
   if (value === undefined || value === null) return '';
-  const num = typeof value === 'number' ? value : parseFloat(value.toString().replace(/[^0-9.]/g, ''));
+  let num: number;
+  if (typeof value === 'number') {
+    num = value;
+  } else {
+    const clean = value.toString().replace(/\./g, '').replace(/[^0-9-]/g, '');
+    num = parseFloat(clean);
+  }
   if (isNaN(num)) return value.toString();
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " ARS";
+};
+
+const BidderAvatar = ({ idpersona, style }: { idpersona: string | number; style: any }) => {
+  const [error, setError] = useState(false);
+  
+  if (error || !idpersona) {
+    return (
+      <Image 
+        source={require('@/assets/images/auctioneer_avatar.png')} 
+        style={style} 
+      />
+    );
+  }
+
+  return (
+    <Image 
+      source={{ uri: `${API_URL}/personas/${idpersona}/foto` }} 
+      style={style}
+      onError={() => setError(true)}
+    />
+  );
 };
 
 // Helper to parse dates from API or Mock
@@ -88,8 +114,18 @@ export default function BiddingScreen() {
   const [auctionState, setAuctionState] = useState<'pending' | 'active' | 'ended'>('pending');
 
   // Bidding Wizard Modal State
-  const [bidStep, setBidStep] = useState<'input' | 'confirm' | 'success' | null>(null);
+  const [bidStep, setBidStep] = useState<'input' | 'confirm' | 'success' | 'error' | null>(null);
   const [bidValue, setBidValue] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorTitle, setErrorTitle] = useState<string | null>(null);
+  const [minBid, setMinBid] = useState<number | null>(null);
+  const [maxBid, setMaxBid] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (bidStep === null) {
+      setErrorTitle(null);
+    }
+  }, [bidStep]);
 
   // Real payment methods
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
@@ -99,6 +135,61 @@ export default function BiddingScreen() {
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [isBiddingFinished, setIsBiddingFinished] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // Gallery Carousel State
+  const [itemPhotos, setItemPhotos] = useState<string[]>([]);
+  const [isPhotoModalVisible, setIsPhotoModalVisible] = useState(false);
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
+
+  const currentItem = items[currentIndex] || {
+    id: '',
+    productoId: undefined,
+    title: 'Cargando lote...',
+    basePrice: '$0',
+    basePriceNum: 0,
+    image: require('@/assets/images/rolling_stone_auction.png'),
+    owner: 'Dueño Desconocido',
+    duenioId: undefined,
+    details: '',
+    bids: [],
+    index: 1,
+    subastado: 'no'
+  };
+
+  const handleImagePress = async () => {
+    const targetId = currentItem.productoId || currentItem.id;
+    if (!targetId) return;
+    try {
+      setLoadingPhotos(true);
+      setIsPhotoModalVisible(true);
+      setPhotoIndex(0);
+      
+      const res = await fetch(`${API_URL}/productos/${targetId}/fotos`);
+      if (res.ok) {
+        const urls = await res.json();
+        if (urls && urls.length > 0) {
+          setItemPhotos(urls.map((u: string) => {
+            const baseUrl = API_URL.replace('/api', '');
+            return baseUrl + u;
+          }));
+        } else {
+          // Fallback to 6 of the same main photo
+          const mainImgUri = getImageUrl(currentItem.image)?.uri || currentItem.image;
+          setItemPhotos(Array(6).fill(mainImgUri));
+        }
+      } else {
+        const mainImgUri = getImageUrl(currentItem.image)?.uri || currentItem.image;
+        setItemPhotos(Array(6).fill(mainImgUri));
+      }
+    } catch (e) {
+      console.error('[BiddingScreen] Error loading item photos:', e);
+      const mainImgUri = getImageUrl(currentItem.image)?.uri || currentItem.image;
+      setItemPhotos(Array(6).fill(mainImgUri));
+    } finally {
+      setLoadingPhotos(false);
+    }
+  };
 
   useEffect(() => {
     async function loadGuestStatus() {
@@ -142,26 +233,23 @@ export default function BiddingScreen() {
             const basePriceVal = item.valorBase || 100000;
             return {
               id: item.iditem || String(idx),
+              productoId: item.productoId,
               index: idx + 1,
               title: item.nombre || `Lote ${idx + 1}`,
               basePrice: formatPrice(basePriceVal),
               basePriceNum: basePriceVal,
               image: item.imagen ? getImageUrl(item.imagen) : require('@/assets/images/rolling_stone_auction.png'),
               owner: item.duenioNombre || 'Dueño Desconocido',
+              duenioId: item.duenioId,
               details: item.descripcion || 'Sin descripción detallada.',
               bids: [], // will load dynamically
               subastado: item.subastado
             };
           });
 
-          setItems(mappedItems);
-
           const activeIdx = mappedItems.findIndex((it: any) => it.subastado !== 'si');
-          if (activeIdx !== -1) {
-            setCurrentIndex(activeIdx);
-          } else {
-            setCurrentIndex(0);
-          }
+          setCurrentIndex(activeIdx !== -1 ? activeIdx : 0);
+          setItems(mappedItems);
 
           const userStr = await AsyncStorage.getItem('user');
           if (userStr) {
@@ -215,6 +303,9 @@ export default function BiddingScreen() {
 
   // Dynamic Polling for Bids of Current Item
   const fetchBidsForItem = async (itemId: string, indexInState: number) => {
+    if (itemId !== currentItem.id) {
+      return;
+    }
     try {
       const userStr = await AsyncStorage.getItem('user');
       if (!userStr) return;
@@ -275,17 +366,10 @@ export default function BiddingScreen() {
     }
   };
 
-  const currentItem = items[currentIndex] || {
-    id: '',
-    title: 'Cargando lote...',
-    basePrice: '$0',
-    basePriceNum: 0,
-    image: require('@/assets/images/rolling_stone_auction.png'),
-    owner: 'Dueño Desconocido',
-    details: '',
-    bids: [],
-    index: 1
-  };
+  useEffect(() => {
+    setSecondsLeft(null);
+    setIsBiddingFinished(false);
+  }, [currentIndex, currentItem?.id]);
 
   useEffect(() => {
     if (!isFocused) return;
@@ -323,7 +407,9 @@ export default function BiddingScreen() {
       let targetDate = startDate;
       let state: 'pending' | 'active' | 'ended' = 'pending';
 
-      if (now.getTime() < startDate.getTime()) {
+      if (auctionDetail.estado === 'cerrada' || auctionDetail.estado === 'finalizada') {
+        state = 'ended';
+      } else if (now.getTime() < startDate.getTime()) {
         state = 'pending';
         targetDate = startDate;
       } else if (now.getTime() >= startDate.getTime() && now.getTime() < endDate.getTime()) {
@@ -370,6 +456,66 @@ export default function BiddingScreen() {
     }
   };
 
+  const handleBidValueChange = (text: string) => {
+    const numericValue = text.replace(/[^0-9]/g, '');
+    if (!numericValue) {
+      setBidValue('');
+      return;
+    }
+    const formatted = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    setBidValue(formatted);
+  };
+
+  const openBidModal = async () => {
+    const isOwner = currentItem.duenioId !== undefined && currentUser && Number(currentItem.duenioId) === Number(currentUser.identificador);
+    if (isOwner) {
+      setErrorMessage('No puedes pujar por un artículo de tu propiedad.');
+      setBidStep('error');
+      return;
+    }
+
+    try {
+      const userStr = await AsyncStorage.getItem('user');
+      if (!userStr) return;
+      const user = JSON.parse(userStr);
+
+      const limitsRes = await fetch(`${API_URL}/subastas/${auctionIdStr}/items/${currentItem.id}/limites-puja`, {
+        headers: {
+          'Autorizacion': String(user.identificador)
+        }
+      });
+
+      if (limitsRes.ok) {
+        const limitsData = await limitsRes.json();
+        setMinBid(limitsData.pujaMinima ? Number(limitsData.pujaMinima) : null);
+        setMaxBid(limitsData.pujaMaxima ? Number(limitsData.pujaMaxima) : null);
+        
+        if (limitsData.pujaMinima) {
+          const defaultVal = Math.round(Number(limitsData.pujaMinima)).toString();
+          setBidValue(defaultVal.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+        } else {
+          const currentLeadNum = leadBid ? parseFloat(leadBid.amount.replace(/[^0-9]/g, '')) : currentItem.basePriceNum;
+          const defaultVal = String(Math.round(currentLeadNum * 1.05));
+          setBidValue(defaultVal.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+        }
+      } else {
+        const currentLeadNum = leadBid ? parseFloat(leadBid.amount.replace(/[^0-9]/g, '')) : currentItem.basePriceNum;
+        const defaultVal = String(Math.round(currentLeadNum * 1.05));
+        setBidValue(defaultVal.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+        setMinBid(null);
+        setMaxBid(null);
+      }
+    } catch (e) {
+      console.error('[BiddingScreen] Error fetching limits:', e);
+      const currentLeadNum = leadBid ? parseFloat(leadBid.amount.replace(/[^0-9]/g, '')) : currentItem.basePriceNum;
+      const defaultVal = String(Math.round(currentLeadNum * 1.05));
+      setBidValue(defaultVal.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+      setMinBid(null);
+      setMaxBid(null);
+    }
+    setBidStep('input');
+  };
+
   const handleConfirmBid = async () => {
     if (!bidValue || !currentItem) return;
     try {
@@ -377,7 +523,7 @@ export default function BiddingScreen() {
       if (!userStr) return;
       const user = JSON.parse(userStr);
 
-      const numericBid = parseFloat(bidValue.replace(/[^0-9.]/g, ''));
+      const numericBid = parseFloat(bidValue.replace(/\./g, ''));
       
       const response = await fetch(`${API_URL}/subastas/${auctionIdStr}/items/${currentItem.id}/pujas`, {
         method: 'POST',
@@ -396,11 +542,13 @@ export default function BiddingScreen() {
         setBidStep('success');
       } else {
         const errorData = await response.json();
-        Alert.alert('Error al ofertar', errorData.error || 'No se pudo realizar la puja.');
+        setErrorMessage(errorData.error || 'No se pudo realizar la puja.');
+        setBidStep('error');
       }
     } catch (e) {
       console.error('[BiddingScreen] Error placing bid:', e);
-      Alert.alert('Error', 'Ocurrió un error al enviar la puja.');
+      setErrorMessage('Ocurrió un error al enviar la puja.');
+      setBidStep('error');
     }
   };
 
@@ -411,15 +559,17 @@ export default function BiddingScreen() {
   const activeIndex = items.findIndex((it: any) => it.subastado !== 'si');
   const isFutureLot = activeIndex !== -1 && currentIndex > activeIndex;
 
+  const showLeadingAlert = () => {
+    setErrorTitle('Estás liderando la puja');
+    setErrorMessage('No puedes abandonar la subasta mientras seas el postor líder. Debes esperar a que finalice el minuto o a que otro usuario supere tu oferta.');
+    setBidStep('error');
+  };
+
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
       if (isUserLeading && !isBiddingFinished) {
         e.preventDefault();
-        Alert.alert(
-          'Estás liderando la puja',
-          'No puedes abandonar la subasta mientras seas el postor líder. Debes esperar a que finalice el minuto o a que otro usuario supere tu oferta.',
-          [{ text: 'Entendido', style: 'cancel' }]
-        );
+        showLeadingAlert();
       }
     });
     return unsubscribe;
@@ -440,6 +590,8 @@ export default function BiddingScreen() {
   let stateTitle = "Subasta Activa";
   let stateColor = "#2E9F64"; // Green
 
+  const isCurrentActive = currentIndex === activeIndex;
+
   if (auctionState === 'pending') {
     stateTitle = "Próxima Subasta";
     stateColor = "#E79E2E"; // Orange
@@ -449,15 +601,20 @@ export default function BiddingScreen() {
   }
 
   // If item bidding has started and is not finished
-  if (secondsLeft !== null && !isBiddingFinished) {
+  if (isCurrentActive && secondsLeft !== null && !isBiddingFinished) {
     stateTitle = "Cierre de Lote Inminente";
     stateColor = "#BA4B4B"; // Red/Orange urgency accent
   } else if (isBiddingFinished) {
     stateTitle = "Lote Vendido";
     stateColor = "#8A8A8A";
+  } else {
+    // If it's a future lot or active lot with no bids yet
+    stateTitle = isFutureLot ? "Próximo Lote" : "Subasta Activa";
+    stateColor = isFutureLot ? "#E79E2E" : "#2E9F64";
   }
 
-  const displayTimer = (secondsLeft !== null && !isBiddingFinished) ? {
+  const isTimerActive = isCurrentActive && secondsLeft !== null && !isBiddingFinished;
+  const displayTimer = isTimerActive ? {
     days: 0,
     hours: 0,
     minutes: Math.floor(secondsLeft / 60),
@@ -474,7 +631,11 @@ export default function BiddingScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Item Image Section */}
-        <View style={styles.imageContainer}>
+        <TouchableOpacity 
+          style={styles.imageContainer} 
+          activeOpacity={0.9}
+          onPress={handleImagePress}
+        >
           <Image 
             source={currentItem.image} 
             style={styles.heroImage} 
@@ -482,7 +643,7 @@ export default function BiddingScreen() {
           <View style={styles.imageBadge}>
             <Text style={styles.imageBadgeText}>{currentIndex + 1} / {items.length}</Text>
           </View>
-        </View>
+        </TouchableOpacity>
 
         {/* Carousel Cycling Nav Bar */}
         <View style={styles.cycleNavBar}>
@@ -520,30 +681,36 @@ export default function BiddingScreen() {
         <View style={styles.activeAuctionSection}>
           <Text style={[styles.activeAuctionTitle, { color: stateColor }]}>{stateTitle}</Text>
           
-          <View style={styles.timerRow}>
-            <View style={styles.timerBox}>
-              <Text style={styles.timerNumber}>{displayTimer.days}</Text>
-              <Text style={styles.timerLabel}>Dias</Text>
+          {isBiddingFinished ? (
+            <View style={styles.soldBadgeContainer}>
+              <Text style={styles.soldBadgeText}>Artículo Vendido</Text>
             </View>
-            <Text style={styles.timerColon}>:</Text>
-            
-            <View style={styles.timerBox}>
-              <Text style={styles.timerNumber}>{displayTimer.hours}</Text>
-              <Text style={styles.timerLabel}>Hrs.</Text>
-            </View>
-            <Text style={styles.timerColon}>:</Text>
+          ) : (
+            <View style={styles.timerRow}>
+              <View style={styles.timerBox}>
+                <Text style={styles.timerNumber}>{displayTimer.days}</Text>
+                <Text style={styles.timerLabel}>Dias</Text>
+              </View>
+              <Text style={styles.timerColon}>:</Text>
+              
+              <View style={styles.timerBox}>
+                <Text style={styles.timerNumber}>{displayTimer.hours}</Text>
+                <Text style={styles.timerLabel}>Hrs.</Text>
+              </View>
+              <Text style={styles.timerColon}>:</Text>
 
-            <View style={styles.timerBox}>
-              <Text style={styles.timerNumber}>{displayTimer.minutes}</Text>
-              <Text style={styles.timerLabel}>Min.</Text>
-            </View>
-            <Text style={styles.timerColon}>:</Text>
+              <View style={styles.timerBox}>
+                <Text style={styles.timerNumber}>{displayTimer.minutes}</Text>
+                <Text style={styles.timerLabel}>Min.</Text>
+              </View>
+              <Text style={styles.timerColon}>:</Text>
 
-            <View style={styles.timerBox}>
-              <Text style={styles.timerNumber}>{displayTimer.seconds}</Text>
-              <Text style={styles.timerLabel}>Seg.</Text>
+              <View style={styles.timerBox}>
+                <Text style={styles.timerNumber}>{displayTimer.seconds}</Text>
+                <Text style={styles.timerLabel}>Seg.</Text>
+              </View>
             </View>
-          </View>
+          )}
         </View>
 
         <View style={styles.divider} />
@@ -602,8 +769,8 @@ export default function BiddingScreen() {
                   bid.isLead ? styles.leadBidRow : styles.normalBidRow
                 ]}
               >
-                <Image 
-                  source={require('@/assets/images/auctioneer_avatar.png')} 
+                <BidderAvatar 
+                  idpersona={bid.idpersona} 
                   style={styles.bidderAvatar} 
                 />
                 <View style={styles.bidderInfo}>
@@ -633,10 +800,7 @@ export default function BiddingScreen() {
           style={styles.backButton} 
           onPress={() => {
             if (isUserLeading && !isBiddingFinished) {
-              Alert.alert(
-                'Estás liderando la puja',
-                'No puedes abandonar la subasta mientras seas el postor líder. Debes esperar a que finalice el minuto o a que otro usuario supere tu oferta.'
-              );
+              showLeadingAlert();
             } else {
               router.navigate(`/auction/${auctionIdStr}` as any);
             }
@@ -653,11 +817,7 @@ export default function BiddingScreen() {
         <TouchableOpacity 
           style={[styles.bidButton, (isBiddingFinished || isUserLeading || isFutureLot) && styles.disabledBidButton]} 
           disabled={isBiddingFinished || isUserLeading || isFutureLot}
-          onPress={() => {
-            const currentLeadNum = leadBid ? parseFloat(leadBid.amount.replace(/[^0-9]/g, '')) : currentItem.basePriceNum;
-            setBidValue(String(Math.round(currentLeadNum * 1.05)));
-            setBidStep('input');
-          }}
+          onPress={openBidModal}
         >
           <Text style={styles.bidButtonText}>
             {isBiddingFinished ? 'Vendido' : isFutureLot ? 'Próximo Lote' : isUserLeading ? 'Liderando' : 'Pujar'}
@@ -691,16 +851,49 @@ export default function BiddingScreen() {
 
               {/* Body */}
               <View style={styles.modalBody}>
+                {minBid !== null && maxBid !== null && (
+                  <>
+                    <Text style={styles.restrictionsTitle}>Restricción de Categoria</Text>
+                    <View style={styles.restrictionsRow}>
+                      <TouchableOpacity 
+                        style={styles.restrictionBox}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          const numericValue = Math.round(minBid).toString();
+                          const formatted = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                          setBidValue(formatted);
+                        }}
+                      >
+                        <Text style={styles.restrictionLabel}>Puja Minima</Text>
+                        <Text style={styles.restrictionAmount}>{formatPrice(minBid)}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={styles.restrictionBox}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          const numericValue = Math.round(maxBid).toString();
+                          const formatted = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                          setBidValue(formatted);
+                        }}
+                      >
+                        <Text style={styles.restrictionLabel}>Puja Maxima</Text>
+                        <Text style={styles.restrictionAmount}>{formatPrice(maxBid)}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
+
                 <Text style={styles.modalLabel}>Ingrese su Monto a Pujar</Text>
                 
                 <View style={styles.inputWrapper}>
                   <TextInput
-                    style={styles.textInput}
+                    style={[styles.textInput, { outlineStyle: 'none' } as any]}
                     value={bidValue}
-                    onChangeText={setBidValue}
+                    onChangeText={handleBidValueChange}
                     keyboardType="numeric"
                     placeholder="0"
                     placeholderTextColor="#666"
+                    underlineColorAndroid="transparent"
                   />
                   <Text style={styles.currencySuffix}>ARS</Text>
                 </View>
@@ -773,6 +966,92 @@ export default function BiddingScreen() {
                 </TouchableOpacity>
               </View>
             </View>
+          )}
+
+          {bidStep === 'error' && (
+            <View style={styles.modalContent}>
+              {/* Header */}
+              <View style={styles.modalHeader}>
+                <TouchableOpacity onPress={() => setBidStep(null)} style={styles.modalCloseButton}>
+                  <Text style={styles.modalCloseText}>✕</Text>
+                </TouchableOpacity>
+                <Text style={styles.modalTitle}>{errorTitle || 'Error al Ofertar'}</Text>
+                <View style={styles.modalHeaderPlaceholder} />
+              </View>
+
+              {/* Body */}
+              <View style={styles.modalBody}>
+                <View style={styles.errorIconCircle}>
+                  <Text style={styles.errorXMark}>✕</Text>
+                </View>
+
+                <Text style={styles.errorModalText}>{errorMessage || 'No se pudo realizar la puja.'}</Text>
+
+                <TouchableOpacity 
+                  style={styles.modalErrorCloseButton}
+                  onPress={() => setBidStep(null)}
+                >
+                  <Text style={styles.modalErrorCloseButtonText}>Entendido</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      {/* Image Viewer / Carousel Modal */}
+      <Modal
+        visible={isPhotoModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsPhotoModalVisible(false)}
+      >
+        <View style={styles.modalCarouselBackdrop}>
+          {/* Close button */}
+          <TouchableOpacity 
+            style={styles.modalCarouselCloseButton} 
+            onPress={() => setIsPhotoModalVisible(false)}
+          >
+            <Text style={styles.modalCarouselCloseText}>✕</Text>
+          </TouchableOpacity>
+
+          {loadingPhotos ? (
+            <ActivityIndicator size="large" color="#fff" />
+          ) : (
+            <>
+              {/* Swipeable Horizontal ScrollView */}
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onScroll={(event) => {
+                  const offset = event.nativeEvent.contentOffset.x;
+                  const index = Math.round(offset / width);
+                  if (!isNaN(index)) {
+                    setPhotoIndex(Math.max(0, Math.min(index, itemPhotos.length - 1)));
+                  }
+                }}
+                scrollEventThrottle={16}
+                style={styles.modalCarouselScroll}
+              >
+                {itemPhotos.map((img, index) => (
+                  <View key={index} style={styles.modalCarouselSlide}>
+                    <Image 
+                      source={typeof img === 'string' ? { uri: img } : img} 
+                      style={styles.modalCarouselImage} 
+                      resizeMode="contain" 
+                    />
+                  </View>
+                ))}
+              </ScrollView>
+
+              {/* Page Indicator */}
+              <View style={styles.modalCarouselIndicator}>
+                <Text style={styles.modalCarouselIndicatorText}>
+                  {photoIndex + 1} / {itemPhotos.length}
+                </Text>
+              </View>
+            </>
           )}
         </View>
       </Modal>
@@ -1206,5 +1485,141 @@ const styles = StyleSheet.create({
     color: '#051C2C',
     fontSize: 16,
     fontWeight: '800',
+  },
+  soldBadgeContainer: {
+    backgroundColor: '#FFF2F2',
+    borderColor: '#FFAEAE',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  soldBadgeText: {
+    color: '#D32F2F',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  errorIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 3,
+    borderColor: '#D32F2F',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  errorXMark: {
+    color: '#D32F2F',
+    fontSize: 32,
+    fontWeight: 'bold',
+  },
+  errorModalText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#051C2C',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+    paddingHorizontal: 12,
+  },
+  modalErrorCloseButton: {
+    backgroundColor: '#051C2C',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    width: '100%',
+  },
+  modalErrorCloseButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  modalCarouselBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCarouselCloseButton: {
+    position: 'absolute',
+    top: 48,
+    right: 24,
+    zIndex: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCarouselCloseText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  modalCarouselScroll: {
+    flex: 1,
+    width: '100%',
+  },
+  modalCarouselSlide: {
+    width: width,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCarouselImage: {
+    width: width * 0.95,
+    height: '80%',
+  },
+  modalCarouselIndicator: {
+    position: 'absolute',
+    bottom: 48,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  modalCarouselIndicatorText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  restrictionsTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#051C2C',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  restrictionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 24,
+    gap: 12,
+  },
+  restrictionBox: {
+    flex: 1,
+    backgroundColor: '#051C2C',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
+  restrictionLabel: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  restrictionAmount: {
+    color: '#BEE757', // Lime green
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

@@ -4,6 +4,7 @@ import com.bidowl.auctionplace.dto.MiSubastaDTO;
 import com.bidowl.auctionplace.dto.NotificacionDTO;
 import com.bidowl.auctionplace.dto.PujaActivaDTO;
 import com.bidowl.auctionplace.dto.WonItemDetailDTO;
+import com.bidowl.auctionplace.dto.HistorialPujaUsuarioDTO;
 import com.bidowl.auctionplace.repository.NotificacionRepository;
 import com.bidowl.auctionplace.service.InboxService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +39,11 @@ public class InboxController {
     @GetMapping("/{personaId}/mis-subastas")
     public ResponseEntity<List<MiSubastaDTO>> obtenerMisSubastas(@PathVariable Integer personaId) {
         return ResponseEntity.ok(inboxService.obtenerMisSubastas(personaId));
+    }
+
+    @GetMapping("/{personaId}/historial")
+    public ResponseEntity<List<HistorialPujaUsuarioDTO>> obtenerHistorial(@PathVariable Integer personaId) {
+        return ResponseEntity.ok(inboxService.obtenerHistorial(personaId));
     }
 
     @GetMapping("/won-item/{itemId}")

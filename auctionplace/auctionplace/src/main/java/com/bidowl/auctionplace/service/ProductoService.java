@@ -309,4 +309,18 @@ public class ProductoService {
             notificacionRepository.save(notif);
         }
     }
+
+    public List<Integer> obtenerIdsFotosProducto(Integer productoId) {
+        List<Foto> fotos = fotoRepository.findByProductoId(productoId);
+        if (fotos != null) {
+            return fotos.stream().map(Foto::getIdentificador).collect(Collectors.toList());
+        }
+        return java.util.Collections.emptyList();
+    }
+
+    public byte[] obtenerFotoBytesPorId(Integer fotoId) {
+        return fotoRepository.findById(fotoId)
+                .map(Foto::getFoto)
+                .orElse(null);
+    }
 }

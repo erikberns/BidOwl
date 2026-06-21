@@ -29,6 +29,9 @@ public class ItemCatalogoService {
     @Autowired
     private NotificacionRepository notificacionRepository;
 
+    @Autowired
+    private SubastaRepository subastaRepository;
+
     public List<ItemCatalogo> obtenerItemsPorCatalogo(Integer catalogoId) {
         return itemCatalogoRepository.findByCatalogoIdentificador(catalogoId);
     }
@@ -45,6 +48,7 @@ public class ItemCatalogoService {
         }
 
         Optional<Pujo> pujaGanadoraOpt = pujoRepository.findFirstByItemIdentificadorOrderByImporteDesc(itemId);
+        ItemCatalogo guardado;
 
         if (pujaGanadoraOpt.isPresent()) {
             Pujo pujaGanadora = pujaGanadoraOpt.get();
@@ -52,7 +56,7 @@ public class ItemCatalogoService {
             pujoRepository.save(pujaGanadora);
 
             item.setSubastado("si");
-            ItemCatalogo guardado = itemCatalogoRepository.save(item);
+            guardado = itemCatalogoRepository.save(item);
 
             Asistente asistenteGanador = pujaGanadora.getAsistente();
             Cliente clienteGanador = asistenteGanador.getCliente();
@@ -95,13 +99,25 @@ public class ItemCatalogoService {
             notificacion.setLeida(false);
             notificacion.setFecha(java.time.LocalDateTime.now());
             guardarNotificacionSiNoExiste(notificacion);
-
-            return guardado;
         } else {
             // Regla TPO: Si nadie puja por un artículo, la empresa compra el mismo por el valor base al finalizar
             item.setSubastado("si");
-            return itemCatalogoRepository.save(item);
+            guardado = itemCatalogoRepository.save(item);
         }
+
+        // Regla: La subasta al no tener mas objetos no subastados, debera terminar sin importar cuanto tiempo restante quede.
+        Subasta subasta = guardado.getCatalogo().getSubasta();
+        if (subasta != null) {
+            List<ItemCatalogo> itemsEnCatalogo = itemCatalogoRepository.findByCatalogoSubastaIdentificador(subasta.getIdentificador());
+            boolean todosSubastados = itemsEnCatalogo.stream()
+                    .allMatch(it -> "si".equalsIgnoreCase(it.getSubastado()));
+            if (todosSubastados) {
+                subasta.setEstado("finalizada");
+                subastaRepository.save(subasta);
+            }
+        }
+
+        return guardado;
     }
 
     private void guardarNotificacionSiNoExiste(Notificacion notif) {

@@ -175,6 +175,34 @@ public class ProductoController {
         }
     }
 
+    @GetMapping("/{id}/fotos")
+    public ResponseEntity<?> obtenerIdsFotosProducto(@PathVariable Integer id) {
+        try {
+            List<Integer> ids = productoService.obtenerIdsFotosProducto(id);
+            List<String> urls = ids.stream()
+                    .map(fotoId -> "/api/productos/fotos/" + fotoId)
+                    .collect(java.util.stream.Collectors.toList());
+            return ResponseEntity.ok(urls);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/fotos/{fotoId}")
+    public ResponseEntity<byte[]> obtenerFotoPorId(@PathVariable Integer fotoId) {
+        try {
+            byte[] foto = productoService.obtenerFotoBytesPorId(fotoId);
+            if (foto == null) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok()
+                    .contentType(org.springframework.http.MediaType.IMAGE_JPEG)
+                    .body(foto);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     /**
      * Método auxiliar para crear respuestas de error consistentes
      */

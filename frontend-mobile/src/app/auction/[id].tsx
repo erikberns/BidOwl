@@ -26,7 +26,13 @@ const getImageUrl = (path: string) => {
 // Helper to format prices
 const formatPrice = (value: number | string) => {
   if (value === undefined || value === null) return '';
-  const num = typeof value === 'number' ? value : parseFloat(value.toString().replace(/[^0-9.]/g, ''));
+  let num: number;
+  if (typeof value === 'number') {
+    num = value;
+  } else {
+    const clean = value.toString().replace(/\./g, '').replace(/[^0-9-]/g, '');
+    num = parseFloat(clean);
+  }
   if (isNaN(num)) return value.toString();
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " ARS";
 };
@@ -84,6 +90,8 @@ export default function AuctionDetailScreen() {
   // Carousel Modal State
   const [isCarouselVisible, setIsCarouselVisible] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [subastaPhotos, setSubastaPhotos] = useState<any[]>([]);
+  const [headerImageIndex, setHeaderImageIndex] = useState(0);
 
   // Joining and Payment State
   const [hasJoined, setHasJoined] = useState(false);
@@ -254,6 +262,24 @@ export default function AuctionDetailScreen() {
           }))
         });
       }
+
+      // 4. Fetch subasta photos
+      try {
+        const photoRes = await fetch(`${API_URL}/subastas/${auctionIdStr}/fotos?_=${Date.now()}`);
+        if (photoRes.ok) {
+          const photoUrls = await photoRes.json();
+          if (photoUrls && photoUrls.length > 0) {
+            setSubastaPhotos(photoUrls);
+          } else {
+            setSubastaPhotos([]);
+          }
+        } else {
+          setSubastaPhotos([]);
+        }
+      } catch (err) {
+        console.error('[AuctionDetailScreen] Error fetching subasta photos:', err);
+        setSubastaPhotos([]);
+      }
     } catch (err) {
       console.error('[AuctionDetailScreen] Error fetching details:', err);
       // Fallback on network error
@@ -311,7 +337,9 @@ export default function AuctionDetailScreen() {
       let targetDate = startDate;
       let state: 'pending' | 'active' | 'ended' = 'pending';
 
-      if (now.getTime() < startDate.getTime()) {
+      if (auctionDetail.estado === 'finalizada') {
+        state = 'ended';
+      } else if (now.getTime() < startDate.getTime()) {
         state = 'pending';
         targetDate = startDate;
       } else if (now.getTime() >= startDate.getTime() && now.getTime() < endDate.getTime()) {
@@ -368,10 +396,10 @@ export default function AuctionDetailScreen() {
     ? getImageUrl(detail.imagenPortada)
     : require('@/assets/images/rolling_stone_auction.png');
 
-  // Setup list of images for the carousel (only catalog cover image)
-  const collectionImages = [
-    coverImage
-  ];
+  // Setup list of images for the carousel
+  const collectionImages = subastaPhotos.length > 0
+    ? subastaPhotos.map((p: string) => getImageUrl(p))
+    : [coverImage];
 
   // Timer UI state configuration
   let stateTitle = "Subasta Activa";
@@ -601,10 +629,11 @@ export default function AuctionDetailScreen() {
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             onScroll={(event) => {
-              const slideWidth = event.nativeEvent.layoutMeasurement.width;
               const offset = event.nativeEvent.contentOffset.x;
-              const index = Math.round(offset / slideWidth);
-              setCurrentImageIndex(index);
+              const index = Math.round(offset / width);
+              if (!isNaN(index)) {
+                setCurrentImageIndex(Math.max(0, Math.min(index, collectionImages.length - 1)));
+              }
             }}
             scrollEventThrottle={16}
             style={styles.modalCarouselScroll}
@@ -697,14 +726,32 @@ export default function AuctionDetailScreen() {
                 <>
                   <Text style={styles.restrictionsTitle}>Restricción de Categoria</Text>
                   <View style={styles.restrictionsRow}>
-                    <View style={styles.restrictionBox}>
+                    <TouchableOpacity 
+                      style={styles.restrictionBox}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        const numericValue = Math.round(minBid).toString();
+                        const formatted = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                        setBidAmount(formatted);
+                        setBidError(null);
+                      }}
+                    >
                       <Text style={styles.restrictionLabel}>Puja Minima</Text>
                       <Text style={styles.restrictionAmount}>{formatPrice(minBid)}</Text>
-                    </View>
-                    <View style={styles.restrictionBox}>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.restrictionBox}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        const numericValue = Math.round(maxBid).toString();
+                        const formatted = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                        setBidAmount(formatted);
+                        setBidError(null);
+                      }}
+                    >
                       <Text style={styles.restrictionLabel}>Puja Maxima</Text>
                       <Text style={styles.restrictionAmount}>{formatPrice(maxBid)}</Text>
-                    </View>
+                    </TouchableOpacity>
                   </View>
                 </>
               )}
