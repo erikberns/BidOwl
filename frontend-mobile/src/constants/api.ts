@@ -20,10 +20,19 @@ const getLocalIp = (): string => {
 };
 
 const LOCAL_IP = getLocalIp();
-export const API_URL = Platform.select({
-  web: 'http://localhost:8080/api',
-  default: `http://${LOCAL_IP}:8080/api`,
-});
+
+// TODO: Pega aquí la URL que te generó Railway (asegúrate de que empiece con https:// y termine con /api)
+const CLOUD_API_URL = 'https://bidowl-production.up.railway.app/api';
+
+// Cambia esto a "true" cuando quieras que tu app apunte a Railway, y "false" para usar tu PC local
+const USE_CLOUD = true;
+
+export const API_URL = USE_CLOUD
+  ? CLOUD_API_URL
+  : Platform.select({
+    web: 'http://localhost:8080/api',
+    default: `http://${LOCAL_IP}:8080/api`,
+  });
 
 console.log('[API_URL] API_URL configurado en:', API_URL);
 
