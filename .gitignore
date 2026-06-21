@@ -41,6 +41,4 @@ app-example
 # generated native folders
 /ios
 /android
-
-# application properties from backend
-auctionplace/auctionplace/src/main/resources/application.properties
+
