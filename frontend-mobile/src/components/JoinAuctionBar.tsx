@@ -6,6 +6,23 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '@/constants/api';
 
+const CATEGORY_RANKS: Record<string, number> = {
+  'COMUN': 0,
+  'ESPECIAL': 1,
+  'PLATA': 2,
+  'ORO': 3,
+  'PLATINO': 4
+};
+
+function normalizeCategory(value: string) {
+  if (!value) return 'COMUN';
+  return value
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '');
+}
+
 interface JoinAuctionBarProps {
   auctionId: string;
   onBack?: () => void;
@@ -21,6 +38,8 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [selectedMethod, setSelectedMethod] = useState<any>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [auctionCategory, setAuctionCategory] = useState<string>('COMUN');
+  const [userCategory, setUserCategory] = useState<string>('COMUN');
 
   const getIconName = (type: string) => {
     switch (type) {
@@ -58,11 +77,13 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
               details: `**** **** **** ${last4}`,
             };
           } else if (item.cuentaBancaria) {
+            const cbu = item.cuentaBancaria.cbuIban || '';
+            const last4 = cbu.length >= 4 ? cbu.slice(-4) : cbu;
             return {
               id: String(item.identificador),
               type: 'bank',
               label: `Cuenta Bancaria ${item.cuentaBancaria.nombreBanco || ''}`,
-              details: `CBU/IBAN: ${item.cuentaBancaria.cbuIban || ''}`,
+              details: `CBU/IBAN: ****${last4}`,
             };
           } else if (item.chequeCertificado) {
             return {
@@ -148,7 +169,12 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
       try {
         const isGuestStr = await AsyncStorage.getItem('isGuest');
         const userStr = await AsyncStorage.getItem('user');
-        setIsGuest((isGuestStr === 'true' || isGuestStr === null) && !userStr);
+        const isGuestUser = (isGuestStr === 'true' || isGuestStr === null) && !userStr;
+        setIsGuest(isGuestUser);
+        if (!isGuestUser && userStr) {
+          const user = JSON.parse(userStr);
+          setUserCategory(user.categoria || 'COMUN');
+        }
       } catch (error) {
         setIsGuest(true);
       }
@@ -157,26 +183,33 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
   }, []);
 
   useEffect(() => {
-    if (propIsActive !== undefined) {
-      setIsActive(propIsActive);
-      return;
-    }
-
     async function checkAuctionStatus() {
       try {
         const res = await fetch(`${API_URL}/subastas/${auctionId}?detalle=true`);
         if (res.ok) {
           const detail = await res.json();
-          if (detail && detail.fecha) {
-            const startDate = parseAuctionDateTime(detail.fecha, detail.hora);
-            const endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
-            const now = new Date();
-            const active = now.getTime() >= startDate.getTime() && now.getTime() < endDate.getTime() && detail.estado !== 'finalizada';
-            setIsActive(active);
+          if (detail) {
+            if (detail.categoria) {
+              setAuctionCategory(detail.categoria);
+            } else if (detail.category) {
+              setAuctionCategory(detail.category);
+            }
+            if (propIsActive !== undefined) {
+              setIsActive(propIsActive);
+            } else if (detail.fecha) {
+              const startDate = parseAuctionDateTime(detail.fecha, detail.hora);
+              const endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
+              const now = new Date();
+              const active = now.getTime() >= startDate.getTime() && now.getTime() < endDate.getTime() && detail.estado !== 'finalizada';
+              setIsActive(active);
+            }
           }
         }
       } catch (e) {
         console.error('[JoinAuctionBar] Error checking status:', e);
+        if (propIsActive !== undefined) {
+          setIsActive(propIsActive);
+        }
       }
     }
     checkAuctionStatus();
@@ -206,6 +239,22 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
     setIsModalVisible(true);
   };
 
+  const normUserCat = normalizeCategory(userCategory);
+  const normAuctionCat = normalizeCategory(auctionCategory);
+  const userRank = CATEGORY_RANKS[normUserCat] ?? 0;
+  const auctionRank = CATEGORY_RANKS[normAuctionCat] ?? 0;
+  const isCategoryTooLow = !isGuest && (auctionRank > userRank);
+
+  let buttonText = 'Unirse a Subasta';
+  if (!isActive) {
+    buttonText = 'Subasta Inactiva';
+  } else if (isCategoryTooLow) {
+    buttonText = 'Categoría Insuficiente';
+  }
+
+  const isBtnDisabled = !isActive || isCategoryTooLow;
+  const applyDisabledStyle = !isActive || isGuest || isCategoryTooLow;
+
   return (
     <View style={[
       styles.container, 
@@ -232,13 +281,13 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
       </TouchableOpacity>
 
       <TouchableOpacity 
-        style={[styles.joinBtn, (!isActive || isGuest) ? styles.disabledJoinBtn : null]}
+        style={[styles.joinBtn, applyDisabledStyle ? styles.disabledJoinBtn : null]}
         onPress={handleJoinPress}
         activeOpacity={0.8}
-        disabled={!isActive}
+        disabled={isBtnDisabled}
       >
-        <Text style={[styles.joinBtnText, (!isActive || isGuest) ? styles.disabledJoinBtnText : null]}>
-          {isActive ? 'Unirse a Subasta' : 'Subasta Inactiva'}
+        <Text style={[styles.joinBtnText, applyDisabledStyle ? styles.disabledJoinBtnText : null]}>
+          {buttonText}
         </Text>
       </TouchableOpacity>
 

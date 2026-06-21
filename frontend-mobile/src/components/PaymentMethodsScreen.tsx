@@ -290,11 +290,13 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
                 cardCvv: String(item.tarjetaCredito.cvv),
               };
             } else if (item.cuentaBancaria) {
+              const cbu = item.cuentaBancaria.cbuIban || '';
+              const last4 = cbu.length >= 4 ? cbu.slice(-4) : cbu;
               return {
                 id: String(item.identificador),
                 type: 'bank',
                 title: `Cuenta Bancaria ${item.cuentaBancaria.nombreBanco || ''}`,
-                subtitle: `CBU/IBAN: ${item.cuentaBancaria.cbuIban || ''}`,
+                subtitle: `CBU/IBAN: ****${last4}`,
                 bankTitular: item.cuentaBancaria.titularCuenta,
                 bankBanco: item.cuentaBancaria.nombreBanco,
                 bankPais: item.cuentaBancaria.pais?.nombre || 'Argentina',
@@ -532,10 +534,12 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       }
 
       showAlert('Éxito', 'Cuenta bancaria registrada con éxito.');
+      const cbu = bankCbuIban || '';
+      const last4 = cbu.length >= 4 ? cbu.slice(-4) : cbu;
       addMethod({
         type: 'bank',
         title: `Cuenta Bancaria ${bankBanco}`,
-        subtitle: `CBU/IBAN: ${bankCbuIban}`,
+        subtitle: `CBU/IBAN: ****${last4}`,
         bankTitular,
         bankBanco,
         bankPais,

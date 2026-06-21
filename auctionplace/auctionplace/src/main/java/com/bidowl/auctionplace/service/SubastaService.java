@@ -147,8 +147,16 @@ public class SubastaService {
             estado.setPujaLider(lider);
         }
 
-        // Lógica de temporizador de 1 minuto y auto-cierre
-        if (itemCatalogo.getFechaFinPuja() != null && pujaLider.isPresent()) {
+        // Lógica de temporizador de 10 minutos (lote activo inicial) o 1 minuto (después de puja) y auto-cierre
+        List<ItemCatalogo> items = itemCatalogoRepository.findByCatalogoIdentificador(itemCatalogo.getCatalogo().getIdentificador());
+        ItemCatalogo primerItemActivo = items.stream()
+                .filter(it -> !"si".equalsIgnoreCase(it.getSubastado()))
+                .findFirst()
+                .orElse(null);
+
+        boolean esActivo = primerItemActivo != null && primerItemActivo.getIdentificador().equals(itemCatalogo.getIdentificador());
+
+        if (itemCatalogo.getFechaFinPuja() != null && (pujaLider.isPresent() || esActivo)) {
             boolean expiro = LocalDateTime.now().isAfter(itemCatalogo.getFechaFinPuja());
             if (expiro && !"si".equalsIgnoreCase(itemCatalogo.getSubastado())) {
                 try {
@@ -840,9 +848,14 @@ public class SubastaService {
 
             // Actualizar fechaFinPuja de los ítems del catálogo que tengan fecha nula
             List<ItemCatalogo> items = itemCatalogoRepository.findByCatalogoIdentificador(catalogo.getIdentificador());
-            for (ItemCatalogo item : items) {
+            for (int i = 0; i < items.size(); i++) {
+                ItemCatalogo item = items.get(i);
                 if (item.getFechaFinPuja() == null) {
-                    item.setFechaFinPuja(java.time.LocalDateTime.of(dateFecha, timeHora).plusHours(1));
+                    if (i == 0) {
+                        item.setFechaFinPuja(java.time.LocalDateTime.of(dateFecha, timeHora).plusMinutes(10));
+                    } else {
+                        item.setFechaFinPuja(null);
+                    }
                     itemCatalogoRepository.save(item);
                 }
             }

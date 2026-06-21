@@ -167,7 +167,7 @@ export default function BidsHistoryScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <Tabs.Screen options={{ headerShown: false }} />
+      <Tabs.Screen options={{ headerShown: false, tabBarStyle: { display: 'none' } }} />
       {/* Header Bar */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.navigate(`/auction/${auctionIdStr}/bidding` as any)}>
@@ -225,30 +225,6 @@ export default function BidsHistoryScreen() {
         )}
       </ScrollView>
 
-      {/* Bottom Bidding Bar */}
-      <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.bottomBackButton} onPress={() => router.navigate(`/auction/${auctionIdStr}/bidding` as any)}>
-          <SymbolView
-            tintColor="#fff"
-            // @ts-ignore
-            name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_left' }}
-            size={20}
-          />
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.bidButton, isBiddingFinished && { backgroundColor: '#8A8A8A' }]} 
-          disabled={isBiddingFinished}
-          onPress={() => router.navigate(`/auction/${auctionIdStr}/bidding` as any)}
-        >
-          <Text style={styles.bidButtonText}>{isBiddingFinished ? 'Vendido' : 'Pujar'}</Text>
-        </TouchableOpacity>
-
-        <View style={styles.leadPriceInfo}>
-          <Text style={styles.leadPriceValue}>{leadAmount}</Text>
-          <Text style={styles.leadPriceLabel}>Puja Lider</Text>
-        </View>
-      </View>
     </SafeAreaView>
   );
 }

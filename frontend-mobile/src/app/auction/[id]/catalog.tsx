@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import JoinAuctionBar from '@/components/JoinAuctionBar';
 import { MOCK_AUCTION_ITEMS } from '@/constants/mockData';
 import { API_URL } from '@/constants/api';
 
@@ -79,7 +78,7 @@ export default function CatalogScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
-      <Tabs.Screen options={{ headerShown: false }} />
+      <Tabs.Screen options={{ headerShown: false, tabBarStyle: { display: 'none' } }} />
       {/* Header Bar */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.navigate(`/auction/${id}` as any)}>
@@ -128,11 +127,6 @@ export default function CatalogScreen() {
         </View>
       </ScrollView>
 
-      {/* Bottom Bar */}
-      <JoinAuctionBar
-        auctionId={id as string}
-        onBack={() => router.navigate(`/auction/${id}` as any)}
-      />
     </SafeAreaView>
   );
 }

@@ -32,6 +32,15 @@ public class ItemCatalogoService {
     @Autowired
     private SubastaRepository subastaRepository;
 
+    @Autowired
+    private DuenioRepository duenioRepository;
+
+    @Autowired
+    private ProductoRepository productoRepository;
+
+    @Autowired
+    private EmpleadoRepository empleadoRepository;
+
     public List<ItemCatalogo> obtenerItemsPorCatalogo(Integer catalogoId) {
         return itemCatalogoRepository.findByCatalogoIdentificador(catalogoId);
     }
@@ -63,6 +72,37 @@ public class ItemCatalogoService {
 
             clienteGanador.setRematesGanados(clienteGanador.getRematesGanados() + 1);
             clienteRepository.save(clienteGanador);
+
+            // Transferir propiedad al usuario ganador y poner disponible = "no"
+            Duenio duenioGanador = duenioRepository.findById(clienteGanador.getIdentificador()).orElse(null);
+            if (duenioGanador == null) {
+                duenioGanador = new Duenio();
+                duenioGanador.setIdentificador(clienteGanador.getIdentificador());
+                duenioGanador.setDocumento(clienteGanador.getDocumento());
+                duenioGanador.setNombre(clienteGanador.getNombre());
+                duenioGanador.setApellido(clienteGanador.getApellido());
+                duenioGanador.setEmail(clienteGanador.getEmail());
+                duenioGanador.setContrasena(clienteGanador.getContrasena());
+                duenioGanador.setDireccion(clienteGanador.getDireccion());
+                duenioGanador.setEstado(clienteGanador.getEstado());
+                duenioGanador.setCategoria(clienteGanador.getCategoria());
+                duenioGanador.setPaisCliente(clienteGanador.getPaisCliente());
+                duenioGanador.setPaisDuenio(clienteGanador.getPaisCliente());
+                duenioGanador.setAdmitido(clienteGanador.getAdmitido());
+                duenioGanador.setCategoriaCliente(clienteGanador.getCategoriaCliente());
+                duenioGanador.setVerificador(clienteGanador.getVerificador());
+                duenioGanador.setVerificadorDuenio(clienteGanador.getVerificador());
+                duenioGanador.setVerificacionFinanciera("si");
+                duenioGanador.setVerificacionJudicial("si");
+                duenioGanador.setCalificacionRiesgo(1);
+                duenioGanador = duenioRepository.save(duenioGanador);
+            }
+            Producto producto = item.getProducto();
+            if (producto != null) {
+                producto.setDuenio(duenioGanador);
+                producto.setDisponible("no");
+                productoRepository.save(producto);
+            }
 
             RegistroDeSubasta registro = new RegistroDeSubasta();
             registro.setSubasta(item.getCatalogo().getSubasta());
@@ -101,6 +141,40 @@ public class ItemCatalogoService {
             guardarNotificacionSiNoExiste(notificacion);
         } else {
             // Regla TPO: Si nadie puja por un artículo, la empresa compra el mismo por el valor base al finalizar
+            Duenio companyDuenio = duenioRepository.findAll().stream()
+                    .filter(d -> "empresa@bidowl.com".equalsIgnoreCase(d.getEmail()))
+                    .findFirst()
+                    .orElse(null);
+            if (companyDuenio == null) {
+                companyDuenio = new Duenio();
+                companyDuenio.setDocumento("99999999");
+                companyDuenio.setNombre("BidOwl");
+                companyDuenio.setApellido("S.A.");
+                companyDuenio.setEmail("empresa@bidowl.com");
+                companyDuenio.setContrasena("bidowl123");
+                companyDuenio.setDireccion("Av. Siempreviva 742");
+                companyDuenio.setEstado("activo");
+                companyDuenio.setCategoria("platino");
+                companyDuenio.setAdmitido("si");
+                companyDuenio.setCategoriaCliente("platino");
+                companyDuenio.setVerificacionFinanciera("si");
+                companyDuenio.setVerificacionJudicial("si");
+                companyDuenio.setCalificacionRiesgo(1);
+                
+                Empleado verificador = empleadoRepository.findAll().stream().findFirst().orElse(null);
+                companyDuenio.setVerificador(verificador);
+                companyDuenio.setVerificadorDuenio(verificador);
+                
+                companyDuenio = duenioRepository.save(companyDuenio);
+            }
+            
+            Producto producto = item.getProducto();
+            if (producto != null) {
+                producto.setDuenio(companyDuenio);
+                producto.setDisponible("no");
+                productoRepository.save(producto);
+            }
+            
             item.setSubastado("si");
             guardado = itemCatalogoRepository.save(item);
         }
@@ -109,11 +183,22 @@ public class ItemCatalogoService {
         Subasta subasta = guardado.getCatalogo().getSubasta();
         if (subasta != null) {
             List<ItemCatalogo> itemsEnCatalogo = itemCatalogoRepository.findByCatalogoSubastaIdentificador(subasta.getIdentificador());
+            itemsEnCatalogo.sort(java.util.Comparator.comparing(ItemCatalogo::getIdentificador));
             boolean todosSubastados = itemsEnCatalogo.stream()
                     .allMatch(it -> "si".equalsIgnoreCase(it.getSubastado()));
             if (todosSubastados) {
                 subasta.setEstado("finalizada");
                 subastaRepository.save(subasta);
+            } else {
+                // Set next item's timer to 10 minutes from now
+                Optional<ItemCatalogo> siguienteItemOpt = itemsEnCatalogo.stream()
+                        .filter(it -> !"si".equalsIgnoreCase(it.getSubastado()))
+                        .findFirst();
+                if (siguienteItemOpt.isPresent()) {
+                    ItemCatalogo siguienteItem = siguienteItemOpt.get();
+                    siguienteItem.setFechaFinPuja(java.time.LocalDateTime.now().plusMinutes(10));
+                    itemCatalogoRepository.save(siguienteItem);
+                }
             }
         }
 

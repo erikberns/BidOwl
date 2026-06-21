@@ -66,11 +66,13 @@ export default function PaymentMethodsModal({ visible, onClose }: PaymentMethods
             details: `**** **** **** ${last4}`,
           };
         } else if (item.cuentaBancaria) {
+          const cbu = item.cuentaBancaria.cbuIban || '';
+          const last4 = cbu.length >= 4 ? cbu.slice(-4) : cbu;
           return {
             id: String(item.identificador),
             type: 'bank',
             label: `Cuenta Bancaria ${item.cuentaBancaria.nombreBanco || ''}`,
-            details: `CBU/IBAN: ${item.cuentaBancaria.cbuIban || ''}`,
+            details: `CBU/IBAN: ****${last4}`,
           };
         } else if (item.chequeCertificado) {
           return {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, Modal, TextInput, ActivityIndicator, Alert, Platform } from 'react-native';
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, useWindowDimensions, Modal, TextInput, ActivityIndicator, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs, useNavigation } from 'expo-router';
@@ -101,6 +101,7 @@ export default function BiddingScreen() {
   const auctionIdStr = Array.isArray(id) ? id[0] : id || '1';
   const navigation = useNavigation();
   const isFocused = useIsFocused();
+  const { width: windowWidth } = useWindowDimensions();
 
   const [isGuest, setIsGuest] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
@@ -141,6 +142,7 @@ export default function BiddingScreen() {
   const [isPhotoModalVisible, setIsPhotoModalVisible] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [currentPhotosCount, setCurrentPhotosCount] = useState<number>(1);
 
   const currentItem = items[currentIndex] || {
     id: '',
@@ -203,6 +205,27 @@ export default function BiddingScreen() {
     }
     loadGuestStatus();
   }, []);
+
+  useEffect(() => {
+    if (!currentItem || !currentItem.id) return;
+    const targetId = currentItem.productoId || currentItem.id;
+    async function fetchPhotosCount() {
+      try {
+        const res = await fetch(`${API_URL}/productos/${targetId}/fotos`);
+        if (res.ok) {
+          const urls = await res.json();
+          if (urls && urls.length > 0) {
+            setCurrentPhotosCount(urls.length);
+            return;
+          }
+        }
+      } catch (e) {
+        console.error('[BiddingScreen] Error fetching photos count:', e);
+      }
+      setCurrentPhotosCount(1);
+    }
+    fetchPhotosCount();
+  }, [currentIndex, currentItem?.id, currentItem?.productoId]);
 
   useEffect(() => {
     if (isGuest) {
@@ -598,19 +621,22 @@ export default function BiddingScreen() {
   } else if (auctionState === 'ended') {
     stateTitle = "Subasta Finalizada";
     stateColor = "#8A8A8A"; // Gray
-  }
-
-  // If item bidding has started and is not finished
-  if (isCurrentActive && secondsLeft !== null && !isBiddingFinished) {
+  } else if (isCurrentActive && secondsLeft !== null && !isBiddingFinished) {
     stateTitle = "Cierre de Lote Inminente";
     stateColor = "#BA4B4B"; // Red/Orange urgency accent
   } else if (isBiddingFinished) {
     stateTitle = "Lote Vendido";
     stateColor = "#8A8A8A";
+  } else if (isFutureLot) {
+    if (currentIndex === activeIndex + 1) {
+      stateTitle = "Próximo Lote";
+    } else {
+      stateTitle = "Disponible luego de venta de lote anterior";
+    }
+    stateColor = "#E79E2E";
   } else {
-    // If it's a future lot or active lot with no bids yet
-    stateTitle = isFutureLot ? "Próximo Lote" : "Subasta Activa";
-    stateColor = isFutureLot ? "#E79E2E" : "#2E9F64";
+    stateTitle = "Subasta Activa";
+    stateColor = "#2E9F64";
   }
 
   const isTimerActive = isCurrentActive && secondsLeft !== null && !isBiddingFinished;
@@ -641,7 +667,7 @@ export default function BiddingScreen() {
             style={styles.heroImage} 
           />
           <View style={styles.imageBadge}>
-            <Text style={styles.imageBadgeText}>{currentIndex + 1} / {items.length}</Text>
+            <Text style={styles.imageBadgeText}>1 / {currentPhotosCount}</Text>
           </View>
         </TouchableOpacity>
 
@@ -685,7 +711,7 @@ export default function BiddingScreen() {
             <View style={styles.soldBadgeContainer}>
               <Text style={styles.soldBadgeText}>Artículo Vendido</Text>
             </View>
-          ) : (
+          ) : isTimerActive ? (
             <View style={styles.timerRow}>
               <View style={styles.timerBox}>
                 <Text style={styles.timerNumber}>{displayTimer.days}</Text>
@@ -710,7 +736,7 @@ export default function BiddingScreen() {
                 <Text style={styles.timerLabel}>Seg.</Text>
               </View>
             </View>
-          )}
+          ) : null}
         </View>
 
         <View style={styles.divider} />
@@ -1026,19 +1052,19 @@ export default function BiddingScreen() {
                 showsHorizontalScrollIndicator={false}
                 onScroll={(event) => {
                   const offset = event.nativeEvent.contentOffset.x;
-                  const index = Math.round(offset / width);
+                  const index = Math.round(offset / windowWidth);
                   if (!isNaN(index)) {
                     setPhotoIndex(Math.max(0, Math.min(index, itemPhotos.length - 1)));
                   }
                 }}
                 scrollEventThrottle={16}
-                style={styles.modalCarouselScroll}
+                style={[styles.modalCarouselScroll, { width: windowWidth }]}
               >
                 {itemPhotos.map((img, index) => (
-                  <View key={index} style={styles.modalCarouselSlide}>
+                  <View key={index} style={[styles.modalCarouselSlide, { width: windowWidth }]}>
                     <Image 
                       source={typeof img === 'string' ? { uri: img } : img} 
-                      style={styles.modalCarouselImage} 
+                      style={[styles.modalCarouselImage, { width: windowWidth * 0.95 }]} 
                       resizeMode="contain" 
                     />
                   </View>

@@ -32,6 +32,18 @@ public class CatalogoService {
 
     @Transactional
     public Catalogo crearCatalogo(CatalogoCrearRequest request) {
+        // Validar disponibilidad de los productos antes de crear el catálogo para no consumir IDs inútilmente
+        if (request.getItems() != null && !request.getItems().isEmpty()) {
+            for (ItemCatalogoCrearRequest itemReq : request.getItems()) {
+                Producto producto = productoRepository.findById(itemReq.getProductoId())
+                        .orElseThrow(() -> new java.util.NoSuchElementException("Producto no encontrado con ID: " + itemReq.getProductoId()));
+
+                if (!"si".equalsIgnoreCase(producto.getDisponible())) {
+                    throw new IllegalStateException("El producto con ID " + itemReq.getProductoId() + " no está disponible.");
+                }
+            }
+        }
+
         Empleado responsable = null;
         if (request.getResponsableId() != null) {
             responsable = empleadoRepository.findById(request.getResponsableId())
@@ -51,10 +63,6 @@ public class CatalogoService {
             for (ItemCatalogoCrearRequest itemReq : request.getItems()) {
                 Producto producto = productoRepository.findById(itemReq.getProductoId())
                         .orElseThrow(() -> new java.util.NoSuchElementException("Producto no encontrado con ID: " + itemReq.getProductoId()));
-
-                if (!"si".equalsIgnoreCase(producto.getDisponible())) {
-                    throw new IllegalStateException("El producto con ID " + itemReq.getProductoId() + " no está disponible.");
-                }
 
                 PropuestaComercial propuesta = propuestaComercialRepository.findByProducto(producto)
                         .orElse(null);

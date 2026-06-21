@@ -142,10 +142,12 @@ export default function InboxScreen() {
                 name: `Tarjeta **** **** **** ${last4}`,
               };
             } else if (item.cuentaBancaria) {
+              const cbu = item.cuentaBancaria.cbuIban || '';
+              const last4 = cbu.length >= 4 ? cbu.slice(-4) : cbu;
               return {
                 id: String(item.identificador),
                 type: 'bank',
-                name: `Cuenta Bancaria ${item.cuentaBancaria.nombreBanco || ''} (${item.cuentaBancaria.cbuIban || ''})`,
+                name: `Cuenta Bancaria ${item.cuentaBancaria.nombreBanco || ''} (****${last4})`,
               };
             }
             return null;

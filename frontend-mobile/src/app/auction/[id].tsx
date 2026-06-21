@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator, Modal, TextInput, Alert, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs, useNavigation } from 'expo-router';
@@ -82,6 +82,7 @@ export default function AuctionDetailScreen() {
   const auctionIdStr = Array.isArray(id) ? id[0] : id || '1';
   const isFocused = useIsFocused();
   const navigation = useNavigation();
+  const { width: windowWidth } = useWindowDimensions();
 
   const [auctionDetail, setAuctionDetail] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -630,19 +631,19 @@ export default function AuctionDetailScreen() {
             showsHorizontalScrollIndicator={false}
             onScroll={(event) => {
               const offset = event.nativeEvent.contentOffset.x;
-              const index = Math.round(offset / width);
+              const index = Math.round(offset / windowWidth);
               if (!isNaN(index)) {
                 setCurrentImageIndex(Math.max(0, Math.min(index, collectionImages.length - 1)));
               }
             }}
             scrollEventThrottle={16}
-            style={styles.modalCarouselScroll}
+            style={[styles.modalCarouselScroll, { width: windowWidth }]}
           >
             {collectionImages.map((img, index) => (
-              <View key={index} style={styles.modalCarouselSlide}>
+              <View key={index} style={[styles.modalCarouselSlide, { width: windowWidth }]}>
                 <Image 
                   source={img} 
-                  style={styles.modalCarouselImage} 
+                  style={[styles.modalCarouselImage, { width: windowWidth * 0.95 }]} 
                   resizeMode="contain" 
                 />
               </View>
