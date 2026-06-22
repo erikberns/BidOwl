@@ -1,95 +1,109 @@
 package com.bidowl.auctionplace.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Servicio encargado de gestionar el envío de notificaciones y tokens por correo electrónico.
- * Implementa una simulación en consola en caso de que el servidor SMTP no esté configurado.
+ * Utiliza la API HTTP REST de Brevo para evadir bloqueos de puertos SMTP en la nube.
  */
 @Service
 public class EmailService {
 
-    @Autowired(required = false)
-    private JavaMailSender mailSender;
+    @Value("${BREVO_API_KEY:}")
+    private String apiKey;
 
-    @Async
-    public void enviarTokenVerificacion(String destinatario, String token) throws Exception {
-        System.out.println("====================================================================");
-        System.out.println("📧 ENVIANDO TOKEN DE VERIFICACIÓN A: " + destinatario);
-        System.out.println("Token: " + token);
-        System.out.println("====================================================================");
+    @Value("${spring.mail.username:info@bidowl.com}")
+    private String remitente;
 
-        if (mailSender == null) {
-            System.err.println("WARNING: El servicio de envío de correos no está configurado. Simulación exitosa.");
+    private final RestTemplate restTemplate = new RestTemplate();
+    private final String BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
+
+    private void enviarPorHttp(String destinatario, String asunto, String texto) {
+        if (apiKey == null || apiKey.isEmpty()) {
+            System.err.println("WARNING: BREVO_API_KEY no configurada. Simulación en consola exitosa.");
             return;
         }
-        
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(destinatario);
-        message.setSubject("BidOwl - Token de Verificación");
-        message.setText("Hola,\n\nTu token de verificación para BidOwl es: " + token + "\n\nPor favor, ingrésalo en la aplicación para continuar con el proceso.\n\nSaludos,\nEl equipo de BidOwl");
-        
+
         try {
-            mailSender.send(message);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("api-key", apiKey);
+            headers.set("accept", "application/json");
+
+            Map<String, Object> body = new HashMap<>();
+            
+            Map<String, String> sender = new HashMap<>();
+            sender.put("email", remitente);
+            sender.put("name", "BidOwl");
+            body.put("sender", sender);
+
+            Map<String, String> to = new HashMap<>();
+            to.put("email", destinatario);
+            body.put("to", List.of(to));
+
+            body.put("subject", asunto);
+            body.put("textContent", texto);
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+            ResponseEntity<String> response = restTemplate.exchange(BREVO_API_URL, HttpMethod.POST, request, String.class);
+            
+            System.out.println("✅ Correo enviado con éxito vía HTTP API. Estado: " + response.getStatusCode());
+
         } catch (Exception e) {
-            System.err.println("WARNING: Falló el envío de correo SMTP (Authentication/Connection Failed): " + e.getMessage());
-            System.err.println("Se continúa utilizando el token simulado en consola.");
+            System.err.println("❌ Error enviando correo vía HTTP API: " + e.getMessage());
         }
     }
 
     @Async
-    public void enviarCredencialesAprobadas(String destinatario, String nombre, String contrasena) throws Exception {
+    public void enviarTokenVerificacion(String destinatario, String token) {
+        System.out.println("====================================================================");
+        System.out.println("📧 ENVIANDO TOKEN A: " + destinatario);
+        System.out.println("Token: " + token);
+        System.out.println("====================================================================");
+
+        String asunto = "BidOwl - Token de Verificación";
+        String texto = "Hola,\n\nTu token de verificación para BidOwl es: " + token + "\n\nPor favor, ingrésalo en la aplicación para continuar con el proceso.\n\nSaludos,\nEl equipo de BidOwl";
+        
+        enviarPorHttp(destinatario, asunto, texto);
+    }
+
+    @Async
+    public void enviarCredencialesAprobadas(String destinatario, String nombre, String contrasena) {
         System.out.println("====================================================================");
         System.out.println("📧 ENVIANDO CREDENCIALES APROBADAS A: " + destinatario);
         System.out.println("Nombre: " + nombre);
         System.out.println("Contraseña Temporal: " + contrasena);
         System.out.println("====================================================================");
 
-        if (mailSender == null) {
-            System.err.println("WARNING: El servicio de envío de correos no está configurado. Simulación exitosa.");
-            return;
-        }
+        String asunto = "¡Tu registro en BidOwl ha sido aprobado!";
+        String texto = "Hola " + nombre + ",\n\nTu cuenta ha sido verificada y activada.\n\nPara ingresar, utiliza las siguientes credenciales temporales:\n- Email: " + destinatario + "\n- Contraseña Temporal: " + contrasena + "\n\nSaludos,\nEl equipo de BidOwl";
         
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(destinatario);
-        message.setSubject("¡Tu registro en BidOwl ha sido aprobado!");
-        message.setText("Hola " + nombre + ",\n\nTu cuenta ha sido verificada y activada.\n\nPara ingresar, utiliza las siguientes credenciales temporales:\n- Email: " + destinatario + "\n- Contraseña Temporal: " + contrasena + "\n\nSaludos,\nEl equipo de BidOwl");
-        
-        try {
-            mailSender.send(message);
-        } catch (Exception e) {
-            System.err.println("WARNING: Falló el envío de correo de aprobación SMTP: " + e.getMessage());
-            System.err.println("Se continúa utilizando las credenciales simuladas en consola.");
-        }
+        enviarPorHttp(destinatario, asunto, texto);
     }
 
     @Async
-    public void enviarRegistroRechazado(String destinatario, String nombre, String motivo) throws Exception {
+    public void enviarRegistroRechazado(String destinatario, String nombre, String motivo) {
         System.out.println("====================================================================");
         System.out.println("📧 ENVIANDO REGISTRO RECHAZADO A: " + destinatario);
         System.out.println("Nombre: " + nombre);
         System.out.println("Motivo: " + motivo);
         System.out.println("====================================================================");
 
-        if (mailSender == null) {
-            System.err.println("WARNING: El servicio de envío de correos no está configurado. Simulación exitosa.");
-            return;
-        }
+        String asunto = "Tu solicitud de registro en BidOwl ha sido rechazada";
+        String texto = "Hola " + nombre + ",\n\nLamentamos informarte que tu solicitud de registro en BidOwl ha sido rechazada.\nMotivo: " + motivo + "\n\nSi crees que esto es un error, por favor ponte en contacto con soporte.\n\nSaludos,\nEl equipo de BidOwl";
         
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(destinatario);
-        message.setSubject("Tu solicitud de registro en BidOwl ha sido rechazada");
-        message.setText("Hola " + nombre + ",\n\nLamentamos informarte que tu solicitud de registro en BidOwl ha sido rechazada.\nMotivo: " + motivo + "\n\nSi crees que esto es un error, por favor ponte en contacto con soporte.\n\nSaludos,\nEl equipo de BidOwl");
-        
-        try {
-            mailSender.send(message);
-        } catch (Exception e) {
-            System.err.println("WARNING: Falló el envío de correo de rechazo SMTP: " + e.getMessage());
-            System.err.println("Se continúa utilizando el rechazo simulado en consola.");
-        }
+        enviarPorHttp(destinatario, asunto, texto);
     }
 }
