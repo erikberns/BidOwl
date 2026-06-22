@@ -15,8 +15,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Servicio encargado de gestionar el envío de notificaciones y tokens por correo electrónico.
- * Utiliza la API HTTP REST de Brevo para evadir bloqueos de puertos SMTP en la nube.
+ * Servicio encargado de gestionar el envío de notificaciones y tokens por
+ * correo electrónico.
+ * Utiliza la API HTTP REST de Brevo para evadir bloqueos de puertos SMTP en la
+ * nube.
  */
 @Service
 public class EmailService {
@@ -43,7 +45,7 @@ public class EmailService {
             headers.set("accept", "application/json");
 
             Map<String, Object> body = new HashMap<>();
-            
+
             Map<String, String> sender = new HashMap<>();
             sender.put("email", remitente);
             sender.put("name", "BidOwl");
@@ -57,8 +59,9 @@ public class EmailService {
             body.put("textContent", texto);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-            ResponseEntity<String> response = restTemplate.exchange(BREVO_API_URL, HttpMethod.POST, request, String.class);
-            
+            ResponseEntity<String> response = restTemplate.exchange(BREVO_API_URL, HttpMethod.POST, request,
+                    String.class);
+
             System.out.println("✅ Correo enviado con éxito vía HTTP API. Estado: " + response.getStatusCode());
 
         } catch (Exception e) {
@@ -74,8 +77,9 @@ public class EmailService {
         System.out.println("====================================================================");
 
         String asunto = "BidOwl - Token de Verificación";
-        String texto = "Hola,\n\nTu token de verificación para BidOwl es: " + token + "\n\nPor favor, ingrésalo en la aplicación para continuar con el proceso.\n\nSaludos,\nEl equipo de BidOwl";
-        
+        String texto = "Hola,\n\nTu token de verificación para BidOwl es: " + token
+                + "\n\nPor favor, ingrésalo en la aplicación para continuar con el proceso.\n\nSaludos,\nEl equipo de BidOwl";
+
         enviarPorHttp(destinatario, asunto, texto);
     }
 
@@ -88,8 +92,10 @@ public class EmailService {
         System.out.println("====================================================================");
 
         String asunto = "¡Tu registro en BidOwl ha sido aprobado!";
-        String texto = "Hola " + nombre + ",\n\nTu cuenta ha sido verificada y activada.\n\nPara ingresar, utiliza las siguientes credenciales temporales:\n- Email: " + destinatario + "\n- Contraseña Temporal: " + contrasena + "\n\nSaludos,\nEl equipo de BidOwl";
-        
+        String texto = "Hola " + nombre
+                + ",\n\nTu cuenta ha sido verificada y activada.\n\nPara ingresar, utiliza las siguientes credenciales temporales:\n- Email: "
+                + destinatario + "\n- Contraseña Temporal: " + contrasena + "\n\nSaludos,\nEl equipo de BidOwl";
+
         enviarPorHttp(destinatario, asunto, texto);
     }
 
@@ -102,8 +108,11 @@ public class EmailService {
         System.out.println("====================================================================");
 
         String asunto = "Tu solicitud de registro en BidOwl ha sido rechazada";
-        String texto = "Hola " + nombre + ",\n\nLamentamos informarte que tu solicitud de registro en BidOwl ha sido rechazada.\nMotivo: " + motivo + "\n\nSi crees que esto es un error, por favor ponte en contacto con soporte.\n\nSaludos,\nEl equipo de BidOwl";
-        
+        String texto = "Hola " + nombre
+                + ",\n\nLamentamos informarte que tu solicitud de registro en BidOwl ha sido rechazada.\nMotivo: "
+                + motivo
+                + "\n\nSi crees que esto es un error, por favor ponte en contacto con soporte.\n\nSaludos,\nEl equipo de BidOwl";
+
         enviarPorHttp(destinatario, asunto, texto);
     }
 
@@ -116,9 +125,10 @@ public class EmailService {
         System.out.println("====================================================================");
 
         String asunto = "Negociación de seguro para tu artículo: " + productoNombre;
-        String texto = "Hola,\n\nTe informamos que se ha iniciado la negociación/activación del seguro para tu artículo \"" 
-                + productoNombre + "\".\nNúmero de Póliza: " + nroPoliza + "\n\nSaludos,\nEl equipo de BidOwl";
-        
+        String texto = "Hola,\n\nTe informamos que se ha iniciado el proceso de negociación del seguro para tu artículo \""
+                + productoNombre + "\".\nNúmero de Póliza: " + nroPoliza
+                + "\nPor favor contacte este número para continuar la negociación: +54 11 9999-9999.\n\\nSaludos,\nEl equipo de BidOwl";
+
         enviarPorHttp(destinatario, asunto, texto);
     }
 }
