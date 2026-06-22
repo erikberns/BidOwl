@@ -106,4 +106,19 @@ public class EmailService {
         
         enviarPorHttp(destinatario, asunto, texto);
     }
+
+    @Async
+    public void enviarEmailNegociacionSeguro(String destinatario, String productoNombre, String nroPoliza) {
+        System.out.println("====================================================================");
+        System.out.println("📧 ENVIANDO EMAIL DE NEGOCIACIÓN DE SEGURO A: " + destinatario);
+        System.out.println("Producto: " + productoNombre);
+        System.out.println("Nro Póliza: " + nroPoliza);
+        System.out.println("====================================================================");
+
+        String asunto = "Negociación de seguro para tu artículo: " + productoNombre;
+        String texto = "Hola,\n\nTe informamos que se ha iniciado la negociación/activación del seguro para tu artículo \"" 
+                + productoNombre + "\".\nNúmero de Póliza: " + nroPoliza + "\n\nSaludos,\nEl equipo de BidOwl";
+        
+        enviarPorHttp(destinatario, asunto, texto);
+    }
 }
