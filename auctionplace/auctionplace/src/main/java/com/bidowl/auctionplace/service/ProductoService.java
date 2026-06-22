@@ -38,6 +38,9 @@ public class ProductoService {
     @Autowired
     private EmailService emailService;
 
+    @Autowired
+    private RegistroDeSubastaRepository registroDeSubastaRepository;
+
     /**
      * Obtiene todos los productos
      */
@@ -367,12 +370,21 @@ public class ProductoService {
         if (p.getSeguro() == null) {
             throw new Exception("El producto no posee un seguro contratado.");
         }
-        if (p.getDuenio() == null || p.getDuenio().getEmail() == null) {
-            throw new Exception("El dueño del producto no posee un correo electrónico registrado.");
+
+        // Si el producto ya fue subastado y vendido, el dueño actual en DB es el comprador.
+        // Buscamos si existe RegistroDeSubasta (factura) para obtener el dueño/vendedor original.
+        Duenio destinatarioSeguro = p.getDuenio();
+        Optional<RegistroDeSubasta> registroOpt = registroDeSubastaRepository.findByProductoIdentificador(id);
+        if (registroOpt.isPresent()) {
+            destinatarioSeguro = registroOpt.get().getDuenio();
+        }
+
+        if (destinatarioSeguro == null || destinatarioSeguro.getEmail() == null) {
+            throw new Exception("El dueño/vendedor del producto no posee un correo electrónico registrado.");
         }
         
         emailService.enviarEmailNegociacionSeguro(
-            p.getDuenio().getEmail(),
+            destinatarioSeguro.getEmail(),
             p.getNombre() != null ? p.getNombre() : "Artículo " + p.getIdentificador(),
             p.getSeguro().getNroPoliza()
         );
