@@ -691,20 +691,16 @@ export default function BiddingScreen() {
         {/* Carousel Cycling Nav Bar */}
         <View style={styles.cycleNavBar}>
           <TouchableOpacity style={styles.cycleArrow} onPress={handlePrev}>
-            <SymbolView
-              tintColor="#051C2C"
-              // @ts-ignore
-              name={{ ios: 'chevron.left', android: 'chevron_left', web: 'chevron_left' }}
-              size={24}
+            <Image
+              source={require('@/assets/images/Chevron-Left.png')}
+              style={styles.cycleChevronImage}
             />
           </TouchableOpacity>
           <Text style={styles.cycleText}>Lote {currentItem.index} / {items.length}</Text>
           <TouchableOpacity style={styles.cycleArrow} onPress={handleNext}>
-            <SymbolView
-              tintColor="#051C2C"
-              // @ts-ignore
-              name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
-              size={24}
+            <Image
+              source={require('@/assets/images/Chevron-Right.png')}
+              style={styles.cycleChevronImage}
             />
           </TouchableOpacity>
         </View>
@@ -849,11 +845,9 @@ export default function BiddingScreen() {
             }
           }}
         >
-          <SymbolView
-            tintColor="#fff"
-            // @ts-ignore
-            name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_left' }}
-            size={20}
+          <Image
+            source={require('@/assets/images/Chevron-Left.png')}
+            style={styles.backButtonChevron}
           />
         </TouchableOpacity>
 
@@ -1233,5 +1227,16 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.5,
   },
-
+  cycleChevronImage: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
+    tintColor: '#03161A',
+  },
+  backButtonChevron: {
+    width: 20,
+    height: 20,
+    resizeMode: 'contain',
+    tintColor: '#FFFFFF',
+  },
 });

@@ -13,6 +13,8 @@ import com.bidowl.auctionplace.entity.Cliente;
 import com.bidowl.auctionplace.repository.NotificacionRepository;
 import com.bidowl.auctionplace.repository.PujoRepository;
 import com.bidowl.auctionplace.repository.ProductoRepository;
+import com.bidowl.auctionplace.entity.Foto;
+import com.bidowl.auctionplace.repository.FotoRepository;
 import com.bidowl.auctionplace.repository.ItemCatalogoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -42,6 +44,9 @@ public class InboxService {
 
     @Autowired
     private ItemCatalogoRepository itemCatalogoRepository;
+
+    @Autowired
+    private FotoRepository fotoRepository;
 
     @Autowired
     private com.bidowl.auctionplace.repository.PropuestaComercialRepository propuestaComercialRepository;
@@ -171,6 +176,11 @@ public class InboxService {
                 dto.setPujaMaxima(NumberFormat.getCurrencyInstance(new Locale("es", "ARS")).format(pujaLider.get().getImporte()));
             } else {
                 dto.setPujaMaxima(NumberFormat.getCurrencyInstance(new Locale("es", "ARS")).format(item.getPrecioBase()));
+            }
+            
+            List<Foto> fotos = fotoRepository.findByProductoId(p.getIdentificador());
+            if (fotos != null && !fotos.isEmpty()) {
+                dto.setImage("/api/productos/" + p.getIdentificador() + "/foto");
             }
             
             dtos.add(dto);

@@ -860,7 +860,7 @@ const styles = StyleSheet.create({
   },
   successFooter: {
     paddingHorizontal: 24,
-    paddingBottom: 40,
+    paddingBottom: 60,
     paddingTop: 20,
   },
   successButton: {

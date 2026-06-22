@@ -23,6 +23,15 @@ const getImageUrl = (path: string) => {
   return { uri: baseUrl + path };
 };
 
+// Helper to format prices as in reference image (e.g. 9.000.000 ARS)
+const formatPriceRef = (val: string) => {
+  if (!val) return '';
+  if (val.includes('ARS')) return val;
+  let clean = val.replace(/[\$\s\u00a0]/g, '');
+  clean = clean.replace(/[,.]00$/, '');
+  return `${clean} ARS`;
+};
+
 type Tab = 'miSubasta' | 'notificaciones' | 'historial';
 
 export default function InboxScreen() {
@@ -213,54 +222,72 @@ export default function InboxScreen() {
     </TouchableOpacity>
   );
 
-  const renderAuctionCard = (auction: typeof activeAuctions[0]) => (
-    <View key={auction.id} style={styles.auctionCardContainer}>
-      <TouchableOpacity
-        style={styles.bidCard}
-        onPress={() => router.push(('/auction/' + auction.subastaId) as any)}
-      >
-        <Image source={auction.image ? { uri: auction.image } : require('@/assets/images/rolling_stone_auction.png')} style={styles.bidImage} />
-        <View style={styles.bidContent}>
-          <Text style={styles.subastaTitle}>{auction.subastaTitle}</Text>
-          <Text style={styles.lote}>Lote {auction.lote} / {auction.totalLotes}</Text>
-          <Text style={styles.ubicacion}>{auction.ubicacion}</Text>
-          <Text style={styles.articuloTitle}>{auction.articuloTitle}</Text>
-          <View style={styles.pujaMaxInfo}>
-            <Text style={styles.pujaMaxLabel}>Puja Máxima:</Text>
-            <Text style={styles.pujaMaxValue}>{auction.pujaMaxima}</Text>
-          </View>
-        </View>
-      </TouchableOpacity>
+  const renderAuctionCard = (auction: typeof activeAuctions[0]) => {
+    const itemImageSource = auction.image
+      ? getImageUrl(auction.image)
+      : require('@/assets/images/rolling_stone_auction.png');
 
-      {/* Ver Seguro y Depósito Button */}
-      <TouchableOpacity
-        style={styles.insuranceButton}
-        onPress={async () => {
-          try {
-            const res = await fetch(`${API_URL}/productos/${auction.id}/seguro`);
-            if (res.ok) {
-              const data = await res.json();
-              setSelectedProductInsurance(data);
-              setShowInsuranceDetails(true);
-            } else {
-              alert("Este artículo no posee un seguro activo.");
+    return (
+      <View key={auction.id} style={styles.myArticleCard}>
+        {/* Upper part to navigate to the auction details */}
+        <TouchableOpacity
+          onPress={() => router.push(('/auction/' + auction.subastaId) as any)}
+          activeOpacity={0.9}
+          style={styles.myArticleCardUpper}
+        >
+          <Text style={styles.myArticleSubastaTitle}>{auction.subastaTitle}</Text>
+          <View style={{ height: 1, backgroundColor: '#E5E5E5', marginHorizontal: -16, marginBottom: 16 }} />
+
+          <View style={styles.myArticleRow}>
+            <Image
+              source={itemImageSource}
+              style={styles.myArticleImage}
+            />
+            <View style={styles.myArticleContent}>
+              <Text style={styles.myArticleLote}>Lote {auction.lote} / {auction.totalLotes}</Text>
+
+              <Text style={styles.myArticleDetailText}>
+                <Text style={styles.myArticleBoldLabel}>Ubicación: </Text>
+                <Text style={styles.myArticleValueText}>{auction.ubicacion || 'Deposito BidOwl Pilar'}</Text>
+              </Text>
+
+              <Text style={styles.myArticleItemTitle}>{auction.articuloTitle}</Text>
+
+              <Text style={styles.myArticleDetailText}>
+                <Text style={styles.myArticleBoldLabel}>Puja maxima: </Text>
+                <Text style={[styles.myArticleValueText, { fontWeight: '700', color: '#03161A' }]}>
+                  {formatPriceRef(auction.pujaMaxima)}
+                </Text>
+              </Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* Ver Seguro y Depósito Button */}
+        <TouchableOpacity
+          style={styles.myArticleInsuranceButton}
+          activeOpacity={0.8}
+          onPress={async () => {
+            try {
+              const res = await fetch(`${API_URL}/productos/${auction.id}/seguro`);
+              if (res.ok) {
+                const data = await res.json();
+                setSelectedProductInsurance(data);
+                setShowInsuranceDetails(true);
+              } else {
+                alert("Este artículo no posee un seguro activo.");
+              }
+            } catch (err) {
+              console.error("Error fetching insurance:", err);
+              alert("No se pudo obtener la información del seguro.");
             }
-          } catch (err) {
-            console.error("Error fetching insurance:", err);
-            alert("No se pudo obtener la información del seguro.");
-          }
-        }}
-      >
-        <SymbolView
-          // @ts-ignore
-          name={{ ios: 'shield.fill', android: 'shield', web: 'shield' }}
-          size={16}
-          tintColor="#051C2C"
-        />
-        <Text style={styles.insuranceButtonText}>Ver Seguro y Depósito</Text>
-      </TouchableOpacity>
-    </View>
-  );
+          }}
+        >
+          <Text style={styles.myArticleInsuranceButtonText}>Ver Seguro y Deposito</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   const renderHistoryCard = (bid: any) => {
     const itemImageSource = bid.image
@@ -268,22 +295,33 @@ export default function InboxScreen() {
       : require('@/assets/images/rolling_stone_auction.png');
 
     return (
-      <View key={bid.id} style={styles.bidCard}>
-        <Image source={itemImageSource} style={styles.bidImage} />
-        <View style={styles.bidContent}>
-          <Text style={styles.subastaTitle}>{bid.subastaTitle}</Text>
-          <Text style={styles.lote}>Lote {bid.lote} / {bid.totalLotes}</Text>
-          <Text style={styles.articuloTitle}>{bid.articuloTitle}</Text>
-          <View style={styles.pujaInfo}>
-            <Text style={styles.miPujaLabel}>Ofertado:</Text>
-            <Text style={styles.miPujaValue}>{bid.monto}</Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: bid.ganador ? '#2E9F64' : '#8A8A8A' }}>
-              {bid.ganador ? '¡Puja Ganada! ✓' : 'Finalizada'}
+      <View key={bid.id} style={styles.myArticleCard}>
+        <Text style={styles.myArticleSubastaTitle}>{bid.subastaTitle}</Text>
+        <View style={{ height: 1, backgroundColor: '#E5E5E5', marginHorizontal: -16, marginBottom: 16 }} />
+
+        <View style={styles.myArticleRow}>
+          <Image source={itemImageSource} style={styles.myArticleImage} />
+
+          <View style={styles.myArticleContent}>
+            <Text style={styles.myArticleLote}>Lote {bid.lote} / {bid.totalLotes}</Text>
+            <Text style={styles.myArticleItemTitle}>{bid.articuloTitle}</Text>
+
+            <Text style={styles.myArticleDetailText}>
+              <Text style={styles.myArticleBoldLabel}>Ofertada: </Text>
+              <Text style={styles.myArticleValueText}>{bid.monto}</Text>
             </Text>
           </View>
         </View>
+
+        {bid.ganador ? (
+          <View style={styles.historyGanadaBadge}>
+            <Text style={styles.historyGanadaText}>Puja Ganada</Text>
+          </View>
+        ) : (
+          <View style={styles.historyFinalizadaContainer}>
+            <Text style={styles.historyFinalizadaText}>Finalizada</Text>
+          </View>
+        )}
       </View>
     );
   };
@@ -603,14 +641,16 @@ export default function InboxScreen() {
       />
 
       {/* Insurance Drawer Modal */}
-      <Modal visible={showInsuranceDetails} animationType="slide" transparent={true} onRequestClose={() => setShowInsuranceDetails(false)}>
+      <Modal visible={showInsuranceDetails} animationType="none" transparent={true} onRequestClose={() => setShowInsuranceDetails(false)}>
         <View style={styles.drawerOverlay}>
           <View style={styles.drawerContainer}>
             <View style={styles.drawerHeader}>
               <Text style={styles.drawerTitle}>Seguro y Depósito</Text>
               <TouchableOpacity onPress={() => setShowInsuranceDetails(false)} style={styles.drawerCloseButton}>
-                {/* @ts-ignore */}
-                <SymbolView name={{ ios: 'xmark', android: 'close', web: 'close' }} size={24} tintColor="#051C2C" />
+                <Image
+                  source={require('@/assets/images/cross.png')}
+                  style={styles.drawerCloseIcon}
+                />
               </TouchableOpacity>
             </View>
 
@@ -1314,5 +1354,107 @@ const styles = StyleSheet.create({
     color: '#051C2C',
     fontSize: 16,
     fontWeight: '700',
+  },
+  myArticleCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    padding: 16,
+    marginBottom: 16,
+  },
+  myArticleCardUpper: {
+    width: '100%',
+  },
+  myArticleSubastaTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#03161A',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  myArticleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 16,
+  },
+  myArticleImage: {
+    width: 100,
+    height: 100,
+    resizeMode: 'contain',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+  },
+  myArticleContent: {
+    flex: 1,
+    gap: 4,
+  },
+  myArticleLote: {
+    fontSize: 13,
+    color: '#717171',
+    fontWeight: '500',
+  },
+  myArticleDetailText: {
+    fontSize: 13,
+    color: '#03161A',
+  },
+  myArticleBoldLabel: {
+    fontWeight: '700',
+    color: '#03161A',
+  },
+  myArticleValueText: {
+    color: '#717171',
+    fontWeight: '500',
+  },
+  myArticleItemTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#03161A',
+    marginVertical: 2,
+  },
+  myArticleInsuranceButton: {
+    width: '100%',
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#2B9463', // brand green
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  myArticleInsuranceButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  historyGanadaBadge: {
+    width: '100%',
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#2B9463', // brand green
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  historyGanadaText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  historyFinalizadaContainer: {
+    width: '100%',
+    paddingVertical: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  historyFinalizadaText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#03161A', // dark text
+  },
+  drawerCloseIcon: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
+    tintColor: '#03161A',
   },
 });
