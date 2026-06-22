@@ -35,6 +35,9 @@ public class ProductoService {
     @Autowired
     private NotificacionRepository notificacionRepository;
 
+    @Autowired
+    private EmailService emailService;
+
     /**
      * Obtiene todos los productos
      */
@@ -74,7 +77,7 @@ public class ProductoService {
             throw new Exception("Dueño no encontrado con ID: " + duenioId);
         }
         
-        return productoRepository.findByDuenioIdentificador(duenioId)
+        return productoRepository.findProductosOriginalesPorDuenio(duenioId)
                 .stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
@@ -346,12 +349,33 @@ public class ProductoService {
         }
         Seguro s = p.getSeguro();
         java.util.HashMap<String, Object> response = new java.util.HashMap<>();
+        response.put("productoId", id);
         response.put("nroPoliza", s.getNroPoliza());
         response.put("compania", s.getCompania());
         response.put("polizaCombinada", s.getPolizaCombinada());
         response.put("importe", s.getImporte());
         response.put("ubicacionDeposito", "Depósito Central BidOwl Pilar, Estantería B4");
         return response;
+    }
+
+    public void negociarSeguro(Integer id) throws Exception {
+        Optional<Producto> productoOpt = productoRepository.findById(id);
+        if (productoOpt.isEmpty()) {
+            throw new Exception("Producto no encontrado con ID: " + id);
+        }
+        Producto p = productoOpt.get();
+        if (p.getSeguro() == null) {
+            throw new Exception("El producto no posee un seguro contratado.");
+        }
+        if (p.getDuenio() == null || p.getDuenio().getEmail() == null) {
+            throw new Exception("El dueño del producto no posee un correo electrónico registrado.");
+        }
+        
+        emailService.enviarEmailNegociacionSeguro(
+            p.getDuenio().getEmail(),
+            p.getNombre() != null ? p.getNombre() : "Artículo " + p.getIdentificador(),
+            p.getSeguro().getNroPoliza()
+        );
     }
 
     private void guardarNotificacionSiNoExiste(Notificacion notif) {

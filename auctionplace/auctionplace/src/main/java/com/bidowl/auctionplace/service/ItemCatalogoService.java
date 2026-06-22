@@ -45,6 +45,12 @@ public class ItemCatalogoService {
     @Autowired
     private EmpleadoRepository empleadoRepository;
 
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
+
     public List<ItemCatalogo> obtenerItemsPorCatalogo(Integer catalogoId) {
         return itemCatalogoRepository.findByCatalogoIdentificador(catalogoId);
     }
@@ -80,29 +86,20 @@ public class ItemCatalogoService {
             // Transferir propiedad al usuario ganador y poner disponible = "no"
             Duenio duenioGanador = duenioRepository.findById(clienteGanador.getIdentificador()).orElse(null);
             if (duenioGanador == null) {
-                duenioGanador = new Duenio();
-                duenioGanador.setIdentificador(clienteGanador.getIdentificador());
-                duenioGanador.setDocumento(clienteGanador.getDocumento());
-                duenioGanador.setNombre(clienteGanador.getNombre());
-                duenioGanador.setApellido(clienteGanador.getApellido());
-                duenioGanador.setEmail(clienteGanador.getEmail());
-                duenioGanador.setContrasena(clienteGanador.getContrasena());
-                duenioGanador.setDireccion(clienteGanador.getDireccion());
-                duenioGanador.setEstado(clienteGanador.getEstado());
-                duenioGanador.setCategoria(clienteGanador.getCategoria());
-                duenioGanador.setPaisCliente(clienteGanador.getPaisCliente());
-                duenioGanador.setPaisDuenio(clienteGanador.getPaisCliente());
-                duenioGanador.setAdmitido(clienteGanador.getAdmitido());
-                duenioGanador.setCategoriaCliente(clienteGanador.getCategoriaCliente());
-                duenioGanador.setVerificador(clienteGanador.getVerificador());
-                duenioGanador.setVerificadorDuenio(clienteGanador.getVerificador());
-                duenioGanador.setVerificacionFinanciera("si");
-                duenioGanador.setVerificacionJudicial("si");
-                duenioGanador.setCalificacionRiesgo(1);
-                duenioGanador = duenioRepository.save(duenioGanador);
+                Integer numeroPais = (clienteGanador.getPaisCliente() != null) ? clienteGanador.getPaisCliente().getNumero() : null;
+                int riesgo = new java.util.Random().nextInt(3) + 1;
+                jdbcTemplate.update(
+                    "INSERT INTO duenios (identificador, numeroPais, verificaciónFinanciera, verificaciónJudicial, calificacionRiesgo, verificador) VALUES (?, ?, 'si', 'si', ?, 1)",
+                    clienteGanador.getIdentificador(), numeroPais, riesgo
+                );
+                
+                entityManager.clear();
+                duenioGanador = duenioRepository.findById(clienteGanador.getIdentificador()).orElse(null);
             }
             Producto producto = item.getProducto();
+            Duenio duenioVendedor = null;
             if (producto != null) {
+                duenioVendedor = producto.getDuenio();
                 producto.setDuenio(duenioGanador);
                 producto.setDisponible("no");
                 productoRepository.save(producto);
@@ -110,8 +107,8 @@ public class ItemCatalogoService {
 
             RegistroDeSubasta registro = new RegistroDeSubasta();
             registro.setSubasta(item.getCatalogo().getSubasta());
-            registro.setDuenio(item.getProducto().getDuenio());
-            registro.setProducto(item.getProducto());
+            registro.setDuenio(duenioVendedor != null ? duenioVendedor : (producto != null ? producto.getDuenio() : null));
+            registro.setProducto(producto);
             registro.setCliente(clienteGanador);
             
             List<MetodoPago> pagos = metodoPagoRepository.findByPersonaIdentificador(clienteGanador.getIdentificador());
@@ -191,7 +188,7 @@ public class ItemCatalogoService {
             boolean todosSubastados = itemsEnCatalogo.stream()
                     .allMatch(it -> "si".equalsIgnoreCase(it.getSubastado()));
             if (todosSubastados) {
-                subasta.setEstado("finalizada");
+                subasta.setEstado("carrada");
                 subastaRepository.save(subasta);
             } else {
                 // Set next item's timer to 10 minutes from now

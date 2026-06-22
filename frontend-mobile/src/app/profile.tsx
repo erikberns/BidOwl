@@ -321,24 +321,6 @@ export default function ProfileScreen() {
         <View style={styles.optionsSection}>
           <Text style={styles.sectionTitle}>Opciones Personales</Text>
 
-          <TouchableOpacity style={styles.optionItem}>
-            <View style={styles.optionLeft}>
-              <SymbolView
-                tintColor="#8A8A8A"
-                // @ts-ignore
-                name={{ ios: 'gearshape.fill', android: 'settings', web: 'settings' }}
-                size={20}
-              />
-              <Text style={styles.optionText}>Ajustes de Aplicación</Text>
-            </View>
-            <SymbolView
-              tintColor="#8A8A8A"
-              // @ts-ignore
-              name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
-              size={16}
-            />
-          </TouchableOpacity>
-
           <TouchableOpacity 
             style={styles.optionItem}
             onPress={() => setIsPaymentModalVisible(true)}
@@ -351,24 +333,6 @@ export default function ProfileScreen() {
                 size={20}
               />
               <Text style={styles.optionText}>Ajustar Métodos de Pagos</Text>
-            </View>
-            <SymbolView
-              tintColor="#8A8A8A"
-              // @ts-ignore
-              name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
-              size={16}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.optionItem}>
-            <View style={styles.optionLeft}>
-              <SymbolView
-                tintColor="#8A8A8A"
-                // @ts-ignore
-                name={{ ios: 'globe', android: 'language', web: 'language' }}
-                size={20}
-              />
-              <Text style={styles.optionText}>Idioma</Text>
             </View>
             <SymbolView
               tintColor="#8A8A8A"

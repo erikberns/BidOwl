@@ -46,6 +46,9 @@ public class InboxService {
     @Autowired
     private com.bidowl.auctionplace.repository.PropuestaComercialRepository propuestaComercialRepository;
 
+    @Autowired
+    private com.bidowl.auctionplace.repository.RegistroDeSubastaRepository registroDeSubastaRepository;
+
     public List<NotificacionDTO> obtenerNotificaciones(Integer personaId) {
         List<Notificacion> notificaciones = notificacionRepository.findByPersonaIdOrderByFechaDesc(personaId);
         return notificaciones.stream().map(n -> {
@@ -138,7 +141,7 @@ public class InboxService {
     }
 
     public List<MiSubastaDTO> obtenerMisSubastas(Integer personaId) {
-        List<Producto> productos = productoRepository.findByDuenioIdentificador(personaId);
+        List<Producto> productos = productoRepository.findProductosOriginalesPorDuenio(personaId);
         List<MiSubastaDTO> dtos = new ArrayList<>();
         
         for (Producto p : productos) {
@@ -222,7 +225,41 @@ public class InboxService {
         dto.setDomicilio(domicilio);
         dto.setCostoEnvio(new BigDecimal("20000.00")); // Costo de envío dinámico de 20.000 AR$
 
+        Optional<com.bidowl.auctionplace.entity.RegistroDeSubasta> regOpt = registroDeSubastaRepository.findByProductoIdentificador(item.getProducto().getIdentificador());
+        if (regOpt.isPresent()) {
+            com.bidowl.auctionplace.entity.RegistroDeSubasta reg = regOpt.get();
+            if (reg.getCostoEnvio() != null) {
+                dto.setCostoEnvio(reg.getCostoEnvio());
+            }
+            if (reg.getTipoEntrega() != null) {
+                dto.setTipoEntrega(reg.getTipoEntrega());
+            }
+        }
+
         return dto;
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void registrarConfirmacionEntrega(Integer itemId, String tipoEntrega, BigDecimal costoEnvio, Integer clienteId) throws Exception {
+        ItemCatalogo item = itemCatalogoRepository.findById(itemId)
+                .orElseThrow(() -> new java.util.NoSuchElementException("Item de catálogo con ID " + itemId + " no encontrado"));
+        
+        com.bidowl.auctionplace.entity.RegistroDeSubasta registro = registroDeSubastaRepository.findByProductoIdentificador(item.getProducto().getIdentificador())
+                .orElseThrow(() -> new Exception("No se encontró el registro de subasta para el producto."));
+        
+        registro.setTipoEntrega(tipoEntrega);
+        registro.setCostoEnvio(costoEnvio);
+        registroDeSubastaRepository.save(registro);
+        
+        // Marcar la notificación como leída
+        String accion = "show_bid_won:" + itemId;
+        List<Notificacion> notifs = notificacionRepository.findByPersonaIdOrderByFechaDesc(clienteId);
+        for (Notificacion n : notifs) {
+            if (accion.equals(n.getAccion())) {
+                n.setLeida(true);
+                notificacionRepository.save(n);
+            }
+        }
     }
 
     public List<HistorialPujaUsuarioDTO> obtenerHistorial(Integer personaId) {

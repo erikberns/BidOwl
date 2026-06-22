@@ -488,4 +488,23 @@ public class PersonaService implements PersonaServiceInterface {
             chequeCertificadoRepository.delete(cc);
         }
     }
+
+    @Override
+    public void modificarCategoria(Integer id, String categoria) throws Exception {
+        Persona persona = obtenerPorId(id);
+        persona.setCategoria(categoria);
+        
+        if (persona instanceof Cliente) {
+            ((Cliente) persona).setCategoriaCliente(categoria);
+        } else {
+            Optional<Cliente> clienteOpt = clienteRepository.findById(id);
+            if (clienteOpt.isPresent()) {
+                Cliente cliente = clienteOpt.get();
+                cliente.setCategoriaCliente(categoria);
+                clienteRepository.save(cliente);
+            }
+        }
+        
+        personaRepository.save(persona);
+    }
 }

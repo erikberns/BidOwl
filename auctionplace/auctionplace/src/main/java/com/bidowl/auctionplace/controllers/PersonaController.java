@@ -141,6 +141,37 @@ public class PersonaController {
         }
     }
 
+    @PostMapping("/{id}/categoria")
+    public ResponseEntity<?> modificarCategoria(
+            @PathVariable Integer id,
+            @RequestBody(required = false) Map<String, String> requestBody,
+            @RequestHeader(value = "Autorizacion", required = false) String autorizacion) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            if (requestBody == null || !requestBody.containsKey("categoria")) {
+                throw new Exception("La categoría es requerida.");
+            }
+            String categoria = requestBody.get("categoria");
+            if (categoria == null) {
+                throw new Exception("La categoría es requerida.");
+            }
+            categoria = categoria.trim().toUpperCase();
+
+            if (!categoria.equals("COMUN") && !categoria.equals("ESPECIAL") && 
+                !categoria.equals("PLATA") && !categoria.equals("ORO") && 
+                !categoria.equals("PLATINO")) {
+                throw new Exception("Categoría inválida. Las categorías permitidas son: COMUN, ESPECIAL, PLATA, ORO, PLATINO.");
+            }
+
+            personaService.modificarCategoria(id, categoria.toLowerCase());
+            response.put("mensaje", "Categoría modificada exitosamente.");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("error", e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
+    }
+
     @GetMapping("/registro/pendientes")
     public ResponseEntity<?> obtenerPendientes(
             @RequestHeader(value = "Autorizacion", required = false) String autorizacion) {

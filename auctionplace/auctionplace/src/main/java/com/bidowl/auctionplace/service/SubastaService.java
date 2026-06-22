@@ -802,7 +802,7 @@ public class SubastaService {
         Subasta subasta = new Subasta();
         subasta.setFecha(dateFecha);
         subasta.setHora(timeHora);
-        subasta.setEstado("cerrada"); // Default cerrado
+        subasta.setEstado("carrada"); // Default carrada
         subasta.setSubastador(subastador);
         subasta.setUbicacion(request.getUbicacion());
         subasta.setCapacidadAsistentes(request.getCapacidadAsistentes());
@@ -919,11 +919,22 @@ public class SubastaService {
     public Subasta checkAndAutoOpen(Subasta subasta) {
         if (subasta == null) return null;
 
-        if ("cerrada".equalsIgnoreCase(subasta.getEstado()) && subasta.getFecha() != null && subasta.getHora() != null) {
+        List<ItemCatalogo> items = itemCatalogoRepository.findByCatalogoSubastaIdentificador(subasta.getIdentificador());
+        boolean todosSubastados = !items.isEmpty() && items.stream().allMatch(it -> "si".equalsIgnoreCase(it.getSubastado()));
+        
+        if (todosSubastados) {
+            if (!"carrada".equalsIgnoreCase(subasta.getEstado())) {
+                subasta.setEstado("carrada");
+                subasta = subastaRepository.save(subasta);
+            }
+            return subasta;
+        }
+
+        if ("carrada".equalsIgnoreCase(subasta.getEstado()) && subasta.getFecha() != null && subasta.getHora() != null) {
             java.time.LocalDateTime inicio = java.time.LocalDateTime.of(subasta.getFecha(), subasta.getHora());
             if (java.time.LocalDateTime.now().isAfter(inicio)) {
                 if (java.time.LocalDateTime.now().isAfter(inicio.plusHours(24))) {
-                    subasta.setEstado("finalizada");
+                    subasta.setEstado("carrada");
                 } else {
                     subasta.setEstado("abierta");
                 }
@@ -932,7 +943,7 @@ public class SubastaService {
         } else if ("abierta".equalsIgnoreCase(subasta.getEstado()) && subasta.getFecha() != null && subasta.getHora() != null) {
             java.time.LocalDateTime inicio = java.time.LocalDateTime.of(subasta.getFecha(), subasta.getHora());
             if (java.time.LocalDateTime.now().isAfter(inicio.plusHours(24))) {
-                subasta.setEstado("finalizada");
+                subasta.setEstado("carrada");
                 subasta = subastaRepository.save(subasta);
             }
         }

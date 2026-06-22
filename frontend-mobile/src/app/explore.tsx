@@ -12,6 +12,45 @@ import { API_URL } from '@/constants/api';
 
 const CATEGORIES = ['COMUN', 'ESPECIAL', 'PLATA', 'ORO', 'PLATINO'];
 
+function parseAuctionDateTime(dateStr: string, timeStr: string): Date {
+  try {
+    if (!dateStr) return new Date();
+    const cleanDate = dateStr.replace(/\s+/g, '');
+    const cleanTime = timeStr ? timeStr.split(' ')[0].replace(/\s+/g, '') : "00:00";
+
+    const dateParts = cleanDate.split('/');
+    if (dateParts.length === 3) {
+      const day = parseInt(dateParts[0], 10);
+      const month = parseInt(dateParts[1], 10) - 1;
+      const year = parseInt(dateParts[2], 10);
+
+      const timeParts = cleanTime.split(':');
+      const hours = timeParts[0] ? parseInt(timeParts[0], 10) : 0;
+      const minutes = timeParts[1] ? parseInt(timeParts[1], 10) : 0;
+      const seconds = timeParts[2] ? parseInt(timeParts[2], 10) : 0;
+
+      return new Date(year, month, day, hours, minutes, seconds);
+    }
+
+    const isoParts = cleanDate.split('-');
+    if (isoParts.length === 3) {
+      const year = parseInt(isoParts[0], 10);
+      const month = parseInt(isoParts[1], 10) - 1;
+      const day = parseInt(isoParts[2], 10);
+
+      const timeParts = cleanTime.split(':');
+      const hours = timeParts[0] ? parseInt(timeParts[0], 10) : 0;
+      const minutes = timeParts[1] ? parseInt(timeParts[1], 10) : 0;
+      const seconds = timeParts[2] ? parseInt(timeParts[2], 10) : 0;
+
+      return new Date(year, month, day, hours, minutes, seconds);
+    }
+  } catch (e) {
+    console.error("Error parsing date-time:", e);
+  }
+  return new Date();
+}
+
 function normalizeCategory(value: string) {
   return value
     .trim()
@@ -58,6 +97,18 @@ export default function ExploreScreen() {
   }, [isFocused]);
 
   const filteredAuctions = auctions.filter(item => {
+    const auctionDate = parseAuctionDateTime(item.fecha || item.date, item.hora || item.time);
+    const now = new Date();
+    const isPast = auctionDate < now;
+
+    if (item.estado === 'finalizada' || item.estado === 'finalizadas') {
+      return false;
+    }
+
+    if (isPast && item.estado !== 'abierta') {
+      return false;
+    }
+
     const query = searchQuery.toLowerCase();
     const titulo = item.titulo || item.title || '';
     const categoria = item.categoria || item.category || '';

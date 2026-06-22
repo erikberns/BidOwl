@@ -101,8 +101,15 @@ export default function HomeScreen() {
   }, [isFocused]);
 
   const filteredAuctions = auctions.filter(item => {
-    // End subastas should not appear on the home screen
+    const auctionDate = parseAuctionDateTime(item.fecha || item.date, item.hora || item.time);
+    const now = new Date();
+    const isPast = auctionDate < now;
+
     if (item.estado === 'finalizada' || item.estado === 'finalizadas') {
+      return false;
+    }
+
+    if (isPast && item.estado !== 'abierta') {
       return false;
     }
 
@@ -122,10 +129,10 @@ export default function HomeScreen() {
     item.estado === 'abierta' || (item.estado === undefined && item.id === '1')
   );
 
-  // Upcoming subastas (estado === 'cerrada', fallback for mock data is id === '2'), sorted by remaining time to begin ascending
+  // Upcoming subastas (estado === 'carrada' or 'cerrada', fallback for mock data is id === '2'), sorted by remaining time to begin ascending
   const upcomingAuctions = filteredAuctions
     .filter(item => 
-      item.estado === 'cerrada' || (item.estado === undefined && item.id === '2')
+      item.estado === 'carrada' || item.estado === 'cerrada' || (item.estado === undefined && item.id === '2')
     )
     .sort((a, b) => {
       const dateA = parseAuctionDateTime(a.fecha || a.date, a.hora || a.time);

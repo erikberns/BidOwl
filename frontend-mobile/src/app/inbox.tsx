@@ -52,6 +52,7 @@ export default function InboxScreen() {
   const [showDeliverySuccess, setShowDeliverySuccess] = React.useState(false);
   const [wonItemDetails, setWonItemDetails] = React.useState<any>(null);
   const [deliveryType, setDeliveryType] = React.useState<'envio' | 'retiro'>('envio');
+  const [deliveryAlreadyConfirmed, setDeliveryAlreadyConfirmed] = React.useState(false);
   const [showInsuranceDetails, setShowInsuranceDetails] = React.useState(false);
   const [selectedProductInsurance, setSelectedProductInsurance] = React.useState<any>(null);
 
@@ -90,12 +91,21 @@ export default function InboxScreen() {
         }
         setLoggedInUserId(personaId);
 
-        const [notifRes, bidsRes, auctionsRes, historyRes] = await Promise.all([
+        const fetchPromises: Promise<any>[] = [
           fetch(`${API_URL}/inbox/${personaId}/notificaciones`).catch(() => null),
-          fetch(`${API_URL}/inbox/${personaId}/pujas-activas`).catch(() => null),
-          fetch(`${API_URL}/inbox/${personaId}/mis-subastas`).catch(() => null),
-          fetch(`${API_URL}/inbox/${personaId}/historial`).catch(() => null)
-        ]);
+          fetch(`${API_URL}/inbox/${personaId}/pujas-activas`).catch(() => null)
+        ];
+
+        if (!silent) {
+          fetchPromises.push(fetch(`${API_URL}/inbox/${personaId}/mis-subastas`).catch(() => null));
+          fetchPromises.push(fetch(`${API_URL}/inbox/${personaId}/historial`).catch(() => null));
+        }
+
+        const results = await Promise.all(fetchPromises);
+        const notifRes = results[0];
+        const bidsRes = results[1];
+        const auctionsRes = !silent ? results[2] : null;
+        const historyRes = !silent ? results[3] : null;
 
         if (notifRes && notifRes.ok) {
           const notifs = await notifRes.json();
@@ -122,41 +132,43 @@ export default function InboxScreen() {
           setActiveBids(Array.from(bidsByAuction.values()));
         }
 
-        if (auctionsRes && auctionsRes.ok) {
+        if (!silent && auctionsRes && auctionsRes.ok) {
           setActiveAuctions(await auctionsRes.json());
         }
 
-        if (historyRes && historyRes.ok) {
+        if (!silent && historyRes && historyRes.ok) {
           setBidHistory(await historyRes.json());
         }
 
-        const pmResponse = await fetch(`${API_URL}/personas/${personaId}/metodos-pago`).catch(() => null);
-        if (pmResponse && pmResponse.ok) {
-          const pmData = await pmResponse.json();
-          const filtered = pmData.filter((item: any) => !item.chequeCertificado).map((item: any) => {
-            if (item.tarjetaCredito) {
-              const num = item.tarjetaCredito.numeroTarjeta || '';
-              const last4 = num.length >= 4 ? num.slice(-4) : num;
-              return {
-                id: String(item.identificador),
-                type: 'card',
-                name: `Tarjeta **** **** **** ${last4}`,
-              };
-            } else if (item.cuentaBancaria) {
-              const cbu = item.cuentaBancaria.cbuIban || '';
-              const last4 = cbu.length >= 4 ? cbu.slice(-4) : cbu;
-              return {
-                id: String(item.identificador),
-                type: 'bank',
-                name: `Cuenta Bancaria ${item.cuentaBancaria.nombreBanco || ''} (****${last4})`,
-              };
+        if (!silent) {
+          const pmResponse = await fetch(`${API_URL}/personas/${personaId}/metodos-pago`).catch(() => null);
+          if (pmResponse && pmResponse.ok) {
+            const pmData = await pmResponse.json();
+            const filtered = pmData.filter((item: any) => !item.chequeCertificado).map((item: any) => {
+              if (item.tarjetaCredito) {
+                const num = item.tarjetaCredito.numeroTarjeta || '';
+                const last4 = num.length >= 4 ? num.slice(-4) : num;
+                return {
+                  id: String(item.identificador),
+                  type: 'card',
+                  name: `Tarjeta **** **** **** ${last4}`,
+                };
+              } else if (item.cuentaBancaria) {
+                const cbu = item.cuentaBancaria.cbuIban || '';
+                const last4 = cbu.length >= 4 ? cbu.slice(-4) : cbu;
+                return {
+                  id: String(item.identificador),
+                  type: 'bank',
+                  name: `Cuenta Bancaria ${item.cuentaBancaria.nombreBanco || ''} (****${last4})`,
+                };
+              }
+              return null;
+            }).filter((i: any) => i !== null);
+            
+            if (filtered.length > 0) {
+              setPaymentMethods(filtered);
+              setSelectedPayment(filtered[0].id);
             }
-            return null;
-          }).filter((i: any) => i !== null);
-          
-          if (filtered.length > 0) {
-            setPaymentMethods(filtered);
-            setSelectedPayment(filtered[0].id);
           }
         }
       }
@@ -172,7 +184,7 @@ export default function InboxScreen() {
     checkUserStatusAndFetch();
     const interval = setInterval(() => {
       checkUserStatusAndFetch(true);
-    }, 5000);
+    }, 15000);
     return () => clearInterval(interval);
   }, [isFocused, checkUserStatusAndFetch]);
 
@@ -333,6 +345,11 @@ export default function InboxScreen() {
                         if (response.ok) {
                           const data = await response.json();
                           setWonItemDetails(data);
+                          const wasRead = notif.leida || notif.read;
+                          setDeliveryAlreadyConfirmed(!!wasRead);
+                          if (data.tipoEntrega) {
+                            setDeliveryType(data.tipoEntrega);
+                          }
                         } else {
                           console.error('Error fetching won item details:', response.statusText);
                         }
@@ -356,7 +373,11 @@ export default function InboxScreen() {
                   } else if (actionType === 'show_inspection_request') {
                     setShowInspectionRequest(true);
                   } else if (actionType === 'show_bid_won') {
-                    setShowBidWon(true);
+                    if (notif.leida) {
+                      setShowWonInvoice(true);
+                    } else {
+                      setShowBidWon(true);
+                    }
                   } else if (notif.route) {
                     router.push(notif.route);
                   }
@@ -537,6 +558,7 @@ export default function InboxScreen() {
         loggedInUserId={loggedInUserId}
         checkUserStatusAndFetch={() => checkUserStatusAndFetch(true)}
         API_URL={API_URL}
+        selectedProposal={selectedProposal}
       />
 
       <ProposalModals
@@ -575,6 +597,7 @@ export default function InboxScreen() {
         loggedInUserId={loggedInUserId}
         checkUserStatusAndFetch={() => checkUserStatusAndFetch(true)}
         API_URL={API_URL}
+        alreadyConfirmed={deliveryAlreadyConfirmed}
       />
 
       {/* Insurance Drawer Modal */}
@@ -647,12 +670,33 @@ export default function InboxScreen() {
             <View style={styles.drawerFooter}>
               <TouchableOpacity 
                 style={styles.expandInsuranceButton}
-                onPress={() => {
-                  alert("¡Solicitud enviada! Nos contactaremos a la brevedad con la aseguradora para ampliar su cobertura.");
+                onPress={async () => {
+                  if (selectedProductInsurance?.productoId) {
+                    try {
+                      const response = await fetch(`${API_URL}/productos/${selectedProductInsurance.productoId}/seguro/negociar`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Autorizacion': String(loggedInUserId || 1),
+                        }
+                      });
+                      if (response.ok) {
+                        alert("¡Negociación Iniciada! Se ha enviado un correo con las instrucciones para la negociación de la póliza de seguro.");
+                      } else {
+                        console.error('Error initiating negotiation:', response.statusText);
+                        alert("No se pudo iniciar la negociación de la póliza.");
+                      }
+                    } catch (err) {
+                      console.error('Network error initiating negotiation:', err);
+                      alert("Error de conexión al negociar la póliza.");
+                    }
+                  } else {
+                    alert("No se pudo identificar el producto.");
+                  }
                   setShowInsuranceDetails(false);
                 }}
               >
-                <Text style={styles.expandInsuranceButtonText}>Aumentar Cobertura</Text>
+                <Text style={styles.expandInsuranceButtonText}>Negociar Póliza</Text>
               </TouchableOpacity>
             </View>
           </View>

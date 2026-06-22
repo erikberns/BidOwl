@@ -115,6 +115,8 @@ export default function BiddingScreen() {
   // Timer Countdown State
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [auctionState, setAuctionState] = useState<'pending' | 'active' | 'ended'>('pending');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const hasRefetchedAfterStart = React.useRef(false);
 
   // Bidding Wizard Modal State
   const [bidStep, setBidStep] = useState<'input' | 'confirm' | 'success' | 'error' | null>(null);
@@ -324,7 +326,7 @@ export default function BiddingScreen() {
     }
 
     loadAuctionAndItems();
-  }, [auctionIdStr, isGuest]);
+  }, [auctionIdStr, isGuest, refreshTrigger]);
 
   // Dynamic Polling for Bids of Current Item
   const fetchBidsForItem = async (itemId: string, indexInState: number) => {
@@ -432,14 +434,26 @@ export default function BiddingScreen() {
       let targetDate = startDate;
       let state: 'pending' | 'active' | 'ended' = 'pending';
 
-      if (auctionDetail.estado === 'cerrada' || auctionDetail.estado === 'finalizada') {
+      if (auctionDetail.estado === 'finalizada') {
         state = 'ended';
       } else if (now.getTime() < startDate.getTime()) {
         state = 'pending';
         targetDate = startDate;
+        hasRefetchedAfterStart.current = false;
       } else if (now.getTime() >= startDate.getTime() && now.getTime() < endDate.getTime()) {
-        state = 'active';
-        targetDate = endDate;
+        if (auctionDetail.estado === 'carrada' || auctionDetail.estado === 'cerrada') {
+          if (!hasRefetchedAfterStart.current) {
+            hasRefetchedAfterStart.current = true;
+            setRefreshTrigger(prev => prev + 1);
+            state = 'active';
+            targetDate = endDate;
+          } else {
+            state = 'ended';
+          }
+        } else {
+          state = 'active';
+          targetDate = endDate;
+        }
       } else {
         state = 'ended';
       }
@@ -454,7 +468,7 @@ export default function BiddingScreen() {
       const diff = targetDate.getTime() - now.getTime();
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60)) / (1000 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
       setTimeLeft({ days, hours, minutes, seconds });
@@ -749,8 +763,8 @@ export default function BiddingScreen() {
             <Text style={styles.sectionHeading}>Dueño actual del articulo de subasta</Text>
             <Text style={styles.ownerName}>{currentItem.owner}</Text>
           </View>
-          <Image 
-            source={require('@/assets/images/auctioneer_avatar.png')} 
+          <BidderAvatar 
+            idpersona={currentItem.duenioId} 
             style={styles.avatarImage} 
           />
         </View>

@@ -21,6 +21,10 @@ interface BankAccountFormProps {
   setBankMoneda: (val: string) => void;
   isBankCurrencyDropdownOpen: boolean;
   setIsBankCurrencyDropdownOpen: (val: boolean) => void;
+  bankNumeroCuenta: string;
+  setBankNumeroCuenta: (val: string) => void;
+  bankNumeroCuentaError: string;
+  setBankNumeroCuentaError: (val: string) => void;
   bankCbuIban: string;
   setBankCbuIban: (val: string) => void;
   bankCbuIbanError: string;
@@ -51,6 +55,10 @@ export const BankAccountForm: React.FC<BankAccountFormProps> = ({
   setBankMoneda,
   isBankCurrencyDropdownOpen,
   setIsBankCurrencyDropdownOpen,
+  bankNumeroCuenta,
+  setBankNumeroCuenta,
+  bankNumeroCuentaError,
+  setBankNumeroCuentaError,
   bankCbuIban,
   setBankCbuIban,
   bankCbuIbanError,
@@ -101,12 +109,12 @@ export const BankAccountForm: React.FC<BankAccountFormProps> = ({
         <InputField
           label="Número de Cuenta"
           placeholder="1234567890"
-          value={bankCbuIban}
+          value={bankNumeroCuenta}
           onChangeText={(val: string) => {
-            setBankCbuIban(val);
-            if (bankCbuIbanError) setBankCbuIbanError('');
+            setBankNumeroCuenta(val);
+            if (bankNumeroCuentaError) setBankNumeroCuentaError('');
           }}
-          error={bankCbuIbanError}
+          error={bankNumeroCuentaError}
         />
 
         <View style={styles.tabsRow}>

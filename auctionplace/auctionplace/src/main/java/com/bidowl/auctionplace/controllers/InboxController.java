@@ -57,15 +57,15 @@ public class InboxController {
             @RequestBody Map<String, Object> body,
             @RequestHeader("Autorizacion") String autorizacion) {
         try {
-            String accion = "show_bid_won:" + itemId;
-            Integer clienteId = Integer.parseInt(autorizacion.trim());
-            List<com.bidowl.auctionplace.entity.Notificacion> notifs = notificacionRepository.findByPersonaIdOrderByFechaDesc(clienteId);
-            for (com.bidowl.auctionplace.entity.Notificacion n : notifs) {
-                if (accion.equals(n.getAccion())) {
-                    n.setLeida(true);
-                    notificacionRepository.save(n);
-                }
+            String tipoEntrega = (String) body.get("tipoEntrega");
+            java.math.BigDecimal costoEnvio = java.math.BigDecimal.ZERO;
+            if (body.get("costoEnvio") != null) {
+                costoEnvio = new java.math.BigDecimal(body.get("costoEnvio").toString());
             }
+            Integer clienteId = Integer.parseInt(autorizacion.trim());
+            
+            inboxService.registrarConfirmacionEntrega(itemId, tipoEntrega, costoEnvio, clienteId);
+            
             Map<String, Object> response = new HashMap<>();
             response.put("status", "success");
             response.put("mensaje", "La transacción se ha registrado exitosamente");

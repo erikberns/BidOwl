@@ -190,6 +190,18 @@ public class ProductoController {
         }
     }
 
+    @PostMapping("/{id}/seguro/negociar")
+    public ResponseEntity<?> negociarSeguro(@PathVariable Integer id) {
+        try {
+            productoService.negociarSeguro(id);
+            Map<String, String> respuesta = new HashMap<>();
+            respuesta.put("mensaje", "Email de negociación enviado correctamente");
+            return ResponseEntity.ok(respuesta);
+        } catch (Exception e) {
+            return crearRespuestaError(e.getMessage(), HttpStatus.BAD_REQUEST);
+        }
+    }
+
     @GetMapping("/{id}/fotos")
     public ResponseEntity<?> obtenerIdsFotosProducto(@PathVariable Integer id) {
         try {

@@ -67,12 +67,14 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
   const [bankBanco, setBankBanco] = useState('Banco Galicia');
   const [bankPais, setBankPais] = useState('Argentina');
   const [bankMoneda, setBankMoneda] = useState('Pesos');
+  const [bankNumeroCuenta, setBankNumeroCuenta] = useState('1234567890');
   const [bankCbuIban, setBankCbuIban] = useState('0720123456789012345678');
   const [bankTab, setBankTab] = useState<'CBU' | 'IBAN'>('CBU');
 
   // Bank Form Error States
   const [bankTitularError, setBankTitularError] = useState('');
   const [bankBancoError, setBankBancoError] = useState('');
+  const [bankNumeroCuentaError, setBankNumeroCuentaError] = useState('');
   const [bankCbuIbanError, setBankCbuIbanError] = useState('');
 
   // Card Form States
@@ -378,6 +380,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     setBankBanco('Banco Galicia');
     setBankPais('Argentina');
     setBankMoneda('Pesos');
+    setBankNumeroCuenta('1234567890');
     setBankCbuIban('0720123456789012345678');
     setBankTab('CBU');
     setBankFile(null);
@@ -405,7 +408,10 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       setBankBanco(method.bankBanco || '');
       setBankPais(method.bankPais || 'Argentina');
       setBankMoneda(method.bankMoneda || 'Pesos');
-      setBankCbuIban(method.bankCbuIban || '');
+      const cbu = method.bankCbuIban || '';
+      const numCuenta = cbu.length === 22 ? cbu.slice(11, 21) : cbu;
+      setBankNumeroCuenta(numCuenta);
+      setBankCbuIban(cbu);
       setBankTab(method.bankTab || 'CBU');
       setBankFile(method.bankFile || null);
       setBankFileUri(method.bankFileUri || null);
@@ -442,6 +448,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
   const handleAddBank = async () => {
     setBankTitularError('');
     setBankBancoError('');
+    setBankNumeroCuentaError('');
     setBankCbuIbanError('');
     setBankFileError('');
 
@@ -456,6 +463,14 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
 
     if (!bankBanco || !bankBanco.trim()) {
       setBankBancoError('El banco es obligatorio.');
+      hasErrors = true;
+    }
+
+    if (!bankNumeroCuenta || !bankNumeroCuenta.trim()) {
+      setBankNumeroCuentaError('El número de cuenta es obligatorio.');
+      hasErrors = true;
+    } else if (!/^\d+$/.test(bankNumeroCuenta.trim())) {
+      setBankNumeroCuentaError('El número de cuenta debe contener solo números.');
       hasErrors = true;
     }
 
@@ -1026,6 +1041,10 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       setBankMoneda={setBankMoneda}
       isBankCurrencyDropdownOpen={isBankCurrencyDropdownOpen}
       setIsBankCurrencyDropdownOpen={setIsBankCurrencyDropdownOpen}
+      bankNumeroCuenta={bankNumeroCuenta}
+      setBankNumeroCuenta={setBankNumeroCuenta}
+      bankNumeroCuentaError={bankNumeroCuentaError}
+      setBankNumeroCuentaError={setBankNumeroCuentaError}
       bankCbuIban={bankCbuIban}
       setBankCbuIban={setBankCbuIban}
       bankCbuIbanError={bankCbuIbanError}

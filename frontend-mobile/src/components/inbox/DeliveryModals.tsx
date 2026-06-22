@@ -18,6 +18,7 @@ interface DeliveryModalsProps {
   loggedInUserId: number | null;
   checkUserStatusAndFetch: () => void;
   API_URL: string;
+  alreadyConfirmed?: boolean;
 }
 
 export const DeliveryModals: React.FC<DeliveryModalsProps> = ({
@@ -35,303 +36,317 @@ export const DeliveryModals: React.FC<DeliveryModalsProps> = ({
   loggedInUserId,
   checkUserStatusAndFetch,
   API_URL,
+  alreadyConfirmed = false,
 }) => {
+  const isVisible = showBidWon || showDeliverySelection || showWonInvoice || showDeliverySuccess;
+
+  const handleBack = () => {
+    if (showBidWon) {
+      setShowBidWon(false);
+    } else if (showDeliverySelection) {
+      setShowDeliverySelection(false);
+      setShowBidWon(true);
+    } else if (showWonInvoice) {
+      if (alreadyConfirmed) {
+        setShowWonInvoice(false);
+      } else {
+        setShowWonInvoice(false);
+        setShowDeliverySelection(true);
+      }
+    } else if (showDeliverySuccess) {
+      setShowDeliverySuccess(false);
+      checkUserStatusAndFetch();
+    }
+  };
+
+  const getHeaderTitle = () => {
+    if (showBidWon) return 'Lote Obtenido';
+    if (showDeliverySelection) return 'Factura de Puja';
+    if (showWonInvoice) return 'Factura de Puja';
+    if (showDeliverySuccess) return deliveryType === 'envio' ? 'Envio del Articulo' : 'Retiro del Articulo';
+    return '';
+  };
+
   return (
-    <>
-      {/* 1. ¡Ha obtenido un nuevo objeto! Modal */}
-      <Modal visible={showBidWon} animationType="none" presentationStyle="fullScreen">
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowBidWon(false)} style={styles.modalBackButton}>
-              {/* @ts-ignore */}
-              <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
-            </TouchableOpacity>
-            <Text style={styles.modalHeaderTitle}>Lote Obtenido</Text>
-            <View style={{ width: 40 }} />
-          </View>
-          
-          <ScrollView style={styles.offerContent} showsVerticalScrollIndicator={false}>
-            <Text style={{ fontSize: 24, fontWeight: '700', color: '#051C2C', marginHorizontal: 20, marginTop: 16, marginBottom: 8 }}>
-              ¡Ha obtenido un nuevo objeto!
-            </Text>
-            <Text style={{ color: '#2E8B57', fontWeight: 'bold', fontSize: 18, marginHorizontal: 20, marginBottom: 16 }}>
-              {wonItemDetails?.subastaTitle}
-            </Text>
-            
-            <View style={[styles.offerCard, { flexDirection: 'row', alignItems: 'center', padding: 16, marginHorizontal: 20 }]}>
-              <Image 
-                source={require('@/assets/images/rolling_stone_auction.png')} 
-                style={{ width: 80, height: 120, resizeMode: 'contain', marginRight: 16 }} 
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, color: '#8A8A8A', marginBottom: 4 }}>
-                  Lote {wonItemDetails?.loteIndex} / {wonItemDetails?.totalLotes}
-                </Text>
-                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#051C2C', marginBottom: 8 }}>
-                  {wonItemDetails?.itemTitle}
-                </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                  <Text style={{ fontSize: 16, color: '#2E8B57', fontWeight: 'bold' }}>Mi Puja: </Text>
-                  <Text style={{ fontSize: 16, color: '#051C2C', fontWeight: 'bold' }}>
-                    {wonItemDetails?.importe ? (Number(wonItemDetails.importe).toLocaleString('es-AR') + ' AR$') : ''}
+    <Modal visible={isVisible} animationType="none" presentationStyle="fullScreen">
+      <SafeAreaView style={styles.modalContainer}>
+        {/* Universal Header */}
+        <View style={styles.modalHeader}>
+          <TouchableOpacity onPress={handleBack} style={styles.modalBackButton}>
+            {/* @ts-ignore */}
+            <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
+          </TouchableOpacity>
+          <Text style={styles.modalHeaderTitle}>{getHeaderTitle()}</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        {/* 1. ¡Ha obtenido un nuevo objeto! Section */}
+        {showBidWon && (
+          <>
+            <ScrollView style={styles.offerContent} showsVerticalScrollIndicator={false}>
+              <Text style={{ fontSize: 24, fontWeight: '700', color: '#051C2C', marginHorizontal: 20, marginTop: 16, marginBottom: 8 }}>
+                ¡Ha obtenido un nuevo objeto!
+              </Text>
+              <Text style={{ color: '#2E8B57', fontWeight: 'bold', fontSize: 18, marginHorizontal: 20, marginBottom: 16 }}>
+                {wonItemDetails?.subastaTitle}
+              </Text>
+              
+              <View style={[styles.offerCard, { flexDirection: 'row', alignItems: 'center', padding: 16, marginHorizontal: 20 }]}>
+                <Image 
+                  source={require('@/assets/images/rolling_stone_auction.png')} 
+                  style={{ width: 80, height: 120, resizeMode: 'contain', marginRight: 16 }} 
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, color: '#8A8A8A', marginBottom: 4 }}>
+                    Lote {wonItemDetails?.loteIndex} / {wonItemDetails?.totalLotes}
                   </Text>
+                  <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#051C2C', marginBottom: 8 }}>
+                    {wonItemDetails?.itemTitle}
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                    <Text style={{ fontSize: 16, color: '#2E8B57', fontWeight: 'bold' }}>Mi Puja: </Text>
+                    <Text style={{ fontSize: 16, color: '#051C2C', fontWeight: 'bold' }}>
+                      {wonItemDetails?.importe ? (Number(wonItemDetails.importe).toLocaleString('es-AR') + ' AR$') : ''}
+                    </Text>
+                  </View>
                 </View>
               </View>
-            </View>
 
-            <Text style={[styles.modalSubtitle, { textAlign: 'left', marginHorizontal: 20, marginTop: 24, color: '#555', lineHeight: 22 }]}>
-              Te entregaremos la factura correspondiente para formalizar la operación. A continuación, podrás confirmar la modalidad de entrega.
-            </Text>
-          </ScrollView>
-          
-          <View style={styles.modalFooter}>
-            <TouchableOpacity style={styles.modalButton} onPress={() => {
-              setShowBidWon(false);
-              setShowDeliverySelection(true);
-            }}>
-              <Text style={styles.modalButtonText}>Ver Factura y Envio</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </Modal>
-
-      {/* 2. Elegí cómo querés recibir tu objeto Modal */}
-      <Modal visible={showDeliverySelection} animationType="none" presentationStyle="fullScreen">
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => {
-              setShowDeliverySelection(false);
-              setShowBidWon(true);
-            }} style={styles.modalBackButton}>
-              {/* @ts-ignore */}
-              <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
-            </TouchableOpacity>
-            <Text style={styles.modalHeaderTitle}>Factura de Puja</Text>
-            <View style={{ width: 40 }} />
-          </View>
-          
-          <ScrollView style={styles.offerContent} showsVerticalScrollIndicator={false}>
-            <Text style={{ fontSize: 28, fontWeight: '700', color: '#051C2C', marginHorizontal: 20, marginTop: 16 }}>
-              Elegí cómo querés recibir tu objeto
-            </Text>
-
-            {/* Custom Tab Segment */}
-            <View style={[styles.tabsContainer, { marginHorizontal: 20, marginTop: 24, marginBottom: 20 }]}>
-              <TouchableOpacity
-                style={[styles.tab, deliveryType === 'envio' && styles.tabActive]}
-                onPress={() => setDeliveryType('envio')}
-              >
-                <Text style={[styles.tabText, deliveryType === 'envio' && styles.tabTextActive]}>
-                  Envio
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.tab, deliveryType === 'retiro' && styles.tabActive]}
-                onPress={() => setDeliveryType('retiro')}
-              >
-                <Text style={[styles.tabText, deliveryType === 'retiro' && styles.tabTextActive]}>
-                  Retirarlo
-                </Text>
+              <Text style={[styles.modalSubtitle, { textAlign: 'left', marginHorizontal: 20, marginTop: 24, color: '#555', lineHeight: 22 }]}>
+                Te entregaremos la factura correspondiente para formalizar la operación. A continuación, podrás confirmar la modalidad de entrega.
+              </Text>
+            </ScrollView>
+            
+            <View style={styles.modalFooter}>
+              <TouchableOpacity style={styles.modalButton} onPress={() => {
+                setShowBidWon(false);
+                setShowDeliverySelection(true);
+              }}>
+                <Text style={styles.modalButtonText}>Ver Factura y Envio</Text>
               </TouchableOpacity>
             </View>
+          </>
+        )}
 
-            {deliveryType === 'envio' ? (
-              <View style={[styles.offerCard, { marginHorizontal: 20, padding: 16 }]}>
-                <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Domicilio Legal</Text>
-                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C', marginBottom: 16 }}>
-                  {wonItemDetails?.domicilio || 'No especificado'}
-                </Text>
-                <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Costo de Envio</Text>
-                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C' }}>
-                  {wonItemDetails?.costoEnvio ? (Number(wonItemDetails.costoEnvio).toLocaleString('es-AR') + ' AR$') : '20.000 AR$'}
-                </Text>
+        {/* 2. Elegí cómo querés recibir tu objeto Section */}
+        {showDeliverySelection && (
+          <>
+            <ScrollView style={styles.offerContent} showsVerticalScrollIndicator={false}>
+              <Text style={{ fontSize: 28, fontWeight: '700', color: '#051C2C', marginHorizontal: 20, marginTop: 16 }}>
+                Elegí cómo querés recibir tu objeto
+              </Text>
+
+              {/* Custom Tab Segment */}
+              <View style={[styles.tabsContainer, { marginHorizontal: 20, marginTop: 24, marginBottom: 20 }]}>
+                <TouchableOpacity
+                  style={[styles.tab, deliveryType === 'envio' && styles.tabActive]}
+                  onPress={() => setDeliveryType('envio')}
+                >
+                  <Text style={[styles.tabText, deliveryType === 'envio' && styles.tabTextActive]}>
+                    Envio
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.tab, deliveryType === 'retiro' && styles.tabActive]}
+                  onPress={() => setDeliveryType('retiro')}
+                >
+                  <Text style={[styles.tabText, deliveryType === 'retiro' && styles.tabTextActive]}>
+                    Retirarlo
+                  </Text>
+                </TouchableOpacity>
               </View>
-            ) : (
-              <View style={{ marginHorizontal: 20 }}>
-                <View style={[styles.offerCard, { padding: 16, marginBottom: 12 }]}>
-                  <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Retiro Personal</Text>
-                  <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#051C2C', marginBottom: 16 }}>
-                    Depósito Central BidOwl Pilar
+
+              {deliveryType === 'envio' ? (
+                <View style={[styles.offerCard, { marginHorizontal: 20, padding: 16 }]}>
+                  <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Domicilio Legal</Text>
+                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C', marginBottom: 16 }}>
+                    {wonItemDetails?.domicilio || 'No especificado'}
                   </Text>
                   <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Costo de Envio</Text>
                   <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C' }}>
-                    0 AR$
+                    {wonItemDetails?.costoEnvio ? (Number(wonItemDetails.costoEnvio).toLocaleString('es-AR') + ' AR$') : '20.000 AR$'}
                   </Text>
                 </View>
-                
-                {/* Warning Card */}
-                <View style={[styles.warningCard, { padding: 16, marginBottom: 20 }]}>
-                  <Text style={styles.warningText}>
-                    ⚠️ Al retirar el bien personalmente, se perderá la cobertura del seguro contratado.
-                  </Text>
+              ) : (
+                <View style={{ marginHorizontal: 20 }}>
+                  <View style={[styles.offerCard, { padding: 16, marginBottom: 12 }]}>
+                    <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Retiro Personal</Text>
+                    <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#051C2C', marginBottom: 16 }}>
+                      Depósito Central BidOwl Pilar
+                    </Text>
+                    <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Costo de Envio</Text>
+                    <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C' }}>
+                      0 AR$
+                    </Text>
+                  </View>
+                  
+                  {/* Warning Card */}
+                  <View style={[styles.warningCard, { padding: 16, marginBottom: 20 }]}>
+                    <Text style={styles.warningText}>
+                      ⚠️ Al retirar el bien personalmente, se perderá la cobertura del seguro contratado.
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            )}
-          </ScrollView>
-          
-          <View style={styles.modalFooter}>
-            <TouchableOpacity 
-              style={[styles.modalButton, { backgroundColor: '#ADFF2F', borderColor: '#ADFF2F' }]} 
-              onPress={() => {
-                setShowDeliverySelection(false);
-                setShowWonInvoice(true);
-              }}
-            >
-              <Text style={[styles.modalButtonText, { color: '#051C2C', fontWeight: 'bold' }]}>Finalizar</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </Modal>
-
-      {/* 3. Factura de Puja Realizada Modal */}
-      <Modal visible={showWonInvoice} animationType="none" presentationStyle="fullScreen">
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => {
-              setShowWonInvoice(false);
-              setShowDeliverySelection(true);
-            }} style={styles.modalBackButton}>
-              {/* @ts-ignore */}
-              <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
-            </TouchableOpacity>
-            <Text style={styles.modalHeaderTitle}>Factura de Puja</Text>
-            <View style={{ width: 40 }} />
-          </View>
-          
-          <ScrollView style={styles.offerContent} showsVerticalScrollIndicator={false}>
-            <Text style={{ fontSize: 28, fontWeight: '700', color: '#051C2C', marginHorizontal: 20, marginTop: 16 }}>
-              Factura de Puja Realizada.
-            </Text>
+              )}
+            </ScrollView>
             
-            <View style={[styles.offerCard, { marginHorizontal: 20, padding: 16, marginTop: 24 }]}>
-              <View style={{ marginBottom: 16 }}>
-                <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Nombre del Bien</Text>
-                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C' }}>
-                  {wonItemDetails?.itemTitle}
-                </Text>
-              </View>
-
-              <View style={{ marginBottom: 16 }}>
-                <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Valor Base Propuesto</Text>
-                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C' }}>
-                  {wonItemDetails?.importe ? (Number(wonItemDetails.importe).toLocaleString('es-AR') + ' AR$') : ''}
-                </Text>
-              </View>
-
-              <View style={{ marginBottom: 16 }}>
-                <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Costo de Envio</Text>
-                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C' }}>
-                  {deliveryType === 'envio' 
-                    ? (wonItemDetails?.costoEnvio ? (Number(wonItemDetails.costoEnvio).toLocaleString('es-AR') + ' AR$') : '20.000 AR$')
-                    : '0 AR$'
-                  }
-                </Text>
-              </View>
-
-              <View style={{ height: 1, backgroundColor: '#E0E0E0', marginVertical: 8 }} />
-
-              <View style={{ marginTop: 8 }}>
-                <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Total</Text>
-                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#051C2C' }}>
-                  {(() => {
-                    const base = wonItemDetails?.importe ? Number(wonItemDetails.importe) : 0;
-                    const shipping = (deliveryType === 'envio' && wonItemDetails?.costoEnvio) ? Number(wonItemDetails.costoEnvio) : 0;
-                    return (base + shipping).toLocaleString('es-AR') + ' AR$';
-                  })()}
-                </Text>
-              </View>
+            <View style={styles.modalFooter}>
+              <TouchableOpacity 
+                style={[styles.modalButton, { backgroundColor: '#ADFF2F', borderColor: '#ADFF2F' }]} 
+                onPress={() => {
+                  setShowDeliverySelection(false);
+                  setShowWonInvoice(true);
+                }}
+              >
+                <Text style={[styles.modalButtonText, { color: '#051C2C', fontWeight: 'bold' }]}>Finalizar</Text>
+              </TouchableOpacity>
             </View>
-          </ScrollView>
-          
-          <View style={styles.modalFooter}>
-            <TouchableOpacity 
-              style={[styles.modalButton, { backgroundColor: '#ADFF2F', borderColor: '#ADFF2F' }]} 
-              onPress={async () => {
-                if (wonItemDetails && wonItemDetails.itemId) {
-                  try {
-                    const base = wonItemDetails.importe ? Number(wonItemDetails.importe) : 0;
-                    const shipping = (deliveryType === 'envio' && wonItemDetails.costoEnvio) ? Number(wonItemDetails.costoEnvio) : 0;
-                    
-                    const response = await fetch(`${API_URL}/inbox/won-item/${wonItemDetails.itemId}/confirmar-entrega`, {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Autorizacion': String(loggedInUserId || 1),
-                      },
-                      body: JSON.stringify({
-                        tipoEntrega: deliveryType,
-                        costoEnvio: shipping,
-                        total: base + shipping
-                      }),
-                    });
-                    
-                    if (response.ok) {
-                      setShowWonInvoice(false);
-                      setShowDeliverySuccess(true);
+          </>
+        )}
+
+        {/* 3. Factura de Puja Realizada Section */}
+        {showWonInvoice && (
+          <>
+            <ScrollView style={styles.offerContent} showsVerticalScrollIndicator={false}>
+              <Text style={{ fontSize: 28, fontWeight: '700', color: '#051C2C', marginHorizontal: 20, marginTop: 16 }}>
+                Factura de Puja Realizada.
+              </Text>
+
+              {alreadyConfirmed && (
+                <View style={[styles.warningCard, { backgroundColor: '#EBFBEE', borderColor: '#2E9F64', marginHorizontal: 20, marginTop: 16, padding: 12 }]}>
+                  <Text style={[styles.warningText, { color: '#2E9F64' }]}>
+                    ✓ Esta factura ya ha sido formalizada y pagada.
+                  </Text>
+                </View>
+              )}
+              
+              <View style={[styles.offerCard, { marginHorizontal: 20, padding: 16, marginTop: 24 }]}>
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Nombre del Bien</Text>
+                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C' }}>
+                    {wonItemDetails?.itemTitle}
+                  </Text>
+                </View>
+
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Valor Base Propuesto</Text>
+                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C' }}>
+                    {wonItemDetails?.importe ? (Number(wonItemDetails.importe).toLocaleString('es-AR') + ' AR$') : ''}
+                  </Text>
+                </View>
+
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Costo de Envio</Text>
+                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C' }}>
+                    {deliveryType === 'envio' 
+                      ? (wonItemDetails?.costoEnvio ? (Number(wonItemDetails.costoEnvio).toLocaleString('es-AR') + ' AR$') : '20.000 AR$')
+                      : '0 AR$'
+                    }
+                  </Text>
+                </View>
+
+                <View style={{ height: 1, backgroundColor: '#E0E0E0', marginVertical: 8 }} />
+
+                <View style={{ marginTop: 8 }}>
+                  <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Total</Text>
+                  <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#051C2C' }}>
+                    {(() => {
+                      const base = wonItemDetails?.importe ? Number(wonItemDetails.importe) : 0;
+                      const shipping = (deliveryType === 'envio' && wonItemDetails?.costoEnvio) ? Number(wonItemDetails.costoEnvio) : 0;
+                      return (base + shipping).toLocaleString('es-AR') + ' AR$';
+                    })()}
+                  </Text>
+                </View>
+              </View>
+            </ScrollView>
+            
+            <View style={styles.modalFooter}>
+              {alreadyConfirmed ? (
+                <TouchableOpacity 
+                  style={[styles.modalButton, { backgroundColor: '#051C2C', borderColor: '#051C2C' }]} 
+                  onPress={() => setShowWonInvoice(false)}
+                >
+                  <Text style={[styles.modalButtonText, { color: '#fff', fontWeight: 'bold' }]}>Volver</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity 
+                  style={[styles.modalButton, { backgroundColor: '#ADFF2F', borderColor: '#ADFF2F' }]} 
+                  onPress={async () => {
+                    if (wonItemDetails && wonItemDetails.itemId) {
+                      try {
+                        const base = wonItemDetails.importe ? Number(wonItemDetails.importe) : 0;
+                        const shipping = (deliveryType === 'envio' && wonItemDetails.costoEnvio) ? Number(wonItemDetails.costoEnvio) : 0;
+                        
+                        const response = await fetch(`${API_URL}/inbox/won-item/${wonItemDetails.itemId}/confirmar-entrega`, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Autorizacion': String(loggedInUserId || 1),
+                          },
+                          body: JSON.stringify({
+                            tipoEntrega: deliveryType,
+                            costoEnvio: shipping,
+                            total: base + shipping
+                          }),
+                        });
+                        
+                        if (response.ok) {
+                          setShowWonInvoice(false);
+                          setShowDeliverySuccess(true);
+                        } else {
+                          console.error('Error confirming delivery details:', response.statusText);
+                          setShowWonInvoice(false);
+                        }
+                      } catch (err) {
+                        console.error('Network error confirming delivery details:', err);
+                        setShowWonInvoice(false);
+                      }
                     } else {
-                      console.error('Error confirming delivery details:', response.statusText);
                       setShowWonInvoice(false);
                     }
-                  } catch (err) {
-                    console.error('Network error confirming delivery details:', err);
-                    setShowWonInvoice(false);
-                  }
-                } else {
-                  setShowWonInvoice(false);
-                }
-              }}
-            >
-              <Text style={[styles.modalButtonText, { color: '#051C2C', fontWeight: 'bold' }]}>Finalizar</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </Modal>
-
-      {/* 4. Envio del Articulo Success Modal */}
-      <Modal visible={showDeliverySuccess} animationType="none" presentationStyle="fullScreen">
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => {
-              setShowDeliverySuccess(false);
-              checkUserStatusAndFetch();
-            }} style={styles.modalBackButton}>
-              {/* @ts-ignore */}
-              <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
-            </TouchableOpacity>
-            <Text style={styles.modalHeaderTitle}>{deliveryType === 'envio' ? 'Envio del Articulo' : 'Retiro del Articulo'}</Text>
-            <View style={{ width: 40 }} />
-          </View>
-          
-          <View style={styles.modalContent}>
-            <View style={styles.modalIconContainer}>
-              {/* @ts-ignore */}
-              <SymbolView name={{ ios: 'checkmark', android: 'check', web: 'check' }} size={40} tintColor="#2E8B57" weight="bold" />
+                  }}
+                >
+                  <Text style={[styles.modalButtonText, { color: '#051C2C', fontWeight: 'bold' }]}>Finalizar</Text>
+                </TouchableOpacity>
+              )}
             </View>
-            <Text style={[styles.modalTitle, { fontSize: 24 }]}>
-              {deliveryType === 'envio' 
-                ? 'Su articulo sera\nenviado a su domicilio\nen a lo largo de la\nsemana.'
-                : 'Su articulo esta\nlisto para ser retirado\nen nuestro deposito.'
-              }
-            </Text>
-            <Text style={styles.modalSubtitle}>
-              {deliveryType === 'envio'
-                ? 'Nuestro equipo se encargará de coordinar la logística para garantizar una entrega segura y en tiempo estimado.'
-                : 'Podes pasar a buscarlo de lunes a viernes de 9 a 18 hs con tu DNI y el código de transacción de la subasta.'
-              }
-            </Text>
-          </View>
-          
-          <View style={styles.modalFooter}>
-            <TouchableOpacity style={styles.modalButton} onPress={() => {
-              setShowDeliverySuccess(false);
-              checkUserStatusAndFetch();
-            }}>
-              <Text style={styles.modalButtonText}>Continuar</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </Modal>
-    </>
+          </>
+        )}
+
+        {/* 4. Envio del Articulo Success Section */}
+        {showDeliverySuccess && (
+          <>
+            <View style={styles.modalContent}>
+              <View style={styles.modalIconContainer}>
+                {/* @ts-ignore */}
+                <SymbolView name={{ ios: 'checkmark', android: 'check', web: 'check' }} size={40} tintColor="#2E8B57" weight="bold" />
+              </View>
+              <Text style={[styles.modalTitle, { fontSize: 24 }]}>
+                {deliveryType === 'envio' 
+                  ? 'Su articulo sera\nenviado a su domicilio\nen a lo largo de la\nsemana.'
+                  : 'Su articulo esta\nlisto para ser retirado\nen nuestro deposito.'
+                }
+              </Text>
+              <Text style={styles.modalSubtitle}>
+                {deliveryType === 'envio'
+                  ? 'Nuestro equipo se encargará de coordinar la logística para garantizar una entrega segura y en tiempo estimado.'
+                  : 'Podes pasar a buscarlo de lunes a viernes de 9 a 18 hs con tu DNI y el código de transacción de la subasta.'
+                }
+              </Text>
+            </View>
+            
+            <View style={styles.modalFooter}>
+              <TouchableOpacity style={styles.modalButton} onPress={() => {
+                setShowDeliverySuccess(false);
+                checkUserStatusAndFetch();
+              }}>
+                <Text style={styles.modalButtonText}>Continuar</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+      </SafeAreaView>
+    </Modal>
   );
 };
 

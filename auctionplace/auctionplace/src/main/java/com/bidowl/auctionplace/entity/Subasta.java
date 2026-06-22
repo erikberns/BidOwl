@@ -27,7 +27,7 @@ public class Subasta {
     private LocalTime hora;
 
     @Column(name = "estado", length = 10)
-    private String estado = "cerrada"; // "abierta", "cerrada"
+    private String estado = "carrada"; // "abierta", "carrada"
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "subastador")

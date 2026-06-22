@@ -31,4 +31,5 @@ public interface PersonaServiceInterface {
     List<MetodoPago> obtenerMetodosPago(Integer personaId) throws Exception;
     void eliminarMetodoPago(Integer metodoPagoId) throws Exception;
     void rechazarRegistro(Integer id, String motivo) throws Exception;
+    void modificarCategoria(Integer id, String categoria) throws Exception;
 }

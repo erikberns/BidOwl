@@ -22,6 +22,7 @@ interface InspectionModalsProps {
   loggedInUserId: number | null;
   checkUserStatusAndFetch: () => void;
   API_URL: string;
+  selectedProposal: any;
 }
 
 export const InspectionModals: React.FC<InspectionModalsProps> = ({
@@ -42,172 +43,177 @@ export const InspectionModals: React.FC<InspectionModalsProps> = ({
   loggedInUserId,
   checkUserStatusAndFetch,
   API_URL,
+  selectedProposal,
 }) => {
+  const isVisible = showInspectionRequest || showInspectionResult || showInspectionRejected || showShippingInstructions;
+
+  const handleBack = () => {
+    if (showInspectionRequest) {
+      setShowInspectionRequest(false);
+    } else if (showInspectionResult) {
+      setShowInspectionResult(false);
+    } else if (showInspectionRejected) {
+      setShowInspectionRejected(false);
+    } else if (showShippingInstructions) {
+      setShowShippingInstructions(false);
+      setShowInspectionRequest(true);
+    }
+  };
+
+  const getHeaderTitle = () => {
+    if (showInspectionRequest) return 'Inspección de Articulo';
+    if (showInspectionResult) return 'Resultado de Inspección';
+    if (showInspectionRejected) return 'Resultado de Inspección';
+    if (showShippingInstructions) return 'Inspección de Articulo';
+    return '';
+  };
+
   return (
-    <>
-      {/* Inspection Request Modal */}
-      <Modal visible={showInspectionRequest} animationType="none" presentationStyle="fullScreen">
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowInspectionRequest(false)} style={styles.modalBackButton}>
-              {/* @ts-ignore */}
-              <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
-            </TouchableOpacity>
-            <Text style={styles.modalHeaderTitle}>Inspección de Articulo</Text>
-            <View style={{ width: 40 }} />
-          </View>
-          
-          <View style={styles.modalContent}>
-            <View style={styles.modalIconContainer}>
-              {/* @ts-ignore */}
-              <SymbolView name={{ ios: 'checkmark', android: 'check', web: 'check' }} size={40} tintColor="#2E8B57" weight="bold" />
-            </View>
-            <Text style={styles.modalTitle}>Tu solicitud fue{"\n"}aceptada, pero{"\n"}debemos inspeccionar.</Text>
-            <Text style={styles.modalSubtitle}>
-              Ahora necesitamos inspeccionar el artículo para verificar su estado y asegurarnos de que cumpla con los estándares antes de incluirlo en una subasta.
-            </Text>
-          </View>
-          
-          <View style={styles.modalFooter}>
-            <TouchableOpacity style={styles.modalButton} onPress={() => {
-              setShowInspectionRequest(false);
-              setShowShippingInstructions(true);
-            }}>
-              <Text style={styles.modalButtonText}>Continuar</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </Modal>
+    <Modal visible={isVisible} animationType="none" presentationStyle="fullScreen">
+      <SafeAreaView style={styles.modalContainer}>
+        {/* Universal Header */}
+        <View style={styles.modalHeader}>
+          <TouchableOpacity onPress={handleBack} style={styles.modalBackButton}>
+            {/* @ts-ignore */}
+            <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
+          </TouchableOpacity>
+          <Text style={styles.modalHeaderTitle}>{getHeaderTitle()}</Text>
+          <View style={{ width: 40 }} />
+        </View>
 
-      {/* Inspection Result Modal */}
-      <Modal visible={showInspectionResult} animationType="none" presentationStyle="fullScreen">
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowInspectionResult(false)} style={styles.modalBackButton}>
-              {/* @ts-ignore */}
-              <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
-            </TouchableOpacity>
-            <Text style={styles.modalHeaderTitle}>Resultado de Inspección</Text>
-            <View style={{ width: 40 }} />
-          </View>
-          
-          <View style={styles.modalContent}>
-            <View style={styles.modalIconContainer}>
-              {/* @ts-ignore */}
-              <SymbolView name={{ ios: 'checkmark', android: 'check', web: 'check' }} size={40} tintColor="#2E8B57" weight="bold" />
+        {/* 1. Inspection Request Section */}
+        {showInspectionRequest && (
+          <>
+            <View style={styles.modalContent}>
+              <View style={styles.modalIconContainer}>
+                {/* @ts-ignore */}
+                <SymbolView name={{ ios: 'checkmark', android: 'check', web: 'check' }} size={40} tintColor="#2E8B57" weight="bold" />
+              </View>
+              <Text style={styles.modalTitle}>Tu solicitud fue{"\n"}aceptada, pero{"\n"}debemos inspeccionar.</Text>
+              <Text style={styles.modalSubtitle}>
+                Ahora necesitamos inspeccionar el artículo para verificar su estado y asegurarnos de que cumpla con los estándares antes de incluirlo en una subasta.
+              </Text>
             </View>
-            <Text style={styles.modalTitle}>Su articulo ha logrado{"\n"}pasar la inspección.</Text>
-            <Text style={styles.modalSubtitle}>
-              Te invitamos a ver una propuesta con el valor base sugerido y las comisiones correspondientes para su inclusión en la subasta.
-            </Text>
-          </View>
-          
-          <View style={styles.modalFooter}>
-            <TouchableOpacity style={styles.modalButton} onPress={() => {
-              setShowInspectionResult(false);
-              setShowOfferDetails(true);
-            }}>
-              <Text style={styles.modalButtonText}>Continuar</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </Modal>
+            
+            <View style={styles.modalFooter}>
+              <TouchableOpacity style={styles.modalButton} onPress={() => {
+                setShowInspectionRequest(false);
+                setShowShippingInstructions(true);
+              }}>
+                <Text style={styles.modalButtonText}>Continuar</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
 
-      {/* Inspection Rejected Modal */}
-      <Modal visible={showInspectionRejected} animationType="none" presentationStyle="fullScreen">
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setShowInspectionRejected(false)} style={styles.modalBackButton}>
-              {/* @ts-ignore */}
-              <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
-            </TouchableOpacity>
-            <Text style={styles.modalHeaderTitle}>Resultado de Inspección</Text>
-            <View style={{ width: 40 }} />
-          </View>
-          
-          <View style={styles.modalContent}>
-            <View style={[styles.modalIconContainer, { borderColor: '#D9534F' }]}>
-              {/* @ts-ignore */}
-              <SymbolView name={{ ios: 'xmark', android: 'close', web: 'close' }} size={40} tintColor="#D9534F" weight="bold" />
+        {/* 2. Inspection Result Section */}
+        {showInspectionResult && (
+          <>
+            <View style={styles.modalContent}>
+              <View style={styles.modalIconContainer}>
+                {/* @ts-ignore */}
+                <SymbolView name={{ ios: 'checkmark', android: 'check', web: 'check' }} size={40} tintColor="#2E8B57" weight="bold" />
+              </View>
+              <Text style={styles.modalTitle}>Su articulo ha logrado{"\n"}pasar la inspección.</Text>
+              <Text style={styles.modalSubtitle}>
+                Te invitamos a ver una propuesta con el valor base sugerido y las comisiones correspondientes para su inclusión en la subasta.
+              </Text>
             </View>
-            <Text style={styles.modalTitle}>Su articulo no ha{"\n"}pasado la inspección,{"\n"}y sera devuelto.</Text>
-            <Text style={styles.modalSubtitle}>
-              Será devuelto a la dirección indicada junto con el detalle de los motivos correspondientes.
-            </Text>
-          </View>
-          
-          <View style={styles.modalFooter}>
-            <TouchableOpacity style={styles.shippingButton} onPress={() => {
-              setShowInspectionRejected(false);
-            }}>
-              <Text style={styles.shippingButtonText}>Entendido</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </Modal>
+            
+            <View style={styles.modalFooter}>
+              <TouchableOpacity style={styles.modalButton} onPress={() => {
+                setShowInspectionResult(false);
+                setShowOfferDetails(true);
+              }}>
+                <Text style={styles.modalButtonText}>Continuar</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
 
-      {/* Shipping Instructions Modal */}
-      <Modal visible={showShippingInstructions} animationType="none" presentationStyle="fullScreen">
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => {
-              setShowShippingInstructions(false);
-              setShowInspectionRequest(true);
-            }} style={styles.modalBackButton}>
-              {/* @ts-ignore */}
-              <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
-            </TouchableOpacity>
-            <Text style={styles.modalHeaderTitle}>Inspección de Articulo</Text>
-            <View style={{ width: 40 }} />
-          </View>
-          
-          <ScrollView style={styles.shippingContent} showsVerticalScrollIndicator={false}>
-            <View style={styles.mapContainer}>
-              <MapComponent 
-                selectedLocation={selectedLocation}
-                onLocationChange={setSelectedLocation}
-                addressText={selectedAddress}
-                onAddressChange={setSelectedAddress}
-              />
+        {/* 3. Inspection Rejected Section */}
+        {showInspectionRejected && (
+          <>
+            <View style={styles.modalContent}>
+              <View style={[styles.modalIconContainer, { borderColor: '#D9534F' }]}>
+                {/* @ts-ignore */}
+                <SymbolView name={{ ios: 'xmark', android: 'close', web: 'close' }} size={40} tintColor="#D9534F" weight="bold" />
+              </View>
+              <Text style={styles.modalTitle}>Su articulo no ha{"\n"}pasado la inspección,{"\n"}y sera devuelto.</Text>
+              <Text style={styles.modalSubtitle}>
+                Será devuelto a la dirección indicada junto con el detalle de los motivos correspondientes.
+              </Text>
+
+              {selectedProposal?.motivoRechazo ? (
+                <View style={[styles.warningCard, { marginTop: 24 }]}>
+                  <Text style={styles.warningText}>
+                    Motivo: {selectedProposal.motivoRechazo}
+                  </Text>
+                </View>
+              ) : null}
             </View>
-            <Text style={styles.shippingTitle}>Envia el articulo a la{"\n"}ubicación indicada{"\n"}para continuar.</Text>
-            <Text style={styles.shippingSubtitle}>
-              Una vez recibido, continuaremos con la inspección para avanzar con su inclusión en la subasta.
-            </Text>
-          </ScrollView>
-          
-          <View style={styles.modalFooter}>
-            <TouchableOpacity style={styles.shippingButton} onPress={async () => {
-              console.log('Ubicación seleccionada:', selectedLocation, 'Dirección:', selectedAddress);
-              if (selectedRequestId) {
-                try {
-                  const response = await fetch(`${API_URL}/solicitudes-items/${selectedRequestId}/acuerdo-envio`, {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Autorizacion': String(loggedInUserId || 1),
-                    },
-                    body: JSON.stringify({
-                      aceptaTerminos: true,
-                    }),
-                  });
-                  if (response.ok) {
-                    checkUserStatusAndFetch();
-                  } else {
-                    console.error('Error accepting shipping agreement:', response.statusText);
+            
+            <View style={styles.modalFooter}>
+              <TouchableOpacity style={styles.shippingButton} onPress={() => {
+                setShowInspectionRejected(false);
+              }}>
+                <Text style={styles.shippingButtonText}>Entendido</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+
+        {/* 4. Shipping Instructions Section */}
+        {showShippingInstructions && (
+          <>
+            <ScrollView style={styles.shippingContent} showsVerticalScrollIndicator={false}>
+              <View style={styles.mapContainer}>
+                <MapComponent 
+                  selectedLocation={selectedLocation}
+                  onLocationChange={setSelectedLocation}
+                  addressText={selectedAddress}
+                  onAddressChange={setSelectedAddress}
+                />
+              </View>
+              <Text style={styles.shippingTitle}>Envia el articulo a la{"\n"}ubicación indicada{"\n"}para continuar.</Text>
+              <Text style={styles.shippingSubtitle}>
+                Una vez recibido, continuaremos con la inspección para avanzar con su inclusión en la subasta.
+              </Text>
+            </ScrollView>
+            
+            <View style={styles.modalFooter}>
+              <TouchableOpacity style={styles.shippingButton} onPress={async () => {
+                console.log('Ubicación seleccionada:', selectedLocation, 'Dirección:', selectedAddress);
+                if (selectedRequestId) {
+                  try {
+                    const response = await fetch(`${API_URL}/solicitudes-items/${selectedRequestId}/acuerdo-envio`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Autorizacion': String(loggedInUserId || 1),
+                      },
+                      body: JSON.stringify({
+                        aceptaTerminos: true,
+                      }),
+                    });
+                    if (response.ok) {
+                      checkUserStatusAndFetch();
+                    } else {
+                      console.error('Error accepting shipping agreement:', response.statusText);
+                    }
+                  } catch (err) {
+                    console.error('Network error accepting shipping agreement:', err);
                   }
-                } catch (err) {
-                  console.error('Network error accepting shipping agreement:', err);
                 }
-              }
-              setShowShippingInstructions(false);
-            }}>
-              <Text style={styles.shippingButtonText}>Entendido</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </Modal>
-    </>
+                setShowShippingInstructions(false);
+              }}>
+                <Text style={styles.shippingButtonText}>Entendido</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+      </SafeAreaView>
+    </Modal>
   );
 };
 
@@ -312,5 +318,18 @@ const styles = StyleSheet.create({
     color: '#051C2C',
     fontSize: 16,
     fontWeight: '700',
+  },
+  warningCard: {
+    backgroundColor: '#FFF2E6',
+    borderWidth: 1,
+    borderColor: '#FFA500',
+    borderRadius: 8,
+    padding: 16,
+  },
+  warningText: {
+    color: '#D45B00',
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
   },
 });

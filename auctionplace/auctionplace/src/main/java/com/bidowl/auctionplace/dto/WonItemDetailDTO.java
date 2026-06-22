@@ -13,4 +13,5 @@ public class WonItemDetailDTO {
     private BigDecimal importe;
     private String domicilio;
     private BigDecimal costoEnvio;
+    private String tipoEntrega;
 }

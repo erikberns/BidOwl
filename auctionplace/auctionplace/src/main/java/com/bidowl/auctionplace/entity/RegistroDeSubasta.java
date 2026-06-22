@@ -39,6 +39,12 @@ public class RegistroDeSubasta {
     @JoinColumn(table = "registro_de_subasta_datos_adicionales", name = "metodoPago", nullable = false)
     private MetodoPago metodoPago;
 
+    @Column(table = "registro_de_subasta_datos_adicionales", name = "tipoEntrega", length = 20)
+    private String tipoEntrega;
+
+    @Column(table = "registro_de_subasta_datos_adicionales", name = "costoEnvio", precision = 18, scale = 2)
+    private BigDecimal costoEnvio;
+
     /**
      * El precio final de adjudicación/compra (monto de la puja ganadora) que el cliente debe pagar por el producto.
      */

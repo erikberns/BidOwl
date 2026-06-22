@@ -31,6 +31,8 @@ export const BiddingWizardModal: React.FC<BiddingWizardModalProps> = ({
   errorTitle,
   formatPrice,
 }) => {
+  if (!visible || !bidStep) return null;
+
   return (
     <Modal
       visible={visible}
@@ -39,80 +41,10 @@ export const BiddingWizardModal: React.FC<BiddingWizardModalProps> = ({
       onRequestClose={() => setBidStep(null)}
     >
       <View style={styles.modalBackdrop}>
-        {bidStep === 'input' && (
-          <View style={styles.modalContent}>
-            {/* Header */}
-            <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setBidStep(null)} style={styles.modalCloseButton}>
-                <Text style={styles.modalCloseText}>✕</Text>
-              </TouchableOpacity>
-              <Text style={styles.modalTitle}>Realizar Puja</Text>
-              <View style={styles.modalHeaderPlaceholder} />
-            </View>
-
-            {/* Body */}
-            <View style={styles.modalBody}>
-              {minBid !== null && maxBid !== null && (
-                <>
-                  <Text style={styles.restrictionsTitle}>Restricción de Categoria</Text>
-                  <View style={styles.restrictionsRow}>
-                    <TouchableOpacity 
-                      style={styles.restrictionBox}
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        const numericValue = Math.round(minBid).toString();
-                        const formatted = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-                        setBidValue(formatted);
-                      }}
-                    >
-                      <Text style={styles.restrictionLabel}>Puja Minima</Text>
-                      <Text style={styles.restrictionAmount}>{formatPrice(minBid)}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={styles.restrictionBox}
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        const numericValue = Math.round(maxBid).toString();
-                        const formatted = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-                        setBidValue(formatted);
-                      }}
-                    >
-                      <Text style={styles.restrictionLabel}>Puja Maxima</Text>
-                      <Text style={styles.restrictionAmount}>{formatPrice(maxBid)}</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              )}
-
-              <Text style={styles.modalLabel}>Ingrese su Monto a Pujar</Text>
-              
-              <View style={styles.inputWrapper}>
-                <TextInput
-                  style={[styles.textInput, { outlineStyle: 'none' } as any]}
-                  value={bidValue}
-                  onChangeText={handleBidValueChange}
-                  keyboardType="numeric"
-                  placeholder="0"
-                  placeholderTextColor="#666"
-                  underlineColorAndroid="transparent"
-                />
-                <Text style={styles.currencySuffix}>ARS</Text>
-              </View>
-
-              <TouchableOpacity 
-                style={styles.modalEnterButton}
-                onPress={() => setBidStep('confirm')}
-              >
-                <Text style={styles.modalEnterButtonText}>¡Pujar!</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {bidStep === 'confirm' && (
-          <View style={styles.modalContent}>
-            {/* Header */}
-            <View style={styles.modalHeader}>
+        <View style={styles.modalContent}>
+          {/* Header */}
+          <View style={styles.modalHeader}>
+            {bidStep === 'confirm' ? (
               <TouchableOpacity onPress={() => setBidStep('input')} style={styles.modalCloseButton}>
                 <SymbolView
                   tintColor="#051C2C"
@@ -121,82 +53,131 @@ export const BiddingWizardModal: React.FC<BiddingWizardModalProps> = ({
                   size={20}
                 />
               </TouchableOpacity>
-              <Text style={styles.modalTitle}>Confirmar Puja</Text>
-              <View style={styles.modalHeaderPlaceholder} />
-            </View>
-
-            {/* Body */}
-            <View style={styles.modalBody}>
-              <Text style={styles.modalLabel}>¿Usted desea pujar?</Text>
-              <Text style={styles.confirmPrice}>{formatPrice(bidValue)}</Text>
-
-              <TouchableOpacity 
-                style={styles.modalEnterButton}
-                onPress={handleConfirmBid}
-              >
-                <Text style={styles.modalEnterButtonText}>Deseo Pujar Ese Monto</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {bidStep === 'success' && (
-          <View style={styles.modalContent}>
-            {/* Header */}
-            <View style={styles.modalHeader}>
+            ) : (
               <TouchableOpacity onPress={() => setBidStep(null)} style={styles.modalCloseButton}>
                 <Text style={styles.modalCloseText}>✕</Text>
               </TouchableOpacity>
-              <Text style={styles.modalTitle}>Confirmar Puja</Text>
-              <View style={styles.modalHeaderPlaceholder} />
-            </View>
+            )}
 
-            {/* Body */}
-            <View style={styles.modalBody}>
-              <View style={styles.successIconCircle}>
-                <Text style={styles.successCheckMark}>✓</Text>
-              </View>
-
-              <Text style={styles.successText}>Su puja se ha realizado exitosamente.</Text>
-
-              <TouchableOpacity 
-                style={styles.modalEnterButton}
-                onPress={() => setBidStep(null)}
-              >
-                <Text style={styles.modalEnterButtonText}>¡Genial!</Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.modalTitle}>
+              {bidStep === 'input' && 'Realizar Puja'}
+              {bidStep === 'confirm' && 'Confirmar Puja'}
+              {bidStep === 'success' && 'Confirmar Puja'}
+              {bidStep === 'error' && (errorTitle || 'Error al Ofertar')}
+            </Text>
+            
+            <View style={styles.modalHeaderPlaceholder} />
           </View>
-        )}
 
-        {bidStep === 'error' && (
-          <View style={styles.modalContent}>
-            {/* Header */}
-            <View style={styles.modalHeader}>
-              <TouchableOpacity onPress={() => setBidStep(null)} style={styles.modalCloseButton}>
-                <Text style={styles.modalCloseText}>✕</Text>
-              </TouchableOpacity>
-              <Text style={styles.modalTitle}>{errorTitle || 'Error al Ofertar'}</Text>
-              <View style={styles.modalHeaderPlaceholder} />
-            </View>
+          {/* Body */}
+          <View style={styles.modalBody}>
+            {bidStep === 'input' && (
+              <>
+                {minBid !== null && maxBid !== null && (
+                  <>
+                    <Text style={styles.restrictionsTitle}>Restricción de Categoria</Text>
+                    <View style={styles.restrictionsRow}>
+                      <TouchableOpacity 
+                        style={styles.restrictionBox}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          const numericValue = Math.round(minBid).toString();
+                          const formatted = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                          setBidValue(formatted);
+                        }}
+                      >
+                        <Text style={styles.restrictionLabel}>Puja Minima</Text>
+                        <Text style={styles.restrictionAmount}>{formatPrice(minBid)}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={styles.restrictionBox}
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          const numericValue = Math.round(maxBid).toString();
+                          const formatted = numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                          setBidValue(formatted);
+                        }}
+                      >
+                        <Text style={styles.restrictionLabel}>Puja Maxima</Text>
+                        <Text style={styles.restrictionAmount}>{formatPrice(maxBid)}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </>
+                )}
 
-            {/* Body */}
-            <View style={styles.modalBody}>
-              <View style={styles.errorIconCircle}>
-                <Text style={styles.errorXMark}>✕</Text>
-              </View>
+                <Text style={styles.modalLabel}>Ingrese su Monto a Pujar</Text>
+                
+                <View style={styles.inputWrapper}>
+                  <TextInput
+                    style={[styles.textInput, { outlineStyle: 'none' } as any]}
+                    value={bidValue}
+                    onChangeText={handleBidValueChange}
+                    keyboardType="numeric"
+                    placeholder="0"
+                    placeholderTextColor="#666"
+                    underlineColorAndroid="transparent"
+                  />
+                  <Text style={styles.currencySuffix}>ARS</Text>
+                </View>
 
-              <Text style={styles.errorModalText}>{errorMessage || 'No se pudo realizar la puja.'}</Text>
+                <TouchableOpacity 
+                  style={styles.modalEnterButton}
+                  onPress={() => setBidStep('confirm')}
+                >
+                  <Text style={styles.modalEnterButtonText}>¡Pujar!</Text>
+                </TouchableOpacity>
+              </>
+            )}
 
-              <TouchableOpacity 
-                style={styles.modalErrorCloseButton}
-                onPress={() => setBidStep(null)}
-              >
-                <Text style={styles.modalErrorCloseButtonText}>Entendido</Text>
-              </TouchableOpacity>
-            </View>
+            {bidStep === 'confirm' && (
+              <>
+                <Text style={styles.modalLabel}>¿Usted desea pujar?</Text>
+                <Text style={styles.confirmPrice}>{formatPrice(bidValue)}</Text>
+
+                <TouchableOpacity 
+                  style={styles.modalEnterButton}
+                  onPress={handleConfirmBid}
+                >
+                  <Text style={styles.modalEnterButtonText}>Deseo Pujar Ese Monto</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {bidStep === 'success' && (
+              <>
+                <View style={styles.successIconCircle}>
+                  <Text style={styles.successCheckMark}>✓</Text>
+                </View>
+
+                <Text style={styles.successText}>Su puja se ha realizado exitosamente.</Text>
+
+                <TouchableOpacity 
+                  style={styles.modalEnterButton}
+                  onPress={() => setBidStep(null)}
+                >
+                  <Text style={styles.modalEnterButtonText}>¡Genial!</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {bidStep === 'error' && (
+              <>
+                <View style={styles.errorIconCircle}>
+                  <Text style={styles.errorXMark}>✕</Text>
+                </View>
+
+                <Text style={styles.errorModalText}>{errorMessage || 'No se pudo realizar la puja.'}</Text>
+
+                <TouchableOpacity 
+                  style={styles.modalErrorCloseButton}
+                  onPress={() => setBidStep(null)}
+                >
+                  <Text style={styles.modalErrorCloseButtonText}>Entendido</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
-        )}
+        </View>
       </View>
     </Modal>
   );

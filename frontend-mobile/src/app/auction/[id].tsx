@@ -195,6 +195,7 @@ export default function AuctionDetailScreen() {
   // Timer Countdown State
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [auctionState, setAuctionState] = useState<'pending' | 'active' | 'ended'>('pending');
+  const hasRefetchedAfterStart = React.useRef(false);
 
   // Description truncation state
   const [isExpanded, setIsExpanded] = useState(false);
@@ -346,9 +347,21 @@ export default function AuctionDetailScreen() {
       } else if (now.getTime() < startDate.getTime()) {
         state = 'pending';
         targetDate = startDate;
+        hasRefetchedAfterStart.current = false;
       } else if (now.getTime() >= startDate.getTime() && now.getTime() < endDate.getTime()) {
-        state = 'active';
-        targetDate = endDate;
+        if (auctionDetail.estado === 'carrada' || auctionDetail.estado === 'cerrada') {
+          if (!hasRefetchedAfterStart.current) {
+            hasRefetchedAfterStart.current = true;
+            loadDetail();
+            state = 'active';
+            targetDate = endDate;
+          } else {
+            state = 'ended';
+          }
+        } else {
+          state = 'active';
+          targetDate = endDate;
+        }
       } else {
         state = 'ended';
       }

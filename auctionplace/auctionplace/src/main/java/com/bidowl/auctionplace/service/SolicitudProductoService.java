@@ -202,8 +202,8 @@ public class SolicitudProductoService {
             throw new Exception("Dueño no encontrado");
         }
 
-        // Obtener productos del dueño que están activos (disponibles o con propuesta)
-        List<Producto> productos = productoRepository.findByDuenioIdentificador(creadorId);
+        // Obtener productos del dueño que están activos (disponibles o con propuesta) por el dueño original
+        List<Producto> productos = productoRepository.findProductosOriginalesPorDuenio(creadorId);
 
         return productos.stream()
                 .map(p -> new ItemActivoDTO(
@@ -242,10 +242,13 @@ public class SolicitudProductoService {
         // Ejemplo: p.getEstado() podría devolver "RECHAZADO", "ACEPTADO_INSPECCION", "PROPUESTA_ENVIADA"
         // Por ahora, simulamos basado en 'disponible'
         String estadoActual = p.getDisponible().equalsIgnoreCase("si") ? "ACEPTADO_INSPECCION" : "PENDIENTE_REVISION";
+        if (p.getDisponible().equalsIgnoreCase("no") && p.getDescripcionCatalogo() != null && !p.getDescripcionCatalogo().equalsIgnoreCase("No Posee")) {
+            estadoActual = "RECHAZADO";
+        }
         detalle.setEstado(estadoActual);
 
         // Si el estado fuera "RECHAZADO", deberías tener una columna 'motivoRechazo' en la tabla.
-        // detalle.setMotivoRechazo(p.getMotivoRechazo());
+        detalle.setMotivoRechazo(p.getDescripcionCatalogo());
 
         if (p.getSeguro() != null) {
             detalle.setPolizaSeguro(p.getSeguro().getNroPoliza());
