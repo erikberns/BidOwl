@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { API_URL } from '@/constants/api';
 import { InputField } from '../ui/InputField';
 import * as ImagePicker from 'expo-image-picker';
+import { Urbanist_400Regular } from '@expo-google-fonts/urbanist';
 
 export interface RegisterData {
   nombre: string;
@@ -107,14 +108,14 @@ export function RegisterScreen({ onBack, onComplete }: Props) {
       return;
     }
 
-    onComplete({ 
-      nombre, 
-      apellido, 
-      pais, 
-      dni, 
-      domicilio, 
-      fotoFrente: fotoFrenteFile, 
-      fotoDorso: fotoDorsoFile 
+    onComplete({
+      nombre,
+      apellido,
+      pais,
+      dni,
+      domicilio,
+      fotoFrente: fotoFrenteFile,
+      fotoDorso: fotoDorsoFile
     });
   };
 
@@ -254,14 +255,18 @@ export function RegisterScreen({ onBack, onComplete }: Props) {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Pressable onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>{'<'}</Text>
+          <Image
+            source={require('../../../assets/images/Chevron-Left.png')}
+            style={styles.backButtonImage}
+            resizeMode="contain"
+          />
         </Pressable>
         <Text style={styles.headerTitle}>Creación de Cuenta</Text>
         <View style={styles.placeholderBox} />
       </View>
 
       <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
-        
+
         <Text style={styles.sectionTitle}>Ingrese los siguientes datos.</Text>
         <Text style={styles.sectionDescription}>
           Esto nos permitira realizar una investigacion que nos indicara en que categoria de remates podra a empezar a participar al comenzar.
@@ -291,14 +296,14 @@ export function RegisterScreen({ onBack, onComplete }: Props) {
           <View style={[styles.outerContainer, { zIndex: isDropdownOpen ? 1000 : 1, overflow: 'visible' }]}>
             <View style={[styles.inputWrapper, { overflow: 'visible' }, !!paisError && styles.inputWrapperError]}>
               <Text style={styles.inputLabel}>País de Residencia</Text>
-              <Pressable 
+              <Pressable
                 onPress={() => setIsDropdownOpen(!isDropdownOpen)}
                 style={styles.dropdownTrigger}
               >
                 <Text style={styles.dropdownValue}>{pais}</Text>
                 <Text style={styles.dropdownArrow}>{isDropdownOpen ? '▲' : '▼'}</Text>
               </Pressable>
-              
+
               {isDropdownOpen && (
                 <View style={styles.dropdownMenu}>
                   <ScrollView nestedScrollEnabled={true} style={{ maxHeight: 150, backgroundColor: '#ffffff' }}>
@@ -351,7 +356,7 @@ export function RegisterScreen({ onBack, onComplete }: Props) {
 
         <View style={styles.dniSection}>
           <Text style={styles.dniLabel}>Foto de DNI <Text style={styles.dniLabelItalic}>(Frente y Dorso)</Text></Text>
-          
+
           {/* Invisible file inputs for Web */}
           {Platform.OS === 'web' && (
             <>
@@ -374,8 +379,8 @@ export function RegisterScreen({ onBack, onComplete }: Props) {
 
           <View style={styles.dniImagesRow}>
             {/* Frente Box */}
-            <Pressable 
-              style={[styles.uploadBox, fotoFrenteUri ? styles.uploadBoxHasImage : null]} 
+            <Pressable
+              style={[styles.uploadBox, fotoFrenteUri ? styles.uploadBoxHasImage : null]}
               onPress={handleSelectFrente}
             >
               {fotoFrenteUri ? (
@@ -391,8 +396,8 @@ export function RegisterScreen({ onBack, onComplete }: Props) {
             </Pressable>
 
             {/* Dorso Box */}
-            <Pressable 
-              style={[styles.uploadBox, fotoDorsoUri ? styles.uploadBoxHasImage : null]} 
+            <Pressable
+              style={[styles.uploadBox, fotoDorsoUri ? styles.uploadBoxHasImage : null]}
               onPress={handleSelectDorso}
             >
               {fotoDorsoUri ? (
@@ -412,8 +417,8 @@ export function RegisterScreen({ onBack, onComplete }: Props) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Pressable 
-          style={styles.continueButton} 
+        <Pressable
+          style={styles.continueButton}
           onPress={handleContinue}
         >
           <Text style={styles.continueButtonText}>Continuar</Text>
@@ -435,7 +440,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f1f1',
+    borderBottomColor: '#D8DCE0',
   },
   backButton: {
     padding: 8,
@@ -445,8 +450,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#000',
   },
+  backButtonImage: {
+    width: 24,
+    height: 24,
+  },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#000',
   },
@@ -481,7 +490,7 @@ const styles = StyleSheet.create({
   },
   inputWrapper: {
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: '#D8DCE0',
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -506,6 +515,7 @@ const styles = StyleSheet.create({
     color: '#000',
     padding: 0,
     margin: 0,
+    fontWeight: '600',
   },
   dniSection: {
     marginTop: 8,

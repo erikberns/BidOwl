@@ -1,6 +1,25 @@
+import '@/utils/themeHelper'; // Patch Text/TextInput components immediately
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import { useColorScheme, View, ActivityIndicator, Platform } from 'react-native';
+import {
+  useFonts,
+  Urbanist_300Light,
+  Urbanist_400Regular,
+  Urbanist_500Medium,
+  Urbanist_600SemiBold,
+  Urbanist_700Bold,
+  Urbanist_800ExtraBold,
+} from '@expo-google-fonts/urbanist';
+import {
+  NunitoSans_400Regular,
+  NunitoSans_600SemiBold,
+  NunitoSans_700Bold,
+} from '@expo-google-fonts/nunito-sans';
+import {
+  Parkinsans_700Bold,
+  Parkinsans_800ExtraBold,
+} from '@expo-google-fonts/parkinsans';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -20,6 +39,20 @@ import { ProfilePhotoScreen } from '@/components/auth/ProfilePhotoScreen';
 import { PasswordRecoveryScreen } from '@/components/auth/PasswordRecoveryScreen';
 
 export default function TabLayout() {
+  const [fontsLoaded] = useFonts({
+    'Urbanist-Light': Urbanist_300Light,
+    'Urbanist-Regular': Urbanist_400Regular,
+    'Urbanist-Medium': Urbanist_500Medium,
+    'Urbanist-SemiBold': Urbanist_600SemiBold,
+    'Urbanist-Bold': Urbanist_700Bold,
+    'Urbanist-ExtraBold': Urbanist_800ExtraBold,
+    'NunitoSans-Regular': NunitoSans_400Regular,
+    'NunitoSans-SemiBold': NunitoSans_600SemiBold,
+    'NunitoSans-Bold': NunitoSans_700Bold,
+    'Parkinsans-Bold': Parkinsans_700Bold,
+    'Parkinsans-ExtraBold': Parkinsans_800ExtraBold,
+  });
+
   const colorScheme = useColorScheme();
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
   const [hasSeenAuth, setHasSeenAuth] = useState<boolean | null>(null);
@@ -159,13 +192,13 @@ export default function TabLayout() {
     updateSystemBars();
   }, []);
 
-  if (isFirstLaunch === null || hasSeenAuth === null) {
+  if (isFirstLaunch === null || hasSeenAuth === null || !fontsLoaded) {
     return (
       <SafeAreaProvider>
         <ThemeProvider value={DefaultTheme}>
           <StatusBar style="dark" />
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
-            <ActivityIndicator size="large" />
+            <ActivityIndicator size="large" color="#BAEB51" />
           </View>
         </ThemeProvider>
       </SafeAreaProvider>

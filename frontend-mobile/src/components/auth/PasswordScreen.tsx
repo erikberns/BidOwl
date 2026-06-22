@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, ActivityIndicator, Platform, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '@/constants/api';
@@ -124,7 +124,11 @@ export function PasswordScreen({ userId, onBack, onComplete, isEditing = false }
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Pressable onPress={onBack} style={styles.backButton} disabled={isLoading}>
-          <Text style={styles.backButtonText}>{'<'}</Text>
+          <Image 
+            source={require('../../../assets/images/Chevron-Left.png')} 
+            style={styles.backButtonImage} 
+            resizeMode="contain"
+          />
         </Pressable>
         <Text style={styles.headerTitle}>{isEditing ? 'Cambiar Contraseña' : 'Crear Contraseña'}</Text>
         <View style={styles.placeholderBox} />
@@ -210,6 +214,10 @@ const styles = StyleSheet.create({
   backButtonText: {
     fontSize: 20,
     color: '#000',
+  },
+  backButtonImage: {
+    width: 24,
+    height: 24,
   },
   headerTitle: {
     fontSize: 16,

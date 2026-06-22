@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Modal, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Modal, StyleSheet, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import MapComponent from '../Map';
@@ -74,8 +74,11 @@ export const InspectionModals: React.FC<InspectionModalsProps> = ({
         {/* Universal Header */}
         <View style={styles.modalHeader}>
           <TouchableOpacity onPress={handleBack} style={styles.modalBackButton}>
-            {/* @ts-ignore */}
-            <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
+            <Image
+              source={require('../../../assets/images/Chevron-Left.png')}
+              style={styles.backButtonImage}
+              resizeMode="contain"
+            />
           </TouchableOpacity>
           <Text style={styles.modalHeaderTitle}>{getHeaderTitle()}</Text>
           <View style={{ width: 40 }} />
@@ -85,16 +88,17 @@ export const InspectionModals: React.FC<InspectionModalsProps> = ({
         {showInspectionRequest && (
           <>
             <View style={styles.modalContent}>
-              <View style={styles.modalIconContainer}>
-                {/* @ts-ignore */}
-                <SymbolView name={{ ios: 'checkmark', android: 'check', web: 'check' }} size={40} tintColor="#2E8B57" weight="bold" />
-              </View>
+              <Image
+                source={require('../../../assets/images/tick.png')}
+                style={styles.tickImage}
+                resizeMode="contain"
+              />
               <Text style={styles.modalTitle}>Tu solicitud fue{"\n"}aceptada, pero{"\n"}debemos inspeccionar.</Text>
               <Text style={styles.modalSubtitle}>
                 Ahora necesitamos inspeccionar el artículo para verificar su estado y asegurarnos de que cumpla con los estándares antes de incluirlo en una subasta.
               </Text>
             </View>
-            
+
             <View style={styles.modalFooter}>
               <TouchableOpacity style={styles.modalButton} onPress={() => {
                 setShowInspectionRequest(false);
@@ -110,16 +114,17 @@ export const InspectionModals: React.FC<InspectionModalsProps> = ({
         {showInspectionResult && (
           <>
             <View style={styles.modalContent}>
-              <View style={styles.modalIconContainer}>
-                {/* @ts-ignore */}
-                <SymbolView name={{ ios: 'checkmark', android: 'check', web: 'check' }} size={40} tintColor="#2E8B57" weight="bold" />
-              </View>
+              <Image
+                source={require('../../../assets/images/tick.png')}
+                style={styles.tickImage}
+                resizeMode="contain"
+              />
               <Text style={styles.modalTitle}>Su articulo ha logrado{"\n"}pasar la inspección.</Text>
               <Text style={styles.modalSubtitle}>
                 Te invitamos a ver una propuesta con el valor base sugerido y las comisiones correspondientes para su inclusión en la subasta.
               </Text>
             </View>
-            
+
             <View style={styles.modalFooter}>
               <TouchableOpacity style={styles.modalButton} onPress={() => {
                 setShowInspectionResult(false);
@@ -135,10 +140,11 @@ export const InspectionModals: React.FC<InspectionModalsProps> = ({
         {showInspectionRejected && (
           <>
             <View style={styles.modalContent}>
-              <View style={[styles.modalIconContainer, { borderColor: '#D9534F' }]}>
-                {/* @ts-ignore */}
-                <SymbolView name={{ ios: 'xmark', android: 'close', web: 'close' }} size={40} tintColor="#D9534F" weight="bold" />
-              </View>
+              <Image
+                source={require('../../../assets/images/cross.png')}
+                style={styles.tickImage}
+                resizeMode="contain"
+              />
               <Text style={styles.modalTitle}>Su articulo no ha{"\n"}pasado la inspección,{"\n"}y sera devuelto.</Text>
               <Text style={styles.modalSubtitle}>
                 Será devuelto a la dirección indicada junto con el detalle de los motivos correspondientes.
@@ -152,7 +158,7 @@ export const InspectionModals: React.FC<InspectionModalsProps> = ({
                 </View>
               ) : null}
             </View>
-            
+
             <View style={styles.modalFooter}>
               <TouchableOpacity style={styles.shippingButton} onPress={() => {
                 setShowInspectionRejected(false);
@@ -168,7 +174,7 @@ export const InspectionModals: React.FC<InspectionModalsProps> = ({
           <>
             <ScrollView style={styles.shippingContent} showsVerticalScrollIndicator={false}>
               <View style={styles.mapContainer}>
-                <MapComponent 
+                <MapComponent
                   selectedLocation={selectedLocation}
                   onLocationChange={setSelectedLocation}
                   addressText={selectedAddress}
@@ -180,7 +186,7 @@ export const InspectionModals: React.FC<InspectionModalsProps> = ({
                 Una vez recibido, continuaremos con la inspección para avanzar con su inclusión en la subasta.
               </Text>
             </ScrollView>
-            
+
             <View style={styles.modalFooter}>
               <TouchableOpacity style={styles.shippingButton} onPress={async () => {
                 console.log('Ubicación seleccionada:', selectedLocation, 'Dirección:', selectedAddress);
@@ -190,7 +196,7 @@ export const InspectionModals: React.FC<InspectionModalsProps> = ({
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
-                        'Autorizacion': String(loggedInUserId || 1),
+                        'Autorizacion': loggedInUserId ? String(loggedInUserId) : '',
                       },
                       body: JSON.stringify({
                         aceptaTerminos: true,
@@ -229,10 +235,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: '#D8DCE0',
   },
   modalBackButton: {
     padding: 8,
+  },
+  backButtonImage: {
+    width: 24,
+    height: 24,
   },
   modalHeaderTitle: {
     fontSize: 16,
@@ -245,26 +255,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingBottom: 60,
   },
-  modalIconContainer: {
+  tickImage: {
     width: 80,
     height: 80,
-    borderRadius: 40,
-    borderWidth: 4,
-    borderColor: '#2E8B57',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 28,
   },
   modalTitle: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '800',
     color: '#051C2C',
-    marginBottom: 16,
-    lineHeight: 34,
+    marginBottom: 18,
+    lineHeight: 42,
   },
   modalSubtitle: {
     fontSize: 16,
-    color: '#8A8A8A',
+    color: '#717375',
     lineHeight: 24,
   },
   modalFooter: {

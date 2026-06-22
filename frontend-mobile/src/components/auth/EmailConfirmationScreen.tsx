@@ -232,7 +232,11 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Pressable onPress={() => setShowStatusScreen(false)} style={styles.backButton}>
-            <Text style={styles.backButtonText}>{'<'}</Text>
+            <Image
+              source={require('../../../assets/images/Chevron-Left.png')}
+              style={styles.backButtonImage}
+              resizeMode="contain"
+            />
           </Pressable>
           <Text style={styles.headerTitle}>Confirmación de Mail</Text>
           <View style={styles.placeholderBox} />
@@ -274,7 +278,11 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
       >
         <View style={styles.header}>
           <Pressable onPress={onBack} style={styles.backButton} disabled={isLoading}>
-            <Text style={styles.backButtonText}>{'<'}</Text>
+            <Image
+              source={require('../../../assets/images/Chevron-Left.png')}
+              style={styles.backButtonImage}
+              resizeMode="contain"
+            />
           </Pressable>
           <Text style={styles.headerTitle}>Confirmación de Mail</Text>
           <View style={styles.placeholderBox} />
@@ -302,7 +310,7 @@ export function EmailConfirmationScreen({ onBack, onComplete, registerData }: Pr
             autoCapitalize="none"
             editable={!isLoading}
             error={emailError}
-            containerStyle={{ marginBottom: 16 }}
+            containerStyle={{ marginBottom: 24 }}
           />
 
           <Pressable style={styles.sendMailButton} onPress={handleSendMail} disabled={isLoading}>
@@ -382,6 +390,10 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#000',
   },
+  backButtonImage: {
+    width: 24,
+    height: 24,
+  },
   headerTitle: {
     fontSize: 16,
     fontWeight: '600',
@@ -415,7 +427,7 @@ const styles = StyleSheet.create({
   },
   inputWrapper: {
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: '#D8DCE0',
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -472,7 +484,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 56,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: '#D8DCE0',
     borderRadius: 8,
     fontSize: 24,
     fontWeight: '600',

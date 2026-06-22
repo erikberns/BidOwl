@@ -816,7 +816,15 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
   const renderHeader = (title: string, onBackPress: () => void, isCloseIcon = false) => (
     <View style={styles.header}>
       <TouchableOpacity onPress={onBackPress} style={styles.backButton} disabled={isLoading}>
-        <Text style={styles.backText}>{isCloseIcon ? '✕' : '<'}</Text>
+        {isCloseIcon ? (
+          <Text style={styles.backText}>✕</Text>
+        ) : (
+          <Image
+            source={require('../../../assets/images/Chevron-Left.png')}
+            style={styles.backButtonImage}
+            resizeMode="contain"
+          />
+        )}
       </TouchableOpacity>
       <Text style={styles.headerTitle}>{title}</Text>
       <View style={styles.headerRight} />
@@ -829,9 +837,9 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       <View style={styles.container}>
         {renderHeader('Metodos de Pago', onBack)}
         <ScrollView style={styles.content}>
-          <Text style={styles.mainTitle}>Requeriras un metodo de pago para las pujas.</Text>
+          <Text style={styles.mainTitle}>Gestione sus metodos de pagos.</Text>
           <Text style={styles.subtitle}>
-            Esto te permitirá participar en las subastas y validar tus ofertas de forma segura; sin un método de pago activo no podrás realizar pujas.
+            Agrega, edita o elimina tus métodos de pago según tu preferencia.
           </Text>
 
           <View style={styles.sectionHeader}>
@@ -992,7 +1000,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
           </TouchableOpacity>
 
           <View style={styles.fileCardColumn}>
-            <View style={[styles.fileCardBox, fileUri ? styles.fileCardBoxWithImage : null]}> 
+            <View style={[styles.fileCardBox, fileUri ? styles.fileCardBoxWithImage : null]}>
               <Text style={styles.fileCardText} numberOfLines={2} ellipsizeMode="tail">
                 {fileObj ? fileObj.name || 'Archivo seleccionado' : 'Sin archivo'}
               </Text>
@@ -1152,6 +1160,11 @@ const styles = StyleSheet.create({
   },
   backButton: {
     width: 40,
+    justifyContent: 'center',
+  },
+  backButtonImage: {
+    width: 24,
+    height: 24,
   },
   backText: {
     fontSize: 20,
@@ -1250,17 +1263,21 @@ const styles = StyleSheet.create({
     height: 25,
   },
   footer: {
-    padding: 20,
-    paddingBottom: 40,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f1f1',
   },
   primaryButton: {
-    backgroundColor: '#1E9658',
-    padding: 18,
-    borderRadius: 10,
+    backgroundColor: '#2A8E5D',
+    paddingVertical: 16,
+    borderRadius: 8,
     alignItems: 'center',
   },
   disabledButton: {
-    backgroundColor: '#D3D3D3',
+    backgroundColor: '#DADADA',
+    borderWidth: 1,
+    borderColor: '#03161A',
   },
   primaryButtonText: {
     color: '#FFFFFF',
@@ -1268,15 +1285,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   disabledButtonText: {
-    color: '#666',
+    color: '#03161A',
   },
   acceptButton: {
     backgroundColor: '#bcf259',
-    padding: 18,
-    borderRadius: 10,
+    paddingVertical: 16,
+    borderRadius: 8,
     alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 58,
   },
   acceptButtonText: {
     color: '#001b2a',

@@ -164,7 +164,7 @@ export default function AuctionDetailScreen() {
 
     const category = (auctionDetail?.categoria || 'comun').toLowerCase();
     const isPremium = category === 'oro' || category === 'platino';
-    
+
     const baseValue = auctionDetail?.previsualizacionitems?.[0]?.valorBase || 1000000;
     const currentLeaderBid = 1155000;
 
@@ -401,10 +401,10 @@ export default function AuctionDetailScreen() {
   const detail = auctionDetail || {};
   const previews = detail.previsualizacionitems || [];
   const categoryLabel = (detail.categoria || 'comun').toUpperCase();
-  
+
   const baseValue = previews[0]?.valorBase || 1000000;
   const currentLeaderBid = 1155000;
-  
+
   const isPremium = categoryLabel === 'ORO' || categoryLabel === 'PLATINO';
   const minBid = currentLeaderBid + (baseValue * 0.01);
   const maxBid = currentLeaderBid + (baseValue * 0.20);
@@ -424,34 +424,34 @@ export default function AuctionDetailScreen() {
 
   if (auctionState === 'pending') {
     stateTitle = "Próxima Subasta";
-    stateColor = "#E79E2E"; // Orange
+    stateColor = "#03161A"; // Orange
   } else if (auctionState === 'ended') {
     stateTitle = "Subasta Finalizada";
-    stateColor = "#8A8A8A"; // Gray
+    stateColor = "#03161A"; // Gray
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <Tabs.Screen options={{ headerShown: false }} />
 
-      <ScrollView 
-        style={styles.scrollView} 
+      <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Hero Image Section */}
-        <TouchableOpacity 
-          style={styles.imageContainer} 
+        <TouchableOpacity
+          style={styles.imageContainer}
           activeOpacity={0.9}
           onPress={() => {
             setCurrentImageIndex(0);
             setIsCarouselVisible(true);
           }}
         >
-          <Image 
-            source={coverImage} 
-            style={styles.heroImage} 
+          <Image
+            source={coverImage}
+            style={styles.heroImage}
           />
           <View style={styles.imageBadge}>
             <Text style={styles.imageBadgeText}>1 / {collectionImages.length}</Text>
@@ -475,14 +475,14 @@ export default function AuctionDetailScreen() {
         {/* Dynamic Timer Section */}
         <View style={styles.activeAuctionSection}>
           <Text style={[styles.activeAuctionTitle, { color: stateColor }]}>{stateTitle}</Text>
-          
+
           <View style={styles.timerRow}>
             <View style={styles.timerBox}>
               <Text style={styles.timerNumber}>{timeLeft.days}</Text>
               <Text style={styles.timerLabel}>Dias</Text>
             </View>
             <Text style={styles.timerColon}>:</Text>
-            
+
             <View style={styles.timerBox}>
               <Text style={styles.timerNumber}>{timeLeft.hours}</Text>
               <Text style={styles.timerLabel}>Hrs.</Text>
@@ -510,9 +510,9 @@ export default function AuctionDetailScreen() {
             <Text style={styles.sectionHeading}>Esta subasta sera{'\n'}rematada por</Text>
             <Text style={styles.auctioneerName}>{detail.rematador || 'Agustin Blanco Vocos'}</Text>
           </View>
-          <Image 
-            source={require('@/assets/images/auctioneer_avatar.png')} 
-            style={styles.avatarImage} 
+          <Image
+            source={require('@/assets/images/auctioneer_avatar.png')}
+            style={styles.avatarImage}
           />
         </View>
 
@@ -532,7 +532,7 @@ export default function AuctionDetailScreen() {
             })()}
           </Text>
           {(detail.descripcion || '').length > 150 && (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.showMoreButton}
               onPress={() => setIsExpanded(!isExpanded)}
             >
@@ -558,7 +558,7 @@ export default function AuctionDetailScreen() {
         <View style={styles.catalogSection}>
           <Text style={styles.sectionHeading}>Catalogo de Artículos</Text>
           <Text style={styles.catalogSubtitle}>Está conformado por {detail.cantidadTotalitems || previews.length} artículos en total.</Text>
-          
+
           <View style={styles.itemsList}>
             {previews.slice(0, 3).map((item: any, idx: number) => {
               const itemImageSource = item.imagen
@@ -566,9 +566,9 @@ export default function AuctionDetailScreen() {
                 : require('@/assets/images/rolling_stone_auction.png');
               return (
                 <View key={item.iditem || idx} style={styles.itemCard}>
-                  <Image 
-                    source={itemImageSource} 
-                    style={styles.itemThumbnail} 
+                  <Image
+                    source={itemImageSource}
+                    style={styles.itemThumbnail}
                   />
                   <View style={styles.itemInfo}>
                     <Text style={styles.itemNumber}>{idx + 1}º Articulo</Text>
@@ -582,38 +582,22 @@ export default function AuctionDetailScreen() {
             })}
           </View>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.fullCatalogButton}
             onPress={() => router.push(`/auction/${auctionIdStr}/catalog` as any)}
           >
             <Text style={styles.fullCatalogButtonText}>Mostrar el Catalogo Entero</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.liveStreamLink}
-            onPress={() => {
-              if (hasJoined) {
-                router.push(`/auction/${auctionIdStr}/bidding` as any);
-              } else {
-                if (isGuest) {
-                  Alert.alert(
-                    'Acceso requerido',
-                    'Debes iniciar sesión para entrar a la subasta.',
-                    [
-                      { text: 'Cancelar', style: 'cancel' },
-                      { text: 'Ir a perfil', onPress: () => router.push('/profile') },
-                    ]
-                  );
-                } else {
-                  setShowPaymentModal(true);
-                }
-              }
-            }}
-          >
-            {/* @ts-ignore */}
-            <SymbolView name={{ ios: 'tv.fill', android: 'live_tv', web: 'tv' }} size={20} tintColor="#051C2C" style={styles.liveStreamIcon} />
+          <View style={{ height: 1, backgroundColor: '#F0F0F0', marginTop: 24 }} />
+
+          <View style={styles.liveStreamLink}>
+            <Image
+              source={require('@/assets/images/logoDirecto.png')}
+              style={styles.liveStreamIconImage}
+            />
             <Text style={styles.liveStreamText}>Mira la subasta en vivo y en directo</Text>
-          </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
 
@@ -684,7 +668,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: BottomTabInset + 40,
+    paddingBottom: 20,
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     width: '100%',
@@ -716,15 +700,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 16,
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   mainTitle: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '800',
     color: '#051C2C',
-    textAlign: 'center',
-    lineHeight: 32,
-    marginBottom: 8,
+    textAlign: 'left',
+    lineHeight: 34,
+    marginBottom: 2,
   },
   baseValueText: {
     fontSize: 20,
@@ -799,7 +783,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sectionHeading: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: '800',
     color: '#051C2C',
     marginBottom: 6,
@@ -991,15 +975,15 @@ const styles = StyleSheet.create({
   badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: 8,
     marginVertical: 12,
   },
   categoryBadge: {
     backgroundColor: '#BEE757', // Lime yellow
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   categoryBadgeText: {
     color: '#051C2C',
@@ -1014,8 +998,8 @@ const styles = StyleSheet.create({
   },
   dateTimeText: {
     fontSize: 14,
-    color: '#8A8A8A',
-    textAlign: 'center',
+    color: '#051C2C',
+    textAlign: 'left',
     marginBottom: 12,
   },
   locationSection: {
@@ -1055,8 +1039,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   itemThumbnail: {
-    width: 60,
-    height: 60,
+    width: 70,
+    height: 70,
     borderRadius: 8,
     marginRight: 16,
   },
@@ -1097,16 +1081,18 @@ const styles = StyleSheet.create({
   liveStreamLink: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 24,
+    justifyContent: 'flex-start',
+    marginTop: 26,
     gap: 8,
   },
-  liveStreamIcon: {
-    marginRight: 4,
+  liveStreamIconImage: {
+    width: 35,
+    height: 35,
+    resizeMode: 'contain',
   },
   liveStreamText: {
     color: '#051C2C',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     textDecorationLine: 'underline',
   },

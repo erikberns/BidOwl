@@ -113,7 +113,7 @@ export const CertifiedChequeForm: React.FC<CertifiedChequeFormProps> = ({
           keyboardType="numeric"
           error={checkMontoError}
         />
-        <View style={[styles.row, { zIndex: isCheckDropdownOpen || isCheckCurrencyDropdownOpen ? 1000 : 1, position: 'relative' }]}> 
+        <View style={[styles.row, { zIndex: isCheckDropdownOpen || isCheckCurrencyDropdownOpen ? 1000 : 1, position: 'relative' }]}>
           <CountryDropdownField label="País" value={checkPais} onSelect={setCheckPais} isOpen={isCheckDropdownOpen} setIsOpen={setIsCheckDropdownOpen} />
           <View style={{ width: 15 }} />
           <CurrencyDropdownField
@@ -155,22 +155,22 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#001b2a',
-    marginBottom: 10,
+    marginBottom: 24,
   },
   row: {
     flexDirection: 'row',
   },
   footer: {
-    padding: 20,
-    paddingBottom: 40,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f1f1',
   },
   acceptButton: {
     backgroundColor: '#bcf259',
-    padding: 18,
-    borderRadius: 10,
+    paddingVertical: 16,
+    borderRadius: 8,
     alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 58,
   },
   acceptButtonText: {
     color: '#001b2a',

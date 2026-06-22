@@ -10,13 +10,13 @@ export const WelcomeScreen: React.FC<Props> = ({ onStart }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Image 
-          source={require('@/assets/images/SplashBidOwl.png')} 
-          style={styles.logo} 
+        <Image
+          source={require('@/assets/images/logosintexto.png')}
+          style={styles.logo}
         />
-        
+
         <Text style={styles.title}>
-          Oficialmente eres parte de la comunidad de{" "}
+          Oficialmente{'\u00A0'}eres parte de la comunidad de{" "}
           <Text style={styles.brandTextPrimary}>Bid</Text>
           <Text style={styles.brandTextSecondary}>Owl</Text>.
         </Text>
@@ -45,28 +45,31 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 40,
     alignItems: 'flex-start',
+    justifyContent: 'center',
   },
   logo: {
-    width: 80,
-    height: 80,
-    marginBottom: 32,
+    width: 76,
+    height: 76,
+    marginBottom: 42,
     resizeMode: 'contain',
   },
   title: {
-    fontSize: 32,
-    fontWeight: '800',
+    fontSize: 30,
+    fontWeight: '700',
     color: '#051C2C',
-    textAlign: 'left',
     lineHeight: 40,
     marginBottom: 24,
   },
   brandTextPrimary: {
-    color: '#BEE757',
+    color: '#BAEB51',
+    fontFamily: 'parkinsans',
+    fontWeight: '500',
   },
   brandTextSecondary: {
-    color: '#2E9F64',
+    color: '#2B9463',
+    fontFamily: 'parkinsans',
+    fontWeight: '500',
   },
   subtitle: {
     color: '#666',

@@ -13,7 +13,7 @@ import {
   Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack, Tabs } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
 
 import * as ImagePicker from 'expo-image-picker';
@@ -236,7 +236,7 @@ export default function PublishScreen() {
       const match = filename.match(/\.([0-9a-z]+)(?:[?#]|$)/i);
       const ext = match ? match[1] : 'jpg';
       const type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
-      
+
       if (Platform.OS === 'web') {
         const response = await fetch(uri);
         const blob = await response.blob();
@@ -247,14 +247,14 @@ export default function PublishScreen() {
       }
     }
 
-    let userId = '1';
+    let userId = '';
     try {
       const userStr = await AsyncStorage.getItem('user');
       if (userStr) {
         const user = JSON.parse(userStr);
         if (user.identificador) userId = String(user.identificador);
       }
-    } catch (e) {}
+    } catch (e) { }
 
     try {
       const res = await fetch(`${API_URL}/solicitudes-items`, {
@@ -282,25 +282,14 @@ export default function PublishScreen() {
 
   if (isSubmitted) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.headerBar}>
-          <TouchableOpacity
-            onPress={() => {
-              handleResetForm();
-              router.back();
-            }}
-            style={styles.backButton}
-          >
-            <Text style={styles.backButtonText}>‹</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Solicitar Subasta de Articulo</Text>
-          <View style={styles.backButtonPlaceholder} />
-        </View>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <Tabs.Screen options={{ headerShown: false, tabBarStyle: { display: 'none' } }} />
 
         <View style={styles.successContainer}>
-          <Image 
-            source={require('@/assets/images/logosintexto.png')} 
-            style={styles.successLogo} 
+          <Image
+            source={require('@/assets/images/logosintexto.png')}
+            style={styles.successLogo}
             resizeMode="contain"
           />
           <Text style={styles.successTitle}>Su solicitud sera{'\n'}revisada por nuestro{'\n'}equipo.</Text>
@@ -327,11 +316,17 @@ export default function PublishScreen() {
 
   if (isGuest) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <Tabs.Screen options={{ headerShown: false }} />
         {/* Header with Back Button */}
         <View style={styles.headerBar}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>‹</Text>
+            <Image
+              source={require('../../assets/images/Chevron-Left.png')}
+              style={styles.backButtonImage}
+              resizeMode="contain"
+            />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Solicitar Subasta de Articulo</Text>
           <View style={styles.backButtonPlaceholder} />
@@ -361,11 +356,17 @@ export default function PublishScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <Tabs.Screen options={{ headerShown: false }} />
       {/* Header with Back Button */}
       <View style={styles.headerBar}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>‹</Text>
+          <Image
+            source={require('../../assets/images/Chevron-Left.png')}
+            style={styles.backButtonImage}
+            resizeMode="contain"
+          />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Solicitar Subasta de Articulo</Text>
         <View style={styles.backButtonPlaceholder} />
@@ -380,7 +381,7 @@ export default function PublishScreen() {
         <View style={styles.titleSection}>
           <Text style={styles.mainTitle}>Cuentanos sobre su Articulo</Text>
           <Text style={styles.mainSubtitle}>
-            Describe características, estado y cualidad relevante para atraer mejores ofertas
+            Describí sus características, estado y cualquier detalle relevante para atraer más interesados y lograr mejores ofertas.
           </Text>
         </View>
         {/* Images Section */}
@@ -389,9 +390,6 @@ export default function PublishScreen() {
             <Text style={styles.sectionTitle}>
               Imagenes del Articulo (Minimo 6 imagenes)
             </Text>
-            <View style={styles.infoIcon}>
-              <Text style={styles.infoIconText}>ⓘ</Text>
-            </View>
           </View>
           <View style={[styles.imagesContainer, !!imagesError && styles.imagesErrorContainer]}>
             <View style={styles.imagesGrid}>
@@ -402,7 +400,11 @@ export default function PublishScreen() {
               ))}
               {images.length < 10 && (
                 <Pressable style={styles.addImageButton} onPress={handleAddImage}>
-                  <Text style={styles.addImageText}>+</Text>
+                  <Image
+                    source={require('@/assets/images/botton de agregar.png')}
+                    style={styles.addImageIcon}
+                    resizeMode="contain"
+                  />
                 </Pressable>
               )}
             </View>
@@ -625,7 +627,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomColor: '#D8DCE0',
   },
   backButton: {
     padding: 8,
@@ -636,8 +638,12 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     color: '#051C2C',
   },
+  backButtonImage: {
+    width: 24,
+    height: 24,
+  },
   headerTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: '#051C2C',
     flex: 1,
@@ -652,7 +658,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 24,
     paddingVertical: 20,
-    paddingBottom: 100,
   },
   titleSection: {
     marginBottom: 28,
@@ -712,18 +717,16 @@ const styles = StyleSheet.create({
   addImageButton: {
     width: 80,
     height: 80,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: '#BEE757',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FEFE',
+    backgroundColor: '#FFFFFF',
   },
-  addImageText: {
-    fontSize: 32,
-    fontWeight: '300',
-    color: '#BEE757',
+  addImageIcon: {
+    width: 30,
+    height: 30,
   },
   input: {
     borderWidth: 1,
@@ -790,7 +793,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 12,
     color: '#999999',
-    fontWeight: '600',
+    fontWeight: '200',
     marginBottom: 4,
   },
   inputField: {
@@ -834,24 +837,26 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: 40,
+    justifyContent: "center"
+
   },
   successLogo: {
-    width: 60,
-    height: 60,
-    marginBottom: 32,
+    width: 75,
+    height: 75,
+    marginBottom: 42,
   },
   successTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '700',
     color: '#051C2C',
-    lineHeight: 34,
-    marginBottom: 16,
+    lineHeight: 42,
+    marginBottom: 24,
   },
   successSubtitle: {
-    fontSize: 14,
-    color: '#8A8A8A',
+    fontSize: 15,
+    color: '#717375',
     lineHeight: 22,
-    fontWeight: '400',
+    fontWeight: '500',
   },
   successFooter: {
     paddingHorizontal: 24,

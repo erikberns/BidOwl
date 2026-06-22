@@ -94,7 +94,7 @@ export const BankAccountForm: React.FC<BankAccountFormProps> = ({
           }}
           error={bankBancoError}
         />
-        <View style={[styles.row, { zIndex: isBankDropdownOpen || isBankCurrencyDropdownOpen ? 1000 : 1, position: 'relative' }]}> 
+        <View style={[styles.row, { zIndex: isBankDropdownOpen || isBankCurrencyDropdownOpen ? 1000 : 1, position: 'relative' }]}>
           <CountryDropdownField label="País" value={bankPais} onSelect={setBankPais} isOpen={isBankDropdownOpen} setIsOpen={setIsBankDropdownOpen} />
           <View style={{ width: 15 }} />
           <CurrencyDropdownField
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#001b2a',
-    marginBottom: 10,
+    marginBottom: 24,
   },
   row: {
     flexDirection: 'row',
@@ -190,16 +190,16 @@ const styles = StyleSheet.create({
     color: '#001b2a',
   },
   footer: {
-    padding: 20,
-    paddingBottom: 40,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f1f1',
   },
   acceptButton: {
     backgroundColor: '#bcf259',
-    padding: 18,
-    borderRadius: 10,
+    paddingVertical: 16,
+    borderRadius: 8,
     alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 58,
   },
   acceptButtonText: {
     color: '#001b2a',

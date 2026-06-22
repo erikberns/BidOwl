@@ -201,10 +201,10 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
               const endDate = new Date(startDate.getTime() + 24 * 60 * 60 * 1000);
               const now = new Date();
               const active = now.getTime() >= startDate.getTime() &&
-                             now.getTime() < endDate.getTime() &&
-                             detail.estado !== 'finalizada' &&
-                             detail.estado !== 'carrada' &&
-                             detail.estado !== 'cerrada';
+                now.getTime() < endDate.getTime() &&
+                detail.estado !== 'finalizada' &&
+                detail.estado !== 'carrada' &&
+                detail.estado !== 'cerrada';
               setIsActive(active);
             }
           }
@@ -261,14 +261,14 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
 
   return (
     <View style={[
-      styles.container, 
-      { 
-        backgroundColor, 
+      styles.container,
+      {
+        backgroundColor,
         borderTopColor: borderColor,
-        paddingBottom: Math.max(insets.bottom, 12) 
+        paddingBottom: Math.max(insets.bottom, 12)
       }
     ]}>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.backBtn}
         onPress={handleBack}
         activeOpacity={0.7}
@@ -284,7 +284,7 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
         />
       </TouchableOpacity>
 
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.joinBtn, applyDisabledStyle ? styles.disabledJoinBtn : null]}
         onPress={handleJoinPress}
         activeOpacity={0.8}
@@ -316,10 +316,10 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
             {/* Modal Body */}
             <View style={styles.modalBody}>
               <Text style={styles.modalLabel}>Metodo de Pago a Utilizar a Futuro</Text>
-              
+
               {/* Custom Selector Dropdown */}
-              <TouchableOpacity 
-                style={styles.selectorDropdown} 
+              <TouchableOpacity
+                style={styles.selectorDropdown}
                 activeOpacity={0.8}
                 onPress={() => {
                   if (paymentMethods.length > 0) {
@@ -336,8 +336,8 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
                     style={styles.cardIcon}
                   />
                   <Text style={[styles.selectorText, !selectedMethod && { color: '#E30613' }]}>
-                    {selectedMethod 
-                      ? `${selectedMethod.label} ${selectedMethod.details}` 
+                    {selectedMethod
+                      ? `${selectedMethod.label} ${selectedMethod.details}`
                       : 'No hay métodos de pago registrados'}
                   </Text>
                 </View>
@@ -354,8 +354,8 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
               {isDropdownOpen && paymentMethods.length > 0 && (
                 <View style={styles.dropdownOptionsContainer}>
                   {paymentMethods.map((method) => (
-                    <TouchableOpacity 
-                      key={method.id} 
+                    <TouchableOpacity
+                      key={method.id}
                       style={styles.dropdownOption}
                       onPress={() => {
                         setSelectedMethod(method);
@@ -378,7 +378,7 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
               )}
 
               {/* ¡Entrar! Action Button */}
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.modalEnterButton}
                 onPress={async () => {
                   if (!selectedMethod) {
@@ -444,10 +444,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     gap: 12,
     elevation: 8,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
   },
   backBtn: {
     width: 48,
@@ -466,7 +462,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   disabledJoinBtn: {
-    backgroundColor: '#D3D3D3',
+    backgroundColor: '#DADADA',
+    borderWidth: 1,
+    borderColor: '#03161A',
   },
   joinBtnText: {
     color: '#051C2C',
@@ -474,7 +472,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   disabledJoinBtnText: {
-    color: '#7A7A7A',
+    color: '#03161A',
   },
   modalBackdrop: {
     flex: 1,
@@ -489,11 +487,6 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '90%',
     maxWidth: 360,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 5,
   },
   modalHeader: {
     flexDirection: 'row',

@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   },
   inputWrapper: {
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: '#D8DCE0',
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -61,12 +61,14 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 12,
     color: '#999',
+    fontFamily: 'Urbanist-Light',
   },
   input: {
     fontSize: 16,
     color: '#000',
     padding: 0,
     margin: 0,
+    fontWeight: '500',
   },
   errorText: {
     color: '#E30613',

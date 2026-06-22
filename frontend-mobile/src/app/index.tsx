@@ -125,13 +125,13 @@ export default function HomeScreen() {
   });
 
   // Active subastas (estado === 'abierta', fallback for mock data is id === '1')
-  const activeAuctions = filteredAuctions.filter(item => 
+  const activeAuctions = filteredAuctions.filter(item =>
     item.estado === 'abierta' || (item.estado === undefined && item.id === '1')
   );
 
   // Upcoming subastas (estado === 'carrada' or 'cerrada', fallback for mock data is id === '2'), sorted by remaining time to begin ascending
   const upcomingAuctions = filteredAuctions
-    .filter(item => 
+    .filter(item =>
       item.estado === 'carrada' || item.estado === 'cerrada' || (item.estado === undefined && item.id === '2')
     )
     .sort((a, b) => {
@@ -155,7 +155,7 @@ export default function HomeScreen() {
             Bienvenido, <Text style={styles.username}>{username}</Text>!
           </Text>
           <Image
-            source={require('@/assets/images/SplashBidOwl.png')}
+            source={require('@/assets/images/logosolotexto.png')}
             style={styles.logo}
           />
         </View>
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   welcomeText: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '800',
     color: '#051C2C',
   },
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#051C2C',
     paddingHorizontal: 24,
-    marginBottom: 16,
+    marginBottom: 20,
   },
   horizontalScrollContent: {
     paddingHorizontal: 24,

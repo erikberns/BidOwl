@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, Pressable, ActivityIndicator, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Image, Pressable, ActivityIndicator, Platform, KeyboardAvoidingView, Keyboard } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '@/constants/api';
 import { InputField } from '../ui/InputField';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface Props {
   onComplete: () => void;
@@ -11,9 +12,24 @@ interface Props {
   onLoginSuccess?: (user: any, requiereConfiguracion: boolean) => void;
   onForgotPassword?: () => void;
 }
-
 export function AuthScreen({ onComplete, onRegister, onLogin, onLoginSuccess, onForgotPassword }: Props) {
+  const insets = useSafeAreaInsets();
   const [showLoginForm, setShowLoginForm] = useState(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      setIsKeyboardOpen(true);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardOpen(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -110,19 +126,24 @@ export function AuthScreen({ onComplete, onRegister, onLogin, onLoginSuccess, on
     }
   };
 
+  const ContainerComponent: any = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
+
   return (
-    <View style={styles.container}>
+    <ContainerComponent 
+      style={styles.container} 
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       {/* Top Section */}
-      <View style={styles.topSection}>
+      <View style={[styles.topSection, isKeyboardOpen && { flex: 0.3 }]}>
         <Image
           source={require('@/assets/images/LogoGrande.png')}
-          style={styles.logo}
+          style={[styles.logo, isKeyboardOpen && { width: 100, height: 100 }]}
           resizeMode="contain"
         />
       </View>
 
       {/* Bottom Sheet */}
-      <View style={styles.bottomSheet}>
+      <View style={[styles.bottomSheet, { paddingBottom: 24 + (Platform.OS === 'ios' ? insets.bottom : 0) }]}>
         <View style={styles.contentContainer}>
           {!showLoginForm ? (
             <>
@@ -212,7 +233,7 @@ export function AuthScreen({ onComplete, onRegister, onLogin, onLoginSuccess, on
           )}
         </View>
       </View>
-    </View>
+    </ContainerComponent>
   );
 }
 
@@ -234,7 +255,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingBottom: 40,
     minHeight: '45%',
   },
   contentContainer: {
@@ -245,23 +265,27 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 8,
+    fontWeight: '800',
+    color: '#03161A',
+    marginBottom: 14,
     textAlign: 'center',
   },
   brandTextPrimary: {
-    color: '#BEE757', // Light green
+    color: '#BAEB51',
+    fontWeight: '800',
+    fontFamily: 'logo',
   },
   brandTextSecondary: {
-    color: '#2E9F64', // Dark green
+    color: '#2B9463',
+    fontWeight: '800',
+    fontFamily: 'logo',
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 16,
     color: '#666',
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 32,
+    marginBottom: 40,
   },
   subtitleForm: {
     fontSize: 15,
@@ -273,7 +297,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     width: '100%',
     gap: 16,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   primaryButton: {
     backgroundColor: '#BEE757',
@@ -282,9 +306,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   primaryButtonText: {
-    color: '#000',
+    color: '#03161A',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '800',
   },
   secondaryButton: {
     backgroundColor: '#FFFFFF',
@@ -292,23 +316,23 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: '#03161A',
   },
   secondaryButtonText: {
-    color: '#000',
+    color: '#03161A',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '800',
   },
   guestContainer: {
     paddingVertical: 8,
   },
   guestText: {
-    color: '#666',
+    color: '#717375',
     fontSize: 14,
   },
   guestUnderline: {
     height: 1,
-    backgroundColor: '#666',
+    backgroundColor: '#717375',
     marginTop: 2,
   },
   formContainer: {

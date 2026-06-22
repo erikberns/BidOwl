@@ -32,7 +32,7 @@ export default function InboxScreen() {
 
   const [expandedNotifIds, setExpandedNotifIds] = React.useState<string[]>([]);
   const toggleNotif = (id: string) => {
-    setExpandedNotifIds(prev => 
+    setExpandedNotifIds(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
   };
@@ -61,7 +61,7 @@ export default function InboxScreen() {
   const [selectedProposal, setSelectedProposal] = React.useState<any>(null);
   const [showProposalSuccess, setShowProposalSuccess] = React.useState(false);
   const [showProposalRejected, setShowProposalRejected] = React.useState(false);
-  
+
   // Payment Methods Data
   const [paymentMethods, setPaymentMethods] = React.useState<any[]>([]);
   const [selectedPayment, setSelectedPayment] = React.useState('');
@@ -82,7 +82,7 @@ export default function InboxScreen() {
       setIsGuest(guestVal);
 
       if (!guestVal) {
-        let personaId = 1;
+        let personaId: number | null = null;
         if (userStr) {
           const user = JSON.parse(userStr);
           if (user.identificador) {
@@ -91,83 +91,85 @@ export default function InboxScreen() {
         }
         setLoggedInUserId(personaId);
 
-        const fetchPromises: Promise<any>[] = [
-          fetch(`${API_URL}/inbox/${personaId}/notificaciones`).catch(() => null),
-          fetch(`${API_URL}/inbox/${personaId}/pujas-activas`).catch(() => null)
-        ];
+        if (personaId) {
+          const fetchPromises: Promise<any>[] = [
+            fetch(`${API_URL}/inbox/${personaId}/notificaciones`).catch(() => null),
+            fetch(`${API_URL}/inbox/${personaId}/pujas-activas`).catch(() => null)
+          ];
 
-        if (!silent) {
-          fetchPromises.push(fetch(`${API_URL}/inbox/${personaId}/mis-subastas`).catch(() => null));
-          fetchPromises.push(fetch(`${API_URL}/inbox/${personaId}/historial`).catch(() => null));
-        }
-
-        const results = await Promise.all(fetchPromises);
-        const notifRes = results[0];
-        const bidsRes = results[1];
-        const auctionsRes = !silent ? results[2] : null;
-        const historyRes = !silent ? results[3] : null;
-
-        if (notifRes && notifRes.ok) {
-          const notifs = await notifRes.json();
-          setNotifications(notifs);
-          if (notifs.length > 0 && expandedNotifIds.length === 0) {
-            setExpandedNotifIds([notifs[0].id?.toString()]);
+          if (!silent) {
+            fetchPromises.push(fetch(`${API_URL}/inbox/${personaId}/mis-subastas`).catch(() => null));
+            fetchPromises.push(fetch(`${API_URL}/inbox/${personaId}/historial`).catch(() => null));
           }
-        }
 
-        if (bidsRes && bidsRes.ok) {
-          const bids = await bidsRes.json();
-          // Filter to show only one bid per auction (the winning one, or the most recent)
-          const bidsByAuction = new Map<string, any>();
-          bids.forEach((bid: any) => {
-            const existing = bidsByAuction.get(bid.subastaTitle);
-            if (!existing) {
-              bidsByAuction.set(bid.subastaTitle, bid);
-            } else {
-              if (bid.estado === 'Ganando' && existing.estado !== 'Ganando') {
-                bidsByAuction.set(bid.subastaTitle, bid);
-              }
+          const results = await Promise.all(fetchPromises);
+          const notifRes = results[0];
+          const bidsRes = results[1];
+          const auctionsRes = !silent ? results[2] : null;
+          const historyRes = !silent ? results[3] : null;
+
+          if (notifRes && notifRes.ok) {
+            const notifs = await notifRes.json();
+            setNotifications(notifs);
+            if (notifs.length > 0 && expandedNotifIds.length === 0) {
+              setExpandedNotifIds([notifs[0].id?.toString()]);
             }
-          });
-          setActiveBids(Array.from(bidsByAuction.values()));
-        }
+          }
 
-        if (!silent && auctionsRes && auctionsRes.ok) {
-          setActiveAuctions(await auctionsRes.json());
-        }
-
-        if (!silent && historyRes && historyRes.ok) {
-          setBidHistory(await historyRes.json());
-        }
-
-        if (!silent) {
-          const pmResponse = await fetch(`${API_URL}/personas/${personaId}/metodos-pago`).catch(() => null);
-          if (pmResponse && pmResponse.ok) {
-            const pmData = await pmResponse.json();
-            const filtered = pmData.filter((item: any) => !item.chequeCertificado).map((item: any) => {
-              if (item.tarjetaCredito) {
-                const num = item.tarjetaCredito.numeroTarjeta || '';
-                const last4 = num.length >= 4 ? num.slice(-4) : num;
-                return {
-                  id: String(item.identificador),
-                  type: 'card',
-                  name: `Tarjeta **** **** **** ${last4}`,
-                };
-              } else if (item.cuentaBancaria) {
-                const cbu = item.cuentaBancaria.cbuIban || '';
-                const last4 = cbu.length >= 4 ? cbu.slice(-4) : cbu;
-                return {
-                  id: String(item.identificador),
-                  type: 'bank',
-                  name: `Cuenta Bancaria ${item.cuentaBancaria.nombreBanco || ''} (****${last4})`,
-                };
+          if (bidsRes && bidsRes.ok) {
+            const bids = await bidsRes.json();
+            // Filter to show only one bid per auction (the winning one, or the most recent)
+            const bidsByAuction = new Map<string, any>();
+            bids.forEach((bid: any) => {
+              const existing = bidsByAuction.get(bid.subastaTitle);
+              if (!existing) {
+                bidsByAuction.set(bid.subastaTitle, bid);
+              } else {
+                if (bid.estado === 'Ganando' && existing.estado !== 'Ganando') {
+                  bidsByAuction.set(bid.subastaTitle, bid);
+                }
               }
-              return null;
-            }).filter((i: any) => i !== null);
-            
-            if (filtered.length > 0) {
-              setPaymentMethods(filtered);
-              setSelectedPayment(filtered[0].id);
+            });
+            setActiveBids(Array.from(bidsByAuction.values()));
+          }
+
+          if (!silent && auctionsRes && auctionsRes.ok) {
+            setActiveAuctions(await auctionsRes.json());
+          }
+
+          if (!silent && historyRes && historyRes.ok) {
+            setBidHistory(await historyRes.json());
+          }
+
+          if (!silent) {
+            const pmResponse = await fetch(`${API_URL}/personas/${personaId}/metodos-pago`).catch(() => null);
+            if (pmResponse && pmResponse.ok) {
+              const pmData = await pmResponse.json();
+              const filtered = pmData.filter((item: any) => !item.chequeCertificado).map((item: any) => {
+                if (item.tarjetaCredito) {
+                  const num = item.tarjetaCredito.numeroTarjeta || '';
+                  const last4 = num.length >= 4 ? num.slice(-4) : num;
+                  return {
+                    id: String(item.identificador),
+                    type: 'card',
+                    name: `Tarjeta **** **** **** ${last4}`,
+                  };
+                } else if (item.cuentaBancaria) {
+                  const cbu = item.cuentaBancaria.cbuIban || '';
+                  const last4 = cbu.length >= 4 ? cbu.slice(-4) : cbu;
+                  return {
+                    id: String(item.identificador),
+                    type: 'bank',
+                    name: `Cuenta Bancaria ${item.cuentaBancaria.nombreBanco || ''} (****${last4})`,
+                  };
+                }
+                return null;
+              }).filter((i: any) => i !== null);
+
+              if (filtered.length > 0) {
+                setPaymentMethods(filtered);
+                setSelectedPayment(filtered[0].id);
+              }
             }
           }
         }
@@ -229,9 +231,9 @@ export default function InboxScreen() {
           </View>
         </View>
       </TouchableOpacity>
-      
+
       {/* Ver Seguro y Depósito Button */}
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.insuranceButton}
         onPress={async () => {
           try {
@@ -249,11 +251,11 @@ export default function InboxScreen() {
           }
         }}
       >
-        <SymbolView 
+        <SymbolView
           // @ts-ignore
-          name={{ ios: 'shield.fill', android: 'shield', web: 'shield' }} 
-          size={16} 
-          tintColor="#051C2C" 
+          name={{ ios: 'shield.fill', android: 'shield', web: 'shield' }}
+          size={16}
+          tintColor="#051C2C"
         />
         <Text style={styles.insuranceButtonText}>Ver Seguro y Depósito</Text>
       </TouchableOpacity>
@@ -288,11 +290,11 @@ export default function InboxScreen() {
 
   const renderNotificationCard = (notif: typeof notifications[0]) => {
     const isExpanded = expandedNotifIds.includes(notif.id);
-    
+
     return (
       <View key={notif.id} style={styles.notifCard}>
-        <TouchableOpacity 
-          style={styles.notifHeader} 
+        <TouchableOpacity
+          style={styles.notifHeader}
           onPress={() => toggleNotif(notif.id)}
           activeOpacity={0.7}
         >
@@ -313,7 +315,7 @@ export default function InboxScreen() {
             <View style={styles.notifDivider} />
             <Text style={styles.notifBodyText}>{notif.body}</Text>
             {notif.buttonText && (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.notifButton}
                 onPress={async () => {
                   const actionStr = notif.action || '';
@@ -327,7 +329,7 @@ export default function InboxScreen() {
                       try {
                         const response = await fetch(`${API_URL}/solicitudes-items/${requestId}`, {
                           headers: {
-                            'Autorizacion': String(loggedInUserId || 1),
+                            'Autorizacion': loggedInUserId ? String(loggedInUserId) : '',
                           }
                         });
                         if (response.ok) {
@@ -397,7 +399,7 @@ export default function InboxScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <Stack.Screen options={{ headerShown: false }} />
         <Tabs.Screen options={{ headerShown: false }} />
-        
+
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Inbox</Text>
@@ -418,7 +420,7 @@ export default function InboxScreen() {
           <Text style={styles.lockSubtitle}>
             El inbox solamente está disponible para usuarios registrados.
           </Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.loginButton}
             onPress={() => router.push('/profile')}
           >
@@ -442,7 +444,7 @@ export default function InboxScreen() {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Inbox</Text>
           <Image
-            source={require('@/assets/images/SplashBidOwl.png')}
+            source={require('@/assets/images/logosolotexto.png')}
             style={styles.logo}
           />
         </View>
@@ -615,11 +617,11 @@ export default function InboxScreen() {
             <ScrollView style={styles.drawerContent} showsVerticalScrollIndicator={false}>
               <View style={styles.insuranceDetailCard}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 8 }}>
-                  <SymbolView 
+                  <SymbolView
                     // @ts-ignore
-                    name={{ ios: 'shield.fill', android: 'shield', web: 'shield' }} 
-                    size={24} 
-                    tintColor="#2E8B57" 
+                    name={{ ios: 'shield.fill', android: 'shield', web: 'shield' }}
+                    size={24}
+                    tintColor="#2E8B57"
                   />
                   <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C' }}>Póliza Activa</Text>
                 </View>
@@ -637,8 +639,8 @@ export default function InboxScreen() {
                 <View style={styles.drawerRow}>
                   <Text style={styles.drawerLabel}>Cobertura Asegurada</Text>
                   <Text style={[styles.drawerValue, { color: '#2E8B57', fontSize: 18 }]}>
-                    {selectedProductInsurance?.importe != null 
-                      ? `${Number(selectedProductInsurance.importe).toLocaleString('es-AR')} AR$` 
+                    {selectedProductInsurance?.importe != null
+                      ? `${Number(selectedProductInsurance.importe).toLocaleString('es-AR')} AR$`
                       : 'N/A'}
                   </Text>
                 </View>
@@ -651,11 +653,11 @@ export default function InboxScreen() {
 
               <View style={styles.insuranceDetailCard}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 8 }}>
-                  <SymbolView 
+                  <SymbolView
                     // @ts-ignore
-                    name={{ ios: 'mappin.and.ellipse', android: 'location_on', web: 'location_on' }} 
-                    size={24} 
-                    tintColor="#051C2C" 
+                    name={{ ios: 'mappin.and.ellipse', android: 'location_on', web: 'location_on' }}
+                    size={24}
+                    tintColor="#051C2C"
                   />
                   <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C' }}>Ubicación Física</Text>
                 </View>
@@ -668,7 +670,7 @@ export default function InboxScreen() {
             </ScrollView>
 
             <View style={styles.drawerFooter}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.expandInsuranceButton}
                 onPress={async () => {
                   if (selectedProductInsurance?.productoId) {
@@ -677,7 +679,7 @@ export default function InboxScreen() {
                         method: 'POST',
                         headers: {
                           'Content-Type': 'application/json',
-                          'Autorizacion': String(loggedInUserId || 1),
+                          'Autorizacion': loggedInUserId ? String(loggedInUserId) : '',
                         }
                       });
                       if (response.ok) {
@@ -742,15 +744,16 @@ const styles = StyleSheet.create({
   tabsContainer: {
     flexDirection: 'row',
     paddingHorizontal: 24,
-    paddingBottom: 12,
-    gap: 24,
+    paddingBottom: 0,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
   },
   tab: {
+    flex: 1,
     paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
     borderBottomWidth: 3,
     borderBottomColor: 'transparent',

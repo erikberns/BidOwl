@@ -73,8 +73,11 @@ export const DeliveryModals: React.FC<DeliveryModalsProps> = ({
         {/* Universal Header */}
         <View style={styles.modalHeader}>
           <TouchableOpacity onPress={handleBack} style={styles.modalBackButton}>
-            {/* @ts-ignore */}
-            <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
+            <Image 
+              source={require('../../../assets/images/Chevron-Left.png')} 
+              style={styles.backButtonImage} 
+              resizeMode="contain"
+            />
           </TouchableOpacity>
           <Text style={styles.modalHeaderTitle}>{getHeaderTitle()}</Text>
           <View style={{ width: 40 }} />
@@ -281,7 +284,7 @@ export const DeliveryModals: React.FC<DeliveryModalsProps> = ({
                           method: 'POST',
                           headers: {
                             'Content-Type': 'application/json',
-                            'Autorizacion': String(loggedInUserId || 1),
+                            'Autorizacion': loggedInUserId ? String(loggedInUserId) : '',
                           },
                           body: JSON.stringify({
                             tipoEntrega: deliveryType,
@@ -362,10 +365,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: '#D8DCE0',
   },
   modalBackButton: {
     padding: 8,
+  },
+  backButtonImage: {
+    width: 24,
+    height: 24,
   },
   modalHeaderTitle: {
     fontSize: 16,

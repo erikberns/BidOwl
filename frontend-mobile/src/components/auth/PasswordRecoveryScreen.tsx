@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Platform, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Platform, TextInput, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { API_URL } from '@/constants/api';
 import { InputField } from '../ui/InputField';
@@ -214,7 +214,11 @@ export function PasswordRecoveryScreen({ onBack, onComplete }: Props) {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Pressable onPress={onBack} style={styles.backButton} disabled={isLoading}>
-          <Text style={styles.backButtonText}>{'<'}</Text>
+          <Image 
+            source={require('../../../assets/images/Chevron-Left.png')} 
+            style={styles.backButtonImage} 
+            resizeMode="contain"
+          />
         </Pressable>
         <Text style={styles.headerTitle}>Recuperación de Contraseña</Text>
         <View style={styles.placeholderBox} />
@@ -288,7 +292,11 @@ export function PasswordRecoveryScreen({ onBack, onComplete }: Props) {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Pressable onPress={() => setStep(1)} style={styles.backButton} disabled={isLoading}>
-          <Text style={styles.backButtonText}>{'<'}</Text>
+          <Image 
+            source={require('../../../assets/images/Chevron-Left.png')} 
+            style={styles.backButtonImage} 
+            resizeMode="contain"
+          />
         </Pressable>
         <Text style={styles.headerTitle}>Recuperación de Contraseña</Text>
         <View style={styles.placeholderBox} />
@@ -406,6 +414,10 @@ const styles = StyleSheet.create({
   backButtonText: {
     fontSize: 20,
     color: '#000',
+  },
+  backButtonImage: {
+    width: 24,
+    height: 24,
   },
   headerTitle: {
     fontSize: 16,

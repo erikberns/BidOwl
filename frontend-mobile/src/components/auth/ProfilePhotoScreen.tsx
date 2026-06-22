@@ -145,7 +145,11 @@ export function ProfilePhotoScreen({ userId, onBack, onComplete }: Props) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton} disabled={isLoading}>
-          <Text style={styles.backButtonText}>{'<'}</Text>
+          <Image 
+            source={require('../../../assets/images/Chevron-Left.png')} 
+            style={styles.backButtonImage} 
+            resizeMode="contain"
+          />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Foto de Perfil</Text>
         <View style={styles.placeholderBox} />
@@ -223,6 +227,10 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#000',
   },
+  backButtonImage: {
+    width: 24,
+    height: 24,
+  },
   headerTitle: {
     fontSize: 16,
     fontWeight: '600',
@@ -260,7 +268,7 @@ const styles = StyleSheet.create({
     height: 140,
     borderRadius: 70,
     borderWidth: 1.5,
-    borderColor: '#000',
+    borderColor: '#03161A',
     backgroundColor: '#E5E5E5',
     justifyContent: 'center',
     alignItems: 'center',
@@ -276,7 +284,7 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: '#000',
+    borderColor: '#03161A',
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#E5E5E5',
@@ -284,7 +292,7 @@ const styles = StyleSheet.create({
   plusText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#000',
+    color: '#03161A',
     lineHeight: 20,
   },
   footer: {
@@ -305,9 +313,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   disabledButton: {
-    backgroundColor: '#D3D3D3',
+    backgroundColor: '#DADADA',
+    borderWidth: 1,
+    borderColor: '#03161A',
   },
   disabledButtonText: {
-    color: '#888',
+    color: '#03161A',
   },
 });

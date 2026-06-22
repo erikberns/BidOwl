@@ -1,5 +1,5 @@
 import { Tabs, router } from 'expo-router';
-import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, useColorScheme, Image } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,6 +30,25 @@ const WEB_ICONS: Record<string, string> = {
   publish: '＋',
   inbox: '✉️',
   profile: '👤',
+};
+
+const TAB_ICONS: Record<string, { active: any; inactive: any }> = {
+  index: {
+    active: require('../../assets/images/homeActivado.png'),
+    inactive: require('../../assets/images/homeNoActivado.png'),
+  },
+  explore: {
+    active: require('../../assets/images/descubrirActivado.png'),
+    inactive: require('../../assets/images/descubrirNoActivado.png'),
+  },
+  inbox: {
+    active: require('../../assets/images/inboxActivado.png'),
+    inactive: require('../../assets/images/InboxNoActivado.png'),
+  },
+  profile: {
+    active: require('../../assets/images/perfilActivado.png'),
+    inactive: require('../../assets/images/perfilNoActivado.png'),
+  },
 };
 
 function CustomTabBar({ state, descriptors, navigation }: any) {
@@ -71,11 +90,11 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
 
   return (
     <View style={[
-      styles.container, 
-      { 
-        backgroundColor, 
+      styles.container,
+      {
+        backgroundColor,
         borderTopColor: borderColor,
-        paddingBottom: Math.max(insets.bottom, 8) 
+        paddingBottom: Math.max(insets.bottom, 8)
       }
     ]}>
       {state.routes.map((route: any, index: number) => {
@@ -91,6 +110,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
         }
 
         const isFocused = state.index === index;
+        const iconSource = TAB_ICONS[route.name]?.[isFocused ? 'active' : 'inactive'];
 
         const onPress = () => {
           const event = navigation.emit({
@@ -171,24 +191,32 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
             activeOpacity={0.7}
           >
             <View style={styles.iconContainer}>
-              <SymbolView
-                // @ts-ignore
-                name={symbolOptions}
-                tintColor={isFocused ? activeColor : inactiveColor}
-                size={22}
-                fallback={
-                  <Text style={{ 
-                    fontSize: 18, 
-                    color: isFocused ? activeColor : inactiveColor 
-                  }}>
-                    {fallbackChar}
-                  </Text>
-                }
-              />
+              {iconSource ? (
+                <Image
+                  source={iconSource}
+                  style={styles.tabIconImage}
+                  resizeMode="contain"
+                />
+              ) : (
+                <SymbolView
+                  // @ts-ignore
+                  name={symbolOptions}
+                  tintColor={isFocused ? activeColor : inactiveColor}
+                  size={22}
+                  fallback={
+                    <Text style={{
+                      fontSize: 18,
+                      color: isFocused ? activeColor : inactiveColor
+                    }}>
+                      {fallbackChar}
+                    </Text>
+                  }
+                />
+              )}
             </View>
             <Text style={[
-              styles.labelText, 
-              { 
+              styles.labelText,
+              {
                 color: isFocused ? activeColor : inactiveColor,
                 fontWeight: isFocused ? '600' : '400'
               }
@@ -206,22 +234,15 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    paddingTop: 8,
+    paddingTop: 18,
     alignItems: 'flex-end',
     justifyContent: 'space-around',
-    elevation: 8,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
   },
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
-    paddingBottom: 8,
+    paddingBottom: 0,
   },
   iconContainer: {
     height: 28,
@@ -229,8 +250,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
+  tabIconImage: {
+    width: 24,
+    height: 24,
+  },
   labelText: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '500',
   },
   publishButtonOuter: {

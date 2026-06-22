@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface Props {
@@ -11,9 +11,11 @@ export const CategoryGrantedScreen: React.FC<Props> = ({ category = 'COMÚN', on
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.iconCircle}>
-          <Text style={styles.checkMark}>✓</Text>
-        </View>
+        <Image
+          source={require('../../../assets/images/tick.png')}
+          style={styles.tickImage}
+          resizeMode="contain"
+        />
 
         <Text style={styles.title}>Se le ha otorgado la siguiente categoria.</Text>
 
@@ -45,43 +47,34 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 40,
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
   },
-  iconCircle: {
+  tickImage: {
     width: 72,
     height: 72,
-    borderRadius: 36,
-    borderWidth: 3,
-    borderColor: '#2E9F64',
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: 32,
   },
-  checkMark: {
-    color: '#2E9F64',
-    fontSize: 36,
-    fontWeight: 'bold',
-  },
   title: {
-    fontSize: 26,
-    fontWeight: '700',
+    fontSize: 32,
+    fontWeight: '600',
     color: '#051C2C',
-    textAlign: 'center',
-    lineHeight: 34,
-    marginBottom: 24,
+    textAlign: 'left',
+    lineHeight: 42,
+    marginBottom: 32,
   },
   badgeContainer: {
     backgroundColor: '#BEE757', // Matching the bright yellow-green from the screenshot/auth screen
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 8,
-    marginBottom: 24,
+    marginBottom: 32,
+    alignSelf: 'center',
   },
   badgeText: {
     color: '#051C2C',
     fontWeight: '800',
-    fontSize: 20,
+    fontSize: 26,
     letterSpacing: 0.5,
   },
   description: {

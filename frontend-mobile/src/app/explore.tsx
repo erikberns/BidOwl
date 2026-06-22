@@ -129,17 +129,17 @@ export default function ExploreScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <Tabs.Screen options={{ headerShown: false }} />
-      <ScrollView 
-        style={styles.scrollView} 
+      <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.welcomeText}>Descubre</Text>
-          <Image 
-            source={require('@/assets/images/SplashBidOwl.png')} 
-            style={styles.logo} 
+          <Text style={styles.welcomeText}>Descubrir</Text>
+          <Image
+            source={require('@/assets/images/logosolotexto.png')}
+            style={styles.logo}
           />
         </View>
 
@@ -171,8 +171,8 @@ export default function ExploreScreen() {
 
         {/* Category Filter */}
         <View style={styles.filterContainer}>
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.filterContent}
           >
@@ -191,7 +191,7 @@ export default function ExploreScreen() {
                     selectedCategory === category && styles.filterTextActive,
                   ]}
                 >
-                  {category === 'COMUN' ? 'COMÚN' : category}
+                  {category}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -205,12 +205,7 @@ export default function ExploreScreen() {
           </View>
         ) : filteredAuctions.length > 0 ? (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Nuestras subastas.</Text>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalScrollContent}
-            >
+            <View style={styles.verticalList}>
               {filteredAuctions.map(item => {
                 const imageSource = item.imagenPortada
                   ? { uri: API_URL.replace('/api', '') + item.imagenPortada }
@@ -227,10 +222,11 @@ export default function ExploreScreen() {
                     date={item.fecha || item.date}
                     time={item.hora || item.time}
                     onPress={() => router.push(('/auction/' + item.id) as any)}
+                    style={styles.exploreCard}
                   />
                 );
               })}
-            </ScrollView>
+            </View>
           </View>
         ) : (
           <View style={styles.emptyState}>
@@ -293,7 +289,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 24,
     paddingVertical: 12,
     paddingHorizontal: 16,
-    marginBottom: 28,
+    marginBottom: 18,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -318,7 +314,7 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     marginHorizontal: 24,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   filterContent: {
     flexDirection: 'row',
@@ -327,23 +323,24 @@ const styles = StyleSheet.create({
   },
   filterButton: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F5F5F5',
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E5E5',
   },
   filterButtonActive: {
-    backgroundColor: '#BEE757',
-    borderColor: '#BEE757',
+    backgroundColor: '#BAEB51',
+    borderWidth: 1.5,
+    borderColor: '#03161A',
   },
   filterText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#666',
+    fontWeight: 'bold',
+    color: '#03161A',
   },
   filterTextActive: {
-    color: '#051C2C',
+    color: '#03161A',
   },
   section: {
     paddingHorizontal: 24,
@@ -355,8 +352,14 @@ const styles = StyleSheet.create({
     color: '#051C2C',
     marginBottom: 12,
   },
-  horizontalScrollContent: {
-    paddingRight: 24,
+  verticalList: {
+    flexDirection: 'column',
+    gap: 16,
+  },
+  exploreCard: {
+    width: '100%',
+    marginRight: 0,
+    marginBottom: 16,
   },
   emptyState: {
     justifyContent: 'center',

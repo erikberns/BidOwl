@@ -82,8 +82,11 @@ export const ProposalModals: React.FC<ProposalModalsProps> = ({
       <SafeAreaView style={styles.modalContainer}>
         <View style={styles.modalHeader}>
           <TouchableOpacity onPress={handleBack} style={styles.modalBackButton}>
-            {/* @ts-ignore */}
-            <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back_ios', web: 'arrow_back_ios' }} size={24} tintColor="#051C2C" />
+            <Image
+              source={require('../../../assets/images/Chevron-Left.png')}
+              style={styles.backButtonImage}
+              resizeMode="contain"
+            />
           </TouchableOpacity>
           <Text style={styles.modalHeaderTitle}>Oferta del Articulo</Text>
           <View style={{ width: 40 }} />
@@ -93,10 +96,7 @@ export const ProposalModals: React.FC<ProposalModalsProps> = ({
           <>
             <ScrollView style={styles.offerContent} showsVerticalScrollIndicator={false}>
               <Text style={styles.offerTitle}>Nosotros proponemos...</Text>
-              <Text style={styles.offerSubtitle}>
-                Definimos estas condiciones buscando un equilibrio justo que maximice las posibilidades de venta y genere un beneficio tanto para vos como para la subasta.
-              </Text>
-              
+
               <View style={styles.offerCard}>
                 <View style={styles.offerRow}>
                   <Text style={styles.offerLabel}>Nombre del Bien</Text>
@@ -109,7 +109,7 @@ export const ProposalModals: React.FC<ProposalModalsProps> = ({
                 <View style={styles.offerRow}>
                   <Text style={styles.offerLabel}>Fecha Estimada</Text>
                   <Text style={styles.offerValue}>
-                    {selectedProposal?.propuesta?.fechaEstimada 
+                    {selectedProposal?.propuesta?.fechaEstimada
                       ? selectedProposal.propuesta.fechaEstimada.split('-').reverse().join(' / ')
                       : 'No especificada'}
                   </Text>
@@ -117,16 +117,16 @@ export const ProposalModals: React.FC<ProposalModalsProps> = ({
                 <View style={styles.offerRow}>
                   <Text style={styles.offerLabel}>Valor Base Propuesto</Text>
                   <Text style={styles.offerValue}>
-                    {selectedProposal?.propuesta?.valorBase != null 
-                      ? `${Number(selectedProposal.propuesta.valorBase).toLocaleString('es-AR')} AR$` 
+                    {selectedProposal?.propuesta?.valorBase != null
+                      ? `${Number(selectedProposal.propuesta.valorBase).toLocaleString('es-AR')} AR$`
                       : 'No especificado'}
                   </Text>
                 </View>
                 <View style={[styles.offerRow, { marginBottom: 0 }]}>
                   <Text style={styles.offerLabel}>Comision Recibida</Text>
                   <Text style={styles.offerValue}>
-                    {selectedProposal?.propuesta?.comision != null 
-                      ? `${selectedProposal.propuesta.comision}% de Valor Final de Venta` 
+                    {selectedProposal?.propuesta?.comision != null
+                      ? `${selectedProposal.propuesta.comision}% de Valor Final de Venta`
                       : 'No especificada'}
                   </Text>
                 </View>
@@ -151,8 +151,8 @@ export const ProposalModals: React.FC<ProposalModalsProps> = ({
 
             <View style={styles.offerFooter}>
               {selectedProposal?.propuesta?.estado === 'ACEPTADA' || selectedProposal?.propuesta?.estado === 'RECHAZADA' ? (
-                <TouchableOpacity 
-                  style={[styles.shippingButton, { flex: 1 }]} 
+                <TouchableOpacity
+                  style={[styles.shippingButton, { flex: 1 }]}
                   onPress={() => setShowOfferDetails(false)}
                 >
                   <Text style={styles.shippingButtonText}>Volver</Text>
@@ -180,7 +180,7 @@ export const ProposalModals: React.FC<ProposalModalsProps> = ({
                           method: 'POST',
                           headers: {
                             'Content-Type': 'application/json',
-                            'Autorizacion': String(loggedInUserId || 1),
+                            'Autorizacion': loggedInUserId ? String(loggedInUserId) : '',
                           },
                           body: JSON.stringify({
                             costoDevolucion: 0,
@@ -213,13 +213,13 @@ export const ProposalModals: React.FC<ProposalModalsProps> = ({
           <>
             <ScrollView style={styles.offerContent} showsVerticalScrollIndicator={false}>
               <Text style={styles.offerTitle}>Seleccione donde se{"\n"}depositara la comisión.</Text>
-              
+
               <View style={styles.paymentOptionsContainer}>
                 {bankMethods.length > 0 ? (
                   bankMethods.map(method => (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       key={method.id}
-                      style={[styles.paymentOption, selectedPayment === method.id && styles.paymentOptionSelected]} 
+                      style={[styles.paymentOption, selectedPayment === method.id && styles.paymentOptionSelected]}
                       onPress={() => setSelectedPayment(method.id)}
                     >
                       <View style={styles.paymentOptionLeft}>
@@ -240,10 +240,10 @@ export const ProposalModals: React.FC<ProposalModalsProps> = ({
                 )}
               </View>
             </ScrollView>
-            
+
             <View style={styles.offerFooter}>
-              <TouchableOpacity 
-                style={[styles.shippingButton, { flex: 1 }, (!selectedPayment || bankMethods.length === 0) && { backgroundColor: '#ccc' }]} 
+              <TouchableOpacity
+                style={[styles.shippingButton, { flex: 1 }, (!selectedPayment || bankMethods.length === 0) && { backgroundColor: '#ccc' }]}
                 disabled={!selectedPayment || bankMethods.length === 0}
                 onPress={async () => {
                   if (selectedRequestId) {
@@ -252,7 +252,7 @@ export const ProposalModals: React.FC<ProposalModalsProps> = ({
                         method: 'POST',
                         headers: {
                           'Content-Type': 'application/json',
-                          'Autorizacion': String(loggedInUserId || 1),
+                          'Autorizacion': loggedInUserId ? String(loggedInUserId) : '',
                         },
                         body: JSON.stringify({
                           idCuentaDeposito: selectedPayment,
@@ -283,16 +283,17 @@ export const ProposalModals: React.FC<ProposalModalsProps> = ({
         {showProposalSuccess && (
           <>
             <View style={styles.modalContent}>
-              <View style={styles.modalIconContainer}>
-                {/* @ts-ignore */}
-                <SymbolView name={{ ios: 'checkmark', android: 'check', web: 'check' }} size={40} tintColor="#2E8B57" weight="bold" />
-              </View>
+              <Image
+                source={require('../../../assets/images/tick.png')}
+                style={styles.tickImage}
+                resizeMode="contain"
+              />
               <Text style={styles.modalTitle}>Su articulo ya esta listo{"\n"}para ser subastado.</Text>
               <Text style={styles.modalSubtitle}>
                 Tu artículo ya está listo para ser subastado. Serás notificado con el resultado y podrás seguir la subasta desde la sección Mis Artículos en la Inbox.
               </Text>
             </View>
-            
+
             <View style={styles.modalFooter}>
               <TouchableOpacity style={styles.modalButton} onPress={() => {
                 setShowProposalSuccess(false);
@@ -316,7 +317,7 @@ export const ProposalModals: React.FC<ProposalModalsProps> = ({
                 Su artículo será devuelto por nuestro equipo, asegurando que el proceso se realice de forma clara y pueda continuar con confianza dentro de la plataforma.
               </Text>
             </View>
-            
+
             <View style={styles.modalFooter}>
               <TouchableOpacity style={styles.shippingButton} onPress={() => {
                 setShowProposalRejected(false);
@@ -344,10 +345,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: '#D8DCE0',
   },
   modalBackButton: {
     padding: 8,
+  },
+  backButtonImage: {
+    width: 24,
+    height: 24,
   },
   modalHeaderTitle: {
     fontSize: 16,
@@ -406,7 +411,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
     color: '#051C2C',
-    marginBottom: 12,
+    marginBottom: 18,
   },
   offerSubtitle: {
     fontSize: 14,
@@ -534,6 +539,11 @@ const styles = StyleSheet.create({
   radioCircleSelected: {
     borderColor: '#BEE757',
     borderWidth: 2,
+  },
+  tickImage: {
+    width: 80,
+    height: 80,
+    marginBottom: 28,
   },
   radioInnerCircle: {
     height: 12,

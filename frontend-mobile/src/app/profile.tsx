@@ -35,7 +35,7 @@ export default function ProfileScreen() {
             const parsedUser = JSON.parse(userStr);
             setCurrentUser(parsedUser);
             setPhotoError(false); // Reset photo loading state on refresh
-            
+
             try {
               console.log(`Cargando datos frescos del usuario ${parsedUser.identificador} de la API...`);
               const res = await fetch(`${API_URL}/personas/${parsedUser.identificador}`);
@@ -82,7 +82,7 @@ export default function ProfileScreen() {
         'Cerrar Sesión',
         '¿Está seguro de que desea cerrar sesión?',
         [
-          { text: 'Cancelar', onPress: () => {} },
+          { text: 'Cancelar', onPress: () => { } },
           {
             text: 'Cerrar Sesión',
             onPress: async () => {
@@ -109,13 +109,13 @@ export default function ProfileScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         <Stack.Screen options={{ headerShown: false }} />
         <Tabs.Screen options={{ headerShown: false }} />
-        
+
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Perfil</Text>
-          <Image 
-            source={require('@/assets/images/SplashBidOwl.png')} 
-            style={styles.logo} 
+          <Image
+            source={require('@/assets/images/SplashBidOwl.png')}
+            style={styles.logo}
           />
         </View>
 
@@ -125,27 +125,27 @@ export default function ProfileScreen() {
             <Text style={styles.guestMainTitle}>
               Completá tu acceso{'\n'}a <Text style={styles.brandTextPrimary}>Bid</Text><Text style={styles.brandTextSecondary}>Owl</Text>
             </Text>
-            
+
             <Text style={styles.guestSubtitle}>
               Para acceder a tu perfil y seguir usando la app como usuario, creá tu cuenta o iniciá sesión.
             </Text>
 
             <View style={styles.guestButtonGroup}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.guestCreateButton}
                 onPress={() => handleGuestRedirect('register')}
               >
                 <Text style={styles.guestCreateButtonText}>Crear Cuenta</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.guestLoginButton}
                 onPress={() => handleGuestRedirect('login')}
               >
                 <Text style={styles.guestLoginButtonText}>Iniciar Sesión</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.guestLoginButton, { marginTop: 12, borderWidth: 0 }]}
                 onPress={async () => {
                   try {
@@ -202,17 +202,17 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <Tabs.Screen options={{ headerShown: false }} />
-      <ScrollView 
-        style={styles.scrollView} 
+      <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Perfil</Text>
-          <Image 
-            source={require('@/assets/images/SplashBidOwl.png')} 
-            style={styles.logo} 
+          <Image
+            source={require('@/assets/images/logosolotexto.png')}
+            style={styles.logo}
           />
         </View>
 
@@ -221,8 +221,8 @@ export default function ProfileScreen() {
           {/* Avatar */}
           <View style={styles.avatar}>
             {!photoError && currentUser?.identificador ? (
-              <Image 
-                source={{ uri: `${API_URL}/personas/${currentUser.identificador}/foto?t=${new Date().getTime()}` }} 
+              <Image
+                source={{ uri: `${API_URL}/personas/${currentUser.identificador}/foto?t=${new Date().getTime()}` }}
                 style={styles.avatarImage}
                 onError={(e) => {
                   console.log('Error al cargar la foto de perfil en el frontend:', e.nativeEvent.error);
@@ -243,6 +243,8 @@ export default function ProfileScreen() {
             {currentUser?.nombre} {currentUser?.apellido || ''}
           </Text>
 
+          <View style={styles.divider} />
+
           {/* Category Badge */}
           <View style={styles.categoryBadge}>
             <Text style={styles.categoryText}>
@@ -257,6 +259,8 @@ export default function ProfileScreen() {
           <TouchableOpacity>
             <Text style={styles.learnMore}>Conocer más</Text>
           </TouchableOpacity>
+
+          <View style={styles.divider} />
         </View>
 
         {/* Statistics Section */}
@@ -264,37 +268,31 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Estadísticas</Text>
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
-              <SymbolView
-                tintColor="#BEE757"
-                // @ts-ignore
-                name={{ ios: 'hand.raised.fill', android: 'pan_tool', web: 'pan_tool' }}
-                size={28}
-              />
-              <Text style={styles.statValue}>
-                {currentUser?.rematesGanados !== undefined ? currentUser.rematesGanados : 0}
-              </Text>
-              <Text style={styles.statLabel}>Subastas Ganadas</Text>
-            </View>
-
-            <View style={styles.statCard}>
-              <SymbolView
-                tintColor="#BEE757"
-                // @ts-ignore
-                name={{ ios: 'trophy.fill', android: 'emoji_events', web: 'emoji_events' }}
-                size={28}
+              <Image
+                source={require('@/assets/images/rematesAsistidosLogo.png')}
+                style={styles.statIcon}
               />
               <Text style={styles.statValue}>
                 {currentUser?.rematesAsistidos !== undefined ? currentUser.rematesAsistidos : 0}
               </Text>
-              <Text style={styles.statLabel}>Subastas Asistidas</Text>
+              <Text style={styles.statLabel}>Remates Asistidos</Text>
             </View>
 
             <View style={styles.statCard}>
-              <SymbolView
-                tintColor="#BEE757"
-                // @ts-ignore
-                name={{ ios: 'paperclip', android: 'attach_file', web: 'attach_file' }}
-                size={28}
+              <Image
+                source={require('@/assets/images/rematesGanadosLogo.png')}
+                style={styles.statIcon}
+              />
+              <Text style={styles.statValue}>
+                {currentUser?.rematesGanados !== undefined ? currentUser.rematesGanados : 0}
+              </Text>
+              <Text style={styles.statLabel}>Remates Ganados</Text>
+            </View>
+
+            <View style={styles.statCard}>
+              <Image
+                source={require('@/assets/images/articulosPublicadosLogo.png')}
+                style={styles.statIcon}
               />
               <Text style={styles.statValue}>
                 {currentUser?.articulosPublicados !== undefined ? currentUser.articulosPublicados : 0}
@@ -303,11 +301,9 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.statCard}>
-              <SymbolView
-                tintColor="#BEE757"
-                // @ts-ignore
-                name={{ ios: 'star.fill', android: 'star', web: 'star' }}
-                size={28}
+              <Image
+                source={require('@/assets/images/pujasRealizadasLogo.png')}
+                style={styles.statIcon}
               />
               <Text style={styles.statValue}>
                 {currentUser?.pujasRealizadas !== undefined ? currentUser.pujasRealizadas : 0}
@@ -321,51 +317,43 @@ export default function ProfileScreen() {
         <View style={styles.optionsSection}>
           <Text style={styles.sectionTitle}>Opciones Personales</Text>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.optionItem}
             onPress={() => setIsPaymentModalVisible(true)}
           >
             <View style={styles.optionLeft}>
-              <SymbolView
-                tintColor="#8A8A8A"
-                // @ts-ignore
-                name={{ ios: 'creditcard.fill', android: 'payment', web: 'payment' }}
-                size={20}
+              <Image
+                source={require('@/assets/images/logoMetodoDePago.png')}
+                style={styles.optionIcon}
               />
               <Text style={styles.optionText}>Ajustar Métodos de Pagos</Text>
             </View>
-            <SymbolView
-              tintColor="#8A8A8A"
-              // @ts-ignore
-              name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
-              size={16}
+            <Image
+              source={require('@/assets/images/Chevron-Right.png')}
+              style={styles.chevronIcon}
             />
           </TouchableOpacity>
 
           {currentUser?.contrasenaCambiada && (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.optionItem}
               onPress={() => setIsChangingPassword(true)}
             >
               <View style={styles.optionLeft}>
-                <SymbolView
-                  tintColor="#8A8A8A"
-                  // @ts-ignore
-                  name={{ ios: 'lock.fill', android: 'lock', web: 'lock' }}
-                  size={20}
+                <Image
+                  source={require('@/assets/images/logoCambioContraseña.png')}
+                  style={styles.optionIcon}
                 />
                 <Text style={styles.optionText}>Cambiar Contraseña</Text>
               </View>
-              <SymbolView
-                tintColor="#8A8A8A"
-                // @ts-ignore
-                name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
-                size={16}
+              <Image
+                source={require('@/assets/images/Chevron-Right.png')}
+                style={styles.chevronIcon}
               />
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.optionItem}
             onPress={async () => {
               try {
@@ -396,17 +384,15 @@ export default function ProfileScreen() {
               />
               <Text style={styles.optionText}>Reiniciar Onboarding y Sesión</Text>
             </View>
-            <SymbolView
-              tintColor="#8A8A8A"
-              // @ts-ignore
-              name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
-              size={16}
+            <Image
+              source={require('@/assets/images/Chevron-Right.png')}
+              style={styles.chevronIcon}
             />
           </TouchableOpacity>
         </View>
 
         {/* Logout Button */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.logoutButton}
           onPress={handleLogout}
         >
@@ -419,7 +405,7 @@ export default function ProfileScreen() {
         animationType="slide"
         onRequestClose={() => setIsPaymentModalVisible(false)}
       >
-        <PaymentMethodsScreen 
+        <PaymentMethodsScreen
           userId={currentUser?.identificador}
           onBack={() => setIsPaymentModalVisible(false)}
           onComplete={() => setIsPaymentModalVisible(false)}
@@ -438,7 +424,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: BottomTabInset + 40,
+    paddingBottom: 20,
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     width: '100%',
@@ -467,11 +453,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingVertical: 24,
-    backgroundColor: '#F9F9F9',
-    marginHorizontal: 24,
     borderRadius: 12,
     marginTop: 24,
-    marginBottom: 28,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E5E5E5',
+    alignSelf: 'stretch',
+    marginVertical: 16,
   },
   avatar: {
     width: 100,
@@ -501,7 +490,7 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   userName: {
-    fontSize: 18,
+    fontSize: 28,
     fontWeight: '700',
     color: '#051C2C',
     marginBottom: 12,
@@ -513,34 +502,35 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 6,
     marginBottom: 16,
+    marginTop: 12,
   },
   categoryText: {
-    fontSize: 11,
+    fontSize: 15,
     fontWeight: '700',
     color: '#051C2C',
   },
   description: {
-    fontSize: 13,
-    color: '#8A8A8A',
+    fontSize: 15,
+    color: '#717375',
     textAlign: 'center',
     marginBottom: 8,
-    lineHeight: 18,
+    lineHeight: 22,
   },
   learnMore: {
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#2E9F64',
+    color: '#051C2C',
     textDecorationLine: 'underline',
   },
   statsSection: {
     paddingHorizontal: 24,
-    marginBottom: 28,
+    marginBottom: 36,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 22,
     fontWeight: '700',
     color: '#051C2C',
-    marginBottom: 16,
+    marginBottom: 28,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -549,26 +539,32 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: '48%',
-    backgroundColor: '#F9F9F9',
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     paddingVertical: 16,
-    paddingHorizontal: 12,
-    alignItems: 'center',
+    paddingHorizontal: 16,
+    alignItems: 'flex-start',
     borderWidth: 1,
-    borderColor: '#F0F0F0',
+    borderColor: '#E5E5E5',
+  },
+  statIcon: {
+    width: 32,
+    height: 32,
+    resizeMode: 'contain',
+    marginBottom: 4,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 26,
     fontWeight: '700',
     color: '#051C2C',
     marginTop: 8,
     marginBottom: 4,
   },
   statLabel: {
-    fontSize: 11,
-    color: '#8A8A8A',
-    textAlign: 'center',
-    lineHeight: 14,
+    fontSize: 12,
+    color: '#717375',
+    textAlign: 'left',
+    lineHeight: 16,
     fontWeight: '500',
   },
   optionsSection: {
@@ -589,6 +585,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     gap: 12,
+  },
+  optionIcon: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
+  },
+  chevronIcon: {
+    width: 14,
+    height: 14,
+    resizeMode: 'contain',
+    tintColor: '#03161A',
   },
   optionText: {
     fontSize: 14,
@@ -630,10 +637,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   brandTextPrimary: {
-    color: '#BEE757', // Light green / yellow
+    color: '#BAEB51', // Light green / yellow
+    fontFamily: 'logo',
   },
   brandTextSecondary: {
-    color: '#2E9F64', // Dark green
+    color: '#2B9463', // Dark green
+    fontFamily: 'logo',
   },
   guestSubtitle: {
     fontSize: 15,
@@ -671,10 +680,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
     borderWidth: 1.5,
-    borderColor: '#E5E5E5',
+    borderColor: '#03161A',
   },
   guestLoginButtonText: {
-    color: '#051C2C',
+    color: '#03161A',
     fontSize: 16,
     fontWeight: 'bold',
   },

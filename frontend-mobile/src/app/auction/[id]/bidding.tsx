@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, useWindowDimensions, Modal, TextInput, ActivityIndicator, Alert, Platform } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs, useNavigation } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -39,19 +39,19 @@ const formatPrice = (value: number | string) => {
 
 const BidderAvatar = ({ idpersona, style }: { idpersona: string | number; style: any }) => {
   const [error, setError] = useState(false);
-  
+
   if (error || !idpersona) {
     return (
-      <Image 
-        source={require('@/assets/images/auctioneer_avatar.png')} 
-        style={style} 
+      <Image
+        source={require('@/assets/images/auctioneer_avatar.png')}
+        style={style}
       />
     );
   }
 
   return (
-    <Image 
-      source={{ uri: `${API_URL}/personas/${idpersona}/foto` }} 
+    <Image
+      source={{ uri: `${API_URL}/personas/${idpersona}/foto` }}
       style={style}
       onError={() => setError(true)}
     />
@@ -104,6 +104,7 @@ export default function BiddingScreen() {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
   const { width: windowWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const [isGuest, setIsGuest] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
@@ -170,7 +171,7 @@ export default function BiddingScreen() {
       setLoadingPhotos(true);
       setIsPhotoModalVisible(true);
       setPhotoIndex(0);
-      
+
       const res = await fetch(`${API_URL}/productos/${targetId}/fotos`);
       if (res.ok) {
         const urls = await res.json();
@@ -255,7 +256,7 @@ export default function BiddingScreen() {
         const catalogRes = await fetch(`${API_URL}/subastas/${auctionIdStr}/catalogo`);
         if (catalogRes.ok) {
           const catalogData = await catalogRes.json();
-          
+
           const mappedItems = catalogData.map((item: any, idx: number) => {
             const basePriceVal = item.valorBase || 100000;
             return {
@@ -528,7 +529,7 @@ export default function BiddingScreen() {
         const limitsData = await limitsRes.json();
         setMinBid(limitsData.pujaMinima ? Number(limitsData.pujaMinima) : null);
         setMaxBid(limitsData.pujaMaxima ? Number(limitsData.pujaMaxima) : null);
-        
+
         if (limitsData.pujaMinima) {
           const defaultVal = Math.round(Number(limitsData.pujaMinima)).toString();
           setBidValue(defaultVal.replace(/\B(?=(\d{3})+(?!\d))/g, "."));
@@ -563,7 +564,7 @@ export default function BiddingScreen() {
       const user = JSON.parse(userStr);
 
       const numericBid = parseFloat(bidValue.replace(/\./g, ''));
-      
+
       const response = await fetch(`${API_URL}/subastas/${auctionIdStr}/items/${currentItem.id}/pujas`, {
         method: 'POST',
         headers: {
@@ -633,10 +634,10 @@ export default function BiddingScreen() {
 
   if (auctionState === 'pending') {
     stateTitle = "Próxima Subasta";
-    stateColor = "#E79E2E"; // Orange
+    stateColor = "#03161A"; // Orange
   } else if (auctionState === 'ended') {
     stateTitle = "Subasta Finalizada";
-    stateColor = "#8A8A8A"; // Gray
+    stateColor = "#03161A"; // Gray
   } else if (isCurrentActive && secondsLeft !== null && !isBiddingFinished) {
     stateTitle = "Cierre de Lote Inminente";
     stateColor = "#BA4B4B"; // Red/Orange urgency accent
@@ -649,7 +650,7 @@ export default function BiddingScreen() {
     } else {
       stateTitle = "Disponible luego de venta de lote anterior";
     }
-    stateColor = "#E79E2E";
+    stateColor = "#03161A";
   } else {
     stateTitle = "Subasta Activa";
     stateColor = "#2E9F64";
@@ -664,23 +665,23 @@ export default function BiddingScreen() {
   } : timeLeft;
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <Tabs.Screen options={{ headerShown: false }} />
-      <ScrollView 
-        style={styles.scrollView} 
+      <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Item Image Section */}
-        <TouchableOpacity 
-          style={styles.imageContainer} 
+        <TouchableOpacity
+          style={styles.imageContainer}
           activeOpacity={0.9}
           onPress={handleImagePress}
         >
-          <Image 
-            source={currentItem.image} 
-            style={styles.heroImage} 
+          <Image
+            source={currentItem.image}
+            style={styles.heroImage}
           />
           <View style={styles.imageBadge}>
             <Text style={styles.imageBadgeText}>1 / {currentPhotosCount}</Text>
@@ -722,7 +723,7 @@ export default function BiddingScreen() {
         {/* Dynamic Timer Section */}
         <View style={styles.activeAuctionSection}>
           <Text style={[styles.activeAuctionTitle, { color: stateColor }]}>{stateTitle}</Text>
-          
+
           {isBiddingFinished ? (
             <View style={styles.soldBadgeContainer}>
               <Text style={styles.soldBadgeText}>Artículo Vendido</Text>
@@ -734,7 +735,7 @@ export default function BiddingScreen() {
                 <Text style={styles.timerLabel}>Dias</Text>
               </View>
               <Text style={styles.timerColon}>:</Text>
-              
+
               <View style={styles.timerBox}>
                 <Text style={styles.timerNumber}>{displayTimer.hours}</Text>
                 <Text style={styles.timerLabel}>Hrs.</Text>
@@ -763,9 +764,9 @@ export default function BiddingScreen() {
             <Text style={styles.sectionHeading}>Dueño actual del articulo de subasta</Text>
             <Text style={styles.ownerName}>{currentItem.owner}</Text>
           </View>
-          <BidderAvatar 
-            idpersona={currentItem.duenioId} 
-            style={styles.avatarImage} 
+          <BidderAvatar
+            idpersona={currentItem.duenioId}
+            style={styles.avatarImage}
           />
         </View>
 
@@ -785,7 +786,7 @@ export default function BiddingScreen() {
             })()}
           </Text>
           {(currentItem.details || '').length > 150 && (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.showMoreButton}
               onPress={() => setIsDetailsExpanded(!isDetailsExpanded)}
             >
@@ -804,16 +805,16 @@ export default function BiddingScreen() {
 
           <View style={styles.bidsList}>
             {currentItem.bids.slice(0, 3).map((bid: any, index: number) => (
-              <View 
-                key={index} 
+              <View
+                key={index}
                 style={[
-                  styles.bidRow, 
+                  styles.bidRow,
                   bid.isLead ? styles.leadBidRow : styles.normalBidRow
                 ]}
               >
-                <BidderAvatar 
-                  idpersona={bid.idpersona} 
-                  style={styles.bidderAvatar} 
+                <BidderAvatar
+                  idpersona={bid.idpersona}
+                  style={styles.bidderAvatar}
                 />
                 <View style={styles.bidderInfo}>
                   <Text style={[styles.bidderName, bid.isLead && styles.leadBidderName]}>{bid.name}</Text>
@@ -827,7 +828,7 @@ export default function BiddingScreen() {
             ))}
           </View>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.historyButton}
             onPress={() => router.push({ pathname: `/auction/${auctionIdStr}/history`, params: { itemId: currentItem.id, itemTitle: currentItem.title, itemIndex: currentIndex } } as any)}
           >
@@ -837,9 +838,9 @@ export default function BiddingScreen() {
       </ScrollView>
 
       {/* Bottom Bidding Bar */}
-      <View style={styles.bottomBar}>
-        <TouchableOpacity 
-          style={styles.backButton} 
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <TouchableOpacity
+          style={styles.backButton}
           onPress={() => {
             if (isUserLeading && !isBiddingFinished) {
               showLeadingAlert();
@@ -855,9 +856,9 @@ export default function BiddingScreen() {
             size={20}
           />
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.bidButton, (isBiddingFinished || isUserLeading || isFutureLot) && styles.disabledBidButton]} 
+
+        <TouchableOpacity
+          style={[styles.bidButton, (isBiddingFinished || isUserLeading || isFutureLot) && styles.disabledBidButton]}
           disabled={isBiddingFinished || isUserLeading || isFutureLot}
           onPress={openBidModal}
         >
@@ -969,25 +970,25 @@ const styles = StyleSheet.create({
   titleSection: {
     paddingHorizontal: 24,
     paddingVertical: 20,
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   mainTitle: {
     fontSize: 24,
     fontWeight: '800',
     color: '#051C2C',
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: 8,
   },
   basePriceText: {
     fontSize: 22,
     fontWeight: '800',
     color: '#2E9F64', // Green price
-    textAlign: 'center',
+    textAlign: 'left',
   },
   basePriceLabel: {
     fontSize: 12,
     color: '#8A8A8A',
-    textAlign: 'center',
+    textAlign: 'left',
     marginTop: 4,
   },
   divider: {

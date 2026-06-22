@@ -83,8 +83,8 @@ export function Onboarding({ onComplete }: Props) {
       </View>
 
       <View style={styles.footer}>
-        <Pressable 
-          style={[styles.button, slide.buttonColor ? { backgroundColor: slide.buttonColor } : null]} 
+        <Pressable
+          style={[styles.button, slide.buttonColor ? { backgroundColor: slide.buttonColor } : null]}
           onPress={handleNext}
         >
           <Text style={[styles.buttonText, slide.buttonTextColor ? { color: slide.buttonTextColor } : null]}>
@@ -111,8 +111,8 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
+    fontWeight: '800',
+    color: '#03161A',
   },
   pagination: {
     flexDirection: 'row',
@@ -129,9 +129,9 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     flex: 1,
-    marginTop: 16,
+    marginTop: 24,
     marginHorizontal: 16,
-    borderRadius: 24,
+    borderRadius: 16,
     overflow: 'hidden',
   },
   slideImage: {
@@ -151,34 +151,35 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: 24,
+    paddingTop: 16,
+    paddingBottom: 50,
     alignItems: 'center',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#000',
+    color: '#03161A',
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     lineHeight: 32,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    fontFamily: 'nunito-regular', // El interceptor traducirá esto automáticamente a 'NunitoSans-Regular'
+    color: '#717171',
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 20,
   },
   footer: {
     paddingHorizontal: 24,
-    paddingBottom: 32,
+    paddingBottom: 24,
   },
   button: {
     backgroundColor: '#2E9F64', // Green color from screenshots 1 & 2
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 6,
     alignItems: 'center',
-    height: 56,
+    height: 54,
     justifyContent: 'center',
   },
   buttonText: {

@@ -757,7 +757,8 @@ public class SubastaService {
         }
 
         boolean saltarValidacion = request.getSaltarValidacionFecha() != null && request.getSaltarValidacionFecha();
-        if (!saltarValidacion && dateFecha.isBefore(java.time.LocalDate.now().plusDays(10))) {
+        java.time.LocalDate nowInArgentinaDate = java.time.LocalDate.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires"));
+        if (!saltarValidacion && dateFecha.isBefore(nowInArgentinaDate.plusDays(10))) {
             throw new IllegalArgumentException("La fecha de la subasta debe ser al menos 10 días posterior a la fecha actual.");
         }
 
@@ -776,7 +777,8 @@ public class SubastaService {
 
         // Validar que la fecha y hora no estén en el pasado
         java.time.LocalDateTime subastaDateTime = java.time.LocalDateTime.of(dateFecha, timeHora);
-        if (subastaDateTime.isBefore(java.time.LocalDateTime.now())) {
+        java.time.LocalDateTime nowInArgentinaDateTime = java.time.LocalDateTime.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires"));
+        if (subastaDateTime.isBefore(nowInArgentinaDateTime)) {
             throw new IllegalArgumentException("La fecha y hora de la subasta no pueden estar en el pasado.");
         }
 
@@ -932,8 +934,9 @@ public class SubastaService {
 
         if ("carrada".equalsIgnoreCase(subasta.getEstado()) && subasta.getFecha() != null && subasta.getHora() != null) {
             java.time.LocalDateTime inicio = java.time.LocalDateTime.of(subasta.getFecha(), subasta.getHora());
-            if (java.time.LocalDateTime.now().isAfter(inicio)) {
-                if (java.time.LocalDateTime.now().isAfter(inicio.plusHours(24))) {
+            java.time.LocalDateTime nowInArgentina = java.time.LocalDateTime.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires"));
+            if (nowInArgentina.isAfter(inicio)) {
+                if (nowInArgentina.isAfter(inicio.plusHours(24))) {
                     subasta.setEstado("carrada");
                 } else {
                     subasta.setEstado("abierta");
@@ -942,7 +945,8 @@ public class SubastaService {
             }
         } else if ("abierta".equalsIgnoreCase(subasta.getEstado()) && subasta.getFecha() != null && subasta.getHora() != null) {
             java.time.LocalDateTime inicio = java.time.LocalDateTime.of(subasta.getFecha(), subasta.getHora());
-            if (java.time.LocalDateTime.now().isAfter(inicio.plusHours(24))) {
+            java.time.LocalDateTime nowInArgentina = java.time.LocalDateTime.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires"));
+            if (nowInArgentina.isAfter(inicio.plusHours(24))) {
                 subasta.setEstado("carrada");
                 subasta = subastaRepository.save(subasta);
             }

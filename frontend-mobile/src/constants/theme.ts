@@ -9,18 +9,18 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#000000',
+    text: '#03161A',
     background: '#ffffff',
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    textSecondary: '#717171',
   },
   dark: {
     text: '#ffffff',
-    background: '#000000',
+    background: '#03161A',
     backgroundElement: '#212225',
     backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    textSecondary: '#717171',
   },
 } as const;
 
@@ -28,26 +28,28 @@ export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
+    sans: 'Urbanist-Regular',
     serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
+    body: 'NunitoSans-Regular',
+    logo: 'Parkinsans-Bold',
   },
   default: {
-    sans: 'normal',
+    sans: 'Urbanist-Regular',
     serif: 'serif',
     rounded: 'normal',
     mono: 'monospace',
+    body: 'NunitoSans-Regular',
+    logo: 'Parkinsans-Bold',
   },
   web: {
     sans: 'var(--font-display)',
     serif: 'var(--font-serif)',
     rounded: 'var(--font-rounded)',
     mono: 'var(--font-mono)',
+    body: 'var(--font-body)',
+    logo: 'var(--font-logo)',
   },
 });
 
@@ -65,9 +67,10 @@ export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
 
 export const BrandColors = {
-  primary: '#051C2C', // navy/dark blue
-  accent: '#B5F639',  // lime green
-  success: '#2E9F64', // success green
-  muted: '#666666',   // grey
+  primary: '#03161A', // Fondo Neutro | Color de Textos no Cuerpo
+  accent: '#BAEB51',  // Acento
+  success: '#2B9463', // Segundo Verde
+  muted: '#717171',   // Textos gris
   border: '#F0F0F0',  // light border
+  danger: '#BA4756',  // Rojo | Rechazo
 } as const;
