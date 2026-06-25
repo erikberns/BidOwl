@@ -24,10 +24,15 @@ export const AuctionCard: React.FC<AuctionCardProps> = ({
     onPress,
     style,
 }) => {
+    const imageKey =
+        typeof image === 'object' && image !== null && 'uri' in image
+            ? String(image.uri)
+            : undefined;
+
     return (
         <TouchableOpacity style={[styles.cardContainer, style]} activeOpacity={0.9} onPress={onPress}>
             <View style={styles.imageWrapper}>
-                <Image source={image} style={styles.cardImage} />
+                <Image key={imageKey} source={image} style={styles.cardImage} />
 
                 {/* Category Badge */}
                 <View style={styles.badge}>

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, useWindowDimensions, Modal, TextInput, ActivityIndicator, Alert, Platform } from 'react-native';
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, useWindowDimensions, Modal, TextInput, ActivityIndicator, Alert, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs, useNavigation } from 'expo-router';
@@ -14,16 +14,20 @@ import { ImageCarouselModal } from '@/components/auction/ImageCarouselModal';
 import { authHeaders } from '@/services/authSession';
 import { AuctionRealtimeEvent, connectAuctionRealtime } from '@/services/auctionRealtime';
 
-const { width } = Dimensions.get('window');
-
 // Helper to resolve Image URLs
-const getImageUrl = (path: string) => {
+const getImageUrl = (path: any, refreshKey?: number) => {
   if (!path) return null;
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    return { uri: path };
+  if (typeof path !== 'string') {
+    return path;
   }
-  const baseUrl = API_URL.replace('/api', '');
-  return { uri: baseUrl + path };
+  const baseUri = path.startsWith('http://') || path.startsWith('https://')
+    ? path
+    : API_URL.replace('/api', '') + path;
+  if (!refreshKey) {
+    return { uri: baseUri };
+  }
+  const separator = baseUri.includes('?') ? '&' : '?';
+  return { uri: `${baseUri}${separator}t=${refreshKey}` };
 };
 
 const formatPrice = (value: number | string, moneda: string = 'pesos') => {
@@ -206,6 +210,7 @@ export default function BiddingScreen() {
   const [photoIndex, setPhotoIndex] = useState(0);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [currentPhotosCount, setCurrentPhotosCount] = useState<number>(1);
+  const [imageRefreshKey, setImageRefreshKey] = useState(Date.now());
 
   const currentItem = items[currentIndex] || {
     id: '',
@@ -236,20 +241,20 @@ export default function BiddingScreen() {
         if (urls && urls.length > 0) {
           setItemPhotos(urls.map((u: string) => {
             const baseUrl = API_URL.replace('/api', '');
-            return baseUrl + u;
+            return `${baseUrl}${u}?t=${imageRefreshKey}`;
           }));
         } else {
           // Fallback to 6 of the same main photo
-          const mainImgUri = getImageUrl(currentItem.image)?.uri || currentItem.image;
+          const mainImgUri = getImageUrl(currentItem.image, imageRefreshKey)?.uri || currentItem.image;
           setItemPhotos(Array(6).fill(mainImgUri));
         }
       } else {
-        const mainImgUri = getImageUrl(currentItem.image)?.uri || currentItem.image;
+        const mainImgUri = getImageUrl(currentItem.image, imageRefreshKey)?.uri || currentItem.image;
         setItemPhotos(Array(6).fill(mainImgUri));
       }
     } catch (e) {
       console.error('[BiddingScreen] Error loading item photos:', e);
-      const mainImgUri = getImageUrl(currentItem.image)?.uri || currentItem.image;
+      const mainImgUri = getImageUrl(currentItem.image, imageRefreshKey)?.uri || currentItem.image;
       setItemPhotos(Array(6).fill(mainImgUri));
     } finally {
       setLoadingPhotos(false);
@@ -302,6 +307,9 @@ export default function BiddingScreen() {
     async function loadAuctionAndItems() {
       try {
         setLoading(true);
+        const currentImageRefreshKey = Date.now();
+        setImageRefreshKey(currentImageRefreshKey);
+
         // 1. Fetch subasta details (for time logic)
         const subastaRes = await fetch(`${API_URL}/subastas/${auctionIdStr}?detalle=true`);
         let detailData: any = null;
@@ -325,7 +333,7 @@ export default function BiddingScreen() {
               title: item.nombre || `Lote ${idx + 1}`,
               basePrice: formatPrice(basePriceVal, detailData?.moneda || 'pesos'),
               basePriceNum: basePriceVal,
-              image: item.imagen ? getImageUrl(item.imagen) : require('@/assets/images/rolling_stone_auction.png'),
+              image: item.imagen ? getImageUrl(item.imagen, currentImageRefreshKey) : require('@/assets/images/rolling_stone_auction.png'),
               owner: item.duenioNombre || 'Dueño Desconocido',
               duenioId: item.duenioId,
               details: item.descripcion || 'Sin descripción detallada.',

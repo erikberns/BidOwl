@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator, Modal, TextInput, Alert, useWindowDimensions } from 'react-native';
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs, useNavigation } from 'expo-router';
@@ -15,16 +15,17 @@ import { MOCK_AUCTIONS, MOCK_AUCTION_ITEMS } from '@/constants/mockData';
 import { API_URL } from '@/constants/api';
 import { authHeaders } from '@/services/authSession';
 
-const { width } = Dimensions.get('window');
-
 // Helper to resolve Image URLs
-const getImageUrl = (path: string) => {
+const getImageUrl = (path: string, refreshKey?: number) => {
   if (!path) return null;
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    return { uri: path };
+  const baseUri = path.startsWith('http://') || path.startsWith('https://')
+    ? path
+    : API_URL.replace('/api', '') + path;
+  if (!refreshKey) {
+    return { uri: baseUri };
   }
-  const baseUrl = API_URL.replace('/api', '');
-  return { uri: baseUrl + path };
+  const separator = baseUri.includes('?') ? '&' : '?';
+  return { uri: `${baseUri}${separator}t=${refreshKey}` };
 };
 
 // Helper to format prices
@@ -98,6 +99,7 @@ export default function AuctionDetailScreen() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [subastaPhotos, setSubastaPhotos] = useState<any[]>([]);
   const [headerImageIndex, setHeaderImageIndex] = useState(0);
+  const [imageRefreshKey, setImageRefreshKey] = useState(Date.now());
 
   // Joining and Payment State
   const [hasJoined, setHasJoined] = useState(false);
@@ -240,6 +242,7 @@ export default function AuctionDetailScreen() {
       if (res.ok) {
         const data = await res.json();
         setAuctionDetail(data);
+        setImageRefreshKey(Date.now());
         setError(null);
       } else {
         // Fallback to mock data if not found in backend
@@ -266,6 +269,7 @@ export default function AuctionDetailScreen() {
             descripcion: item.details
           }))
         });
+        setImageRefreshKey(Date.now());
       }
 
       // 4. Fetch subasta photos
@@ -311,6 +315,7 @@ export default function AuctionDetailScreen() {
           descripcion: item.details
         }))
       });
+      setImageRefreshKey(Date.now());
     } finally {
       setLoading(false);
     }
@@ -411,12 +416,12 @@ export default function AuctionDetailScreen() {
   const maxBid = currentLeaderBid + (baseValue * 0.20);
 
   const coverImage = detail.imagenPortada
-    ? getImageUrl(detail.imagenPortada)
+    ? getImageUrl(detail.imagenPortada, imageRefreshKey)
     : require('@/assets/images/rolling_stone_auction.png');
 
   // Setup list of images for the carousel
   const collectionImages = subastaPhotos.length > 0
-    ? subastaPhotos.map((p: string) => getImageUrl(p))
+    ? subastaPhotos.map((p: string) => getImageUrl(p, imageRefreshKey))
     : [coverImage];
 
   // Timer UI state configuration
@@ -563,7 +568,7 @@ export default function AuctionDetailScreen() {
           <View style={styles.itemsList}>
             {previews.slice(0, 3).map((item: any, idx: number) => {
               const itemImageSource = item.imagen
-                ? getImageUrl(item.imagen)
+                ? getImageUrl(item.imagen, imageRefreshKey)
                 : require('@/assets/images/rolling_stone_auction.png');
               return (
                 <View key={item.iditem || idx} style={styles.itemCard}>

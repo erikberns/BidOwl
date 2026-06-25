@@ -1,5 +1,5 @@
-import { Tabs, router } from 'expo-router';
-import { View, Text, TouchableOpacity, StyleSheet, useColorScheme, Image } from 'react-native';
+import { Tabs } from 'expo-router';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +18,7 @@ export default function AppTabs() {
       <Tabs.Screen name="publish" options={{ title: 'Publicar' }} />
       <Tabs.Screen name="inbox" options={{ title: 'Inbox' }} />
       <Tabs.Screen name="profile" options={{ title: 'Perfil' }} />
+      <Tabs.Screen name="inspection-result" options={{ href: null }} />
     </Tabs>
   );
 }
@@ -51,8 +52,8 @@ const TAB_ICONS: Record<string, { active: any; inactive: any }> = {
 };
 
 function CustomTabBar({ state, descriptors, navigation }: any) {
-  const isDark = false;
   const insets = useSafeAreaInsets();
+  const [isGuest, setIsGuest] = React.useState<boolean>(true);
 
   const activeColor = '#051C2C';
   const inactiveColor = '#7A7A7A';
@@ -62,12 +63,6 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
   const activeRoute = state.routes[state.index];
   const activeDescriptor = descriptors[activeRoute?.key];
   const activeOptions = activeDescriptor?.options;
-
-  if (activeOptions?.tabBarStyle?.display === 'none') {
-    return null;
-  }
-
-  const [isGuest, setIsGuest] = React.useState<boolean>(true);
 
   React.useEffect(() => {
     async function loadGuest() {
@@ -82,8 +77,12 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
     loadGuest();
   }, [state.index]);
 
+  if (activeOptions?.tabBarStyle?.display === 'none') {
+    return null;
+  }
+
   // Hide the bottom tab bar completely for all other auction screens (catalog, bidding, history)
-  if (activeRoute && activeRoute.name.startsWith('auction')) {
+  if (activeRoute && (activeRoute.name.startsWith('auction') || activeRoute.name.includes('inspection-result'))) {
     return null;
   }
 
@@ -100,7 +99,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
         const { options } = descriptors[route.key];
         const label = options.title !== undefined ? options.title : route.name;
 
-        if (route.name.startsWith('auction') || ['_layout', '+not-found'].includes(route.name)) {
+        if (options.href === null || route.name.startsWith('auction') || ['_layout', '+not-found'].includes(route.name) || route.name.includes('inspection-result')) {
           return null;
         }
 

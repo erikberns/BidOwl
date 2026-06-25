@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.UUID;
 import java.util.List;
 import jakarta.persistence.EntityManager;
@@ -18,6 +19,8 @@ import jakarta.persistence.PersistenceContext;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
+
+    private static final ZoneId ARGENTINA_ZONE = ZoneId.of("America/Argentina/Buenos_Aires");
 
     private static final String[][] NOMBRES_USUARIOS = {
         {"Ricardo", "Darín"},
@@ -504,7 +507,7 @@ public class DataInitializer implements CommandLineRunner {
 
                     // Crear Producto
                     Producto prod = new Producto();
-                    prod.setFecha(LocalDate.now());
+                    prod.setFecha(fechaArgentina());
                     prod.setDisponible("si"); // Ya aceptado y disponible para subasta
                     prod.setNombre(prodNombre);
                     prod.setDescripcion(prodDesc);
@@ -541,7 +544,7 @@ public class DataInitializer implements CommandLineRunner {
                     propuesta.setComision(comisionVal);
                     propuesta.setMoneda(monedaDolares ? "dolares" : "pesos");
                     propuesta.setUbicacionSubasta("Depósito Principal - BidOwl");
-                    propuesta.setFechaEstimada(LocalDate.now().plusDays(15));
+                    propuesta.setFechaEstimada(fechaArgentina().plusDays(15));
                     propuesta.setEstado("ACEPTADA");
                     propuestaComercialRepository.save(propuesta);
 
@@ -573,7 +576,7 @@ public class DataInitializer implements CommandLineRunner {
                     notif1.setCuerpo("Su solicitud del artículo '" + prodNombre + "' ha sido recibida correctamente y está en proceso de revisión inicial.");
                     notif1.setAccion("show_inspection_request:" + prodGuardado.getIdentificador());
                     notif1.setLeida(true); // Ya fue procesada
-                    notif1.setFecha(java.time.LocalDateTime.now().minusHours(2));
+                    notif1.setFecha(fechaHoraArgentina().minusHours(2));
                     notificacionRepository.save(notif1);
 
                     // 2. Propuesta Comercial Enviada/Revisada
@@ -583,7 +586,7 @@ public class DataInitializer implements CommandLineRunner {
                     notif2.setCuerpo("Su solicitud del artículo '" + prodNombre + "' fue revisada por nuestro equipo y está lista para el siguiente paso de inspección física.");
                     notif2.setAccion("show_inspection_result:" + prodGuardado.getIdentificador());
                     notif2.setLeida(true); // Ya fue procesada
-                    notif2.setFecha(java.time.LocalDateTime.now().minusHours(1));
+                    notif2.setFecha(fechaHoraArgentina().minusHours(1));
                     notificacionRepository.save(notif2);
 
                     // 3. Artículo Aceptado
@@ -593,7 +596,7 @@ public class DataInitializer implements CommandLineRunner {
                     notif3.setCuerpo("Su artículo '" + pdfUrl + "' ha pasado la inspección física.");
                     notif3.setAccion("show_inspection_result:" + prodGuardado.getIdentificador());
                     notif3.setLeida(false); // Esta queda sin leer
-                    notif3.setFecha(java.time.LocalDateTime.now());
+                    notif3.setFecha(fechaHoraArgentina());
                     notificacionRepository.save(notif3);
                 }
             }
@@ -695,8 +698,8 @@ public class DataInitializer implements CommandLineRunner {
                 "Buenos Aires",
                 "La Boca, CABA",
                 "pesos",
-                LocalDate.now(),
-                LocalTime.now().minusMinutes(5),
+                fechaArgentina(),
+                horaArgentina().minusMinutes(5),
                 "abierta",
                 subastador,
                 responsable,
@@ -709,8 +712,8 @@ public class DataInitializer implements CommandLineRunner {
                 "Buenos Aires",
                 "Recoleta, CABA",
                 "dolares",
-                LocalDate.now(),
-                LocalTime.now().minusMinutes(3),
+                fechaArgentina(),
+                horaArgentina().minusMinutes(3),
                 "abierta",
                 subastador,
                 responsable,
@@ -723,7 +726,7 @@ public class DataInitializer implements CommandLineRunner {
                 "Buenos Aires",
                 "Palermo, CABA",
                 "pesos",
-                LocalDate.now().plusDays(1),
+                fechaArgentina().plusDays(1),
                 LocalTime.of(19, 0),
                 "carrada",
                 subastador,
@@ -783,8 +786,8 @@ public class DataInitializer implements CommandLineRunner {
                 "Buenos Aires",
                 "La Boca, CABA",
                 "pesos",
-                LocalDate.now(),
-                LocalTime.now().minusMinutes(5),
+                fechaArgentina(),
+                horaArgentina().minusMinutes(5),
                 "abierta",
                 subastador,
                 responsable,
@@ -797,8 +800,8 @@ public class DataInitializer implements CommandLineRunner {
                 "Buenos Aires",
                 "Recoleta, CABA",
                 "dolares",
-                LocalDate.now(),
-                LocalTime.now().minusMinutes(3),
+                fechaArgentina(),
+                horaArgentina().minusMinutes(3),
                 "abierta",
                 subastador,
                 responsable,
@@ -811,7 +814,7 @@ public class DataInitializer implements CommandLineRunner {
                 "Buenos Aires",
                 "Palermo, CABA",
                 "pesos",
-                LocalDate.now().plusDays(1),
+                fechaArgentina().plusDays(1),
                 LocalTime.of(19, 0),
                 "carrada",
                 subastador,
@@ -868,7 +871,7 @@ public class DataInitializer implements CommandLineRunner {
             catalogoFotoRepository.save(foto);
         }
 
-        LocalDateTime finPrimerItem = LocalDateTime.now().plusMinutes(10);
+        LocalDateTime finPrimerItem = fechaHoraArgentina().plusMinutes(10);
         for (int index = 0; index < propuestas.size(); index++) {
             PropuestaSeed propuesta = propuestas.get(index);
             ItemCatalogo item = new ItemCatalogo();
@@ -888,6 +891,18 @@ public class DataInitializer implements CommandLineRunner {
         Integer productoId = propuesta.getProducto() != null ? propuesta.getProducto().getIdentificador() : null;
         Producto producto = productoId != null ? productoRepository.findById(productoId).orElse(null) : null;
         return new PropuestaSeed(producto, propuesta.getValorBase(), propuesta.getComision(), propuesta.getMoneda());
+    }
+
+    private LocalDate fechaArgentina() {
+        return LocalDate.now(ARGENTINA_ZONE);
+    }
+
+    private LocalTime horaArgentina() {
+        return LocalTime.now(ARGENTINA_ZONE);
+    }
+
+    private LocalDateTime fechaHoraArgentina() {
+        return LocalDateTime.now(ARGENTINA_ZONE);
     }
 
     private record PropuestaSeed(Producto producto, BigDecimal valorBase, BigDecimal comision, String moneda) {

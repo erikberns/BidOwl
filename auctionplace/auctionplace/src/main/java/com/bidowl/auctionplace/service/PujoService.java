@@ -19,11 +19,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
 @Service
 public class PujoService {
+
+    private static final ZoneId ARGENTINA_ZONE = ZoneId.of("America/Argentina/Buenos_Aires");
 
     @Autowired
     private PujoRepository pujoRepository;
@@ -118,7 +121,7 @@ public class PujoService {
         validarMontoPermitido(itemCatalogo, monto);
 
         Asistente asistente = getOrCreateAsistente(cliente, subasta);
-        itemCatalogo.setFechaFinPuja(LocalDateTime.now().plusMinutes(1));
+        itemCatalogo.setFechaFinPuja(fechaHoraArgentina().plusMinutes(1));
         itemCatalogoRepository.save(itemCatalogo);
 
         Pujo puja = new Pujo();
@@ -126,7 +129,7 @@ public class PujoService {
         puja.setItem(itemCatalogo);
         puja.setImporte(monto);
         puja.setGanador("no");
-        puja.setFechaHora(LocalDateTime.now());
+        puja.setFechaHora(fechaHoraArgentina());
         puja.setMetodoPago(metodoPago);
 
         Pujo pujaGuardada = pujoRepository.save(puja);
@@ -215,7 +218,7 @@ public class PujoService {
     }
 
     private void validarItemNoFinalizado(ItemCatalogo itemCatalogo, Integer idSubasta, Integer iditem) {
-        if (itemCatalogo.getFechaFinPuja() != null && LocalDateTime.now().isAfter(itemCatalogo.getFechaFinPuja())) {
+        if (itemCatalogo.getFechaFinPuja() != null && fechaHoraArgentina().isAfter(itemCatalogo.getFechaFinPuja())) {
             try {
                 itemCatalogoService.finalizarSubastaDeItem(iditem);
             } catch (Exception e) {
@@ -310,5 +313,9 @@ public class PujoService {
             intentos++;
         } while (numerosUsados.contains(numeroPostor) && intentos < 1000);
         return numeroPostor;
+    }
+
+    private LocalDateTime fechaHoraArgentina() {
+        return LocalDateTime.now(ARGENTINA_ZONE);
     }
 }

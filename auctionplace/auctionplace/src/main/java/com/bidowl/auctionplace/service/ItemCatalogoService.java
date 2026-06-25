@@ -5,6 +5,8 @@ import com.bidowl.auctionplace.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 /**
@@ -14,6 +16,8 @@ import java.util.Optional;
  */
 @Service
 public class ItemCatalogoService {
+
+    private static final ZoneId ARGENTINA_ZONE = ZoneId.of("America/Argentina/Buenos_Aires");
 
     @Autowired
     private ItemCatalogoRepository itemCatalogoRepository;
@@ -155,7 +159,7 @@ public class ItemCatalogoService {
             notificacion.setCuerpo("Has ganado la subasta para '" + item.getProducto().getNombre() + "'. Te entregaremos la factura correspondiente para formalizar la operación. A continuación, podrás confirmar la modalidad de entrega.");
             notificacion.setAccion("show_bid_won:" + item.getIdentificador());
             notificacion.setLeida(false);
-            notificacion.setFecha(java.time.LocalDateTime.now());
+            notificacion.setFecha(fechaHoraArgentina());
             notificacionService.guardarSiNoExiste(notificacion);
         } else {
             // Regla TPO: Si nadie puja por un artículo, la empresa compra el mismo por el valor base al finalizar
@@ -214,13 +218,17 @@ public class ItemCatalogoService {
                         .findFirst();
                 if (siguienteItemOpt.isPresent()) {
                     ItemCatalogo siguienteItem = siguienteItemOpt.get();
-                    siguienteItem.setFechaFinPuja(java.time.LocalDateTime.now().plusMinutes(10));
+                    siguienteItem.setFechaFinPuja(fechaHoraArgentina().plusMinutes(10));
                     itemCatalogoRepository.save(siguienteItem);
                 }
             }
         }
 
         return guardado;
+    }
+
+    private LocalDateTime fechaHoraArgentina() {
+        return LocalDateTime.now(ARGENTINA_ZONE);
     }
 
 }

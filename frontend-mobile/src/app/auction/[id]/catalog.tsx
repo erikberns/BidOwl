@@ -10,13 +10,16 @@ import { API_URL } from '@/constants/api';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 
 // Helper to resolve Image URLs
-const getImageUrl = (path: string) => {
+const getImageUrl = (path: string, refreshKey?: number) => {
   if (!path) return null;
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    return { uri: path };
+  const baseUri = path.startsWith('http://') || path.startsWith('https://')
+    ? path
+    : API_URL.replace('/api', '') + path;
+  if (!refreshKey) {
+    return { uri: baseUri };
   }
-  const baseUrl = API_URL.replace('/api', '');
-  return { uri: baseUrl + path };
+  const separator = baseUri.includes('?') ? '&' : '?';
+  return { uri: `${baseUri}${separator}t=${refreshKey}` };
 };
 
 // Helper to format prices
@@ -38,6 +41,7 @@ export default function CatalogScreen() {
   const auctionIdStr = Array.isArray(id) ? id[0] : id || '1';
   const [items, setItems] = useState<any[]>([]);
   const [isGuest, setIsGuest] = useState<boolean | null>(null);
+  const [imageRefreshKey, setImageRefreshKey] = useState(Date.now());
 
   useEffect(() => {
     async function loadGuestStatus() {
@@ -59,6 +63,7 @@ export default function CatalogScreen() {
         if (res.ok) {
           const data = await res.json();
           setItems(data);
+          setImageRefreshKey(Date.now());
         }
       } catch (e) {
         console.error('[CatalogScreen] Error fetching catalog:', e);
@@ -106,7 +111,7 @@ export default function CatalogScreen() {
         <View style={styles.itemsList}>
           {mockItems.map((item) => {
             const itemImageSource = item.imagen
-              ? getImageUrl(item.imagen)
+              ? getImageUrl(item.imagen, imageRefreshKey)
               : require('@/assets/images/rolling_stone_auction.png');
             return (
               <View key={item.id} style={styles.itemCard}>

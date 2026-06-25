@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -22,6 +23,8 @@ import java.util.UUID;
  */
 @Service
 public class SubastaService {
+
+    private static final ZoneId ARGENTINA_ZONE = ZoneId.of("America/Argentina/Buenos_Aires");
 
     @Autowired
     private SubastaRepository subastaRepository;
@@ -172,7 +175,8 @@ public class SubastaService {
         boolean esActivo = primerItemActivo != null && primerItemActivo.getIdentificador().equals(itemCatalogo.getIdentificador());
 
         if (itemCatalogo.getFechaFinPuja() != null && (pujaLider.isPresent() || esActivo)) {
-            boolean expiro = LocalDateTime.now().isAfter(itemCatalogo.getFechaFinPuja());
+            LocalDateTime ahora = fechaHoraArgentina();
+            boolean expiro = ahora.isAfter(itemCatalogo.getFechaFinPuja());
             if (expiro && !"si".equalsIgnoreCase(itemCatalogo.getSubastado())) {
                 try {
                     itemCatalogoService.finalizarSubastaDeItem(iditem);
@@ -187,7 +191,7 @@ public class SubastaService {
                     }
                 }
             }
-            long segundos = Duration.between(LocalDateTime.now(), itemCatalogo.getFechaFinPuja()).getSeconds();
+            long segundos = Duration.between(ahora, itemCatalogo.getFechaFinPuja()).getSeconds();
             if (segundos < 0) segundos = 0L;
             estado.setSegundosRestantes(segundos);
             estado.setFinalizado(expiro || "si".equalsIgnoreCase(itemCatalogo.getSubastado()));
@@ -711,6 +715,10 @@ public class SubastaService {
             }
         }
         return subasta;
+    }
+
+    private LocalDateTime fechaHoraArgentina() {
+        return LocalDateTime.now(ARGENTINA_ZONE);
     }
 }
 

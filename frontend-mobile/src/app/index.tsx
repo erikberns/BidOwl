@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
 
 import { AuctionCard } from '@/components/auction/AuctionCard';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { MOCK_AUCTIONS } from '@/constants/mockData';
 import { API_URL } from '@/constants/api';
 
@@ -50,12 +50,23 @@ function parseAuctionDateTime(dateStr: string, timeStr: string): Date {
   return new Date();
 }
 
+const buildAuctionImageSource = (path: string | undefined, refreshKey: number) => {
+  if (!path) {
+    return require('@/assets/images/rolling_stone_auction.png');
+  }
+  const baseUri = path.startsWith('http://') || path.startsWith('https://')
+    ? path
+    : API_URL.replace('/api', '') + path;
+  const separator = baseUri.includes('?') ? '&' : '?';
+  return { uri: `${baseUri}${separator}t=${refreshKey}` };
+};
+
 export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = React.useState('');
   const isFocused = useIsFocused();
-  const [isGuest, setIsGuest] = React.useState(true);
   const [username, setUsername] = React.useState('Invitado');
   const [auctions, setAuctions] = React.useState<any[]>([]);
+  const [imageRefreshKey, setImageRefreshKey] = React.useState(Date.now());
 
   React.useEffect(() => {
     if (isFocused) {
@@ -64,15 +75,12 @@ export default function HomeScreen() {
           const isGuestStr = await AsyncStorage.getItem('isGuest');
           const userStr = await AsyncStorage.getItem('user');
           if (isGuestStr === 'true' || !userStr) {
-            setIsGuest(true);
             setUsername('Invitado');
           } else {
-            setIsGuest(false);
             const user = JSON.parse(userStr);
             setUsername(user.nombre || 'Usuario');
           }
         } catch (e) {
-          setIsGuest(true);
           setUsername('Invitado');
         }
       }
@@ -88,12 +96,15 @@ export default function HomeScreen() {
           if (res.ok) {
             const data = await res.json();
             setAuctions(data);
+            setImageRefreshKey(Date.now());
           } else {
             setAuctions(MOCK_AUCTIONS);
+            setImageRefreshKey(Date.now());
           }
         } catch (e) {
           console.error('[HomeScreen] Error loading auctions:', e);
           setAuctions(MOCK_AUCTIONS);
+          setImageRefreshKey(Date.now());
         }
       }
       loadAuctions();
@@ -196,9 +207,7 @@ export default function HomeScreen() {
               contentContainerStyle={styles.horizontalScrollContent}
             >
               {activeAuctions.map(item => {
-                const imageSource = item.imagenPortada
-                  ? { uri: API_URL.replace('/api', '') + item.imagenPortada }
-                  : require('@/assets/images/rolling_stone_auction.png');
+                const imageSource = buildAuctionImageSource(item.imagenPortada, imageRefreshKey);
                 return (
                   <AuctionCard
                     key={`active-${item.id}`}
@@ -227,9 +236,7 @@ export default function HomeScreen() {
               contentContainerStyle={styles.horizontalScrollContent}
             >
               {upcomingAuctions.map(item => {
-                const imageSource = item.imagenPortada
-                  ? { uri: API_URL.replace('/api', '') + item.imagenPortada }
-                  : require('@/assets/images/rolling_stone_auction.png');
+                const imageSource = buildAuctionImageSource(item.imagenPortada, imageRefreshKey);
                 return (
                   <AuctionCard
                     key={`upcoming-${item.id}`}

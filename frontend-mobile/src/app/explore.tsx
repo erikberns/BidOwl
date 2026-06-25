@@ -6,7 +6,7 @@ import { router, Stack, Tabs } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
 
 import { AuctionCard } from '@/components/auction/AuctionCard';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { MOCK_AUCTIONS } from '@/constants/mockData';
 import { API_URL } from '@/constants/api';
 
@@ -59,10 +59,22 @@ function normalizeCategory(value: string) {
     .replace(/\p{Diacritic}/gu, '');
 }
 
+const buildAuctionImageSource = (path: string | undefined, refreshKey: number) => {
+  if (!path) {
+    return require('@/assets/images/rolling_stone_auction.png');
+  }
+  const baseUri = path.startsWith('http://') || path.startsWith('https://')
+    ? path
+    : API_URL.replace('/api', '') + path;
+  const separator = baseUri.includes('?') ? '&' : '?';
+  return { uri: `${baseUri}${separator}t=${refreshKey}` };
+};
+
 export default function ExploreScreen() {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [selectedCategory, setSelectedCategory] = React.useState('COMUN');
   const [auctions, setAuctions] = React.useState<any[]>([]);
+  const [imageRefreshKey, setImageRefreshKey] = React.useState(Date.now());
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const isFocused = useIsFocused();
@@ -79,14 +91,17 @@ export default function ExploreScreen() {
           if (res.ok) {
             const data = await res.json();
             setAuctions(data);
+            setImageRefreshKey(Date.now());
           } else {
             setError('No se pudieron cargar las subastas.');
             setAuctions(MOCK_AUCTIONS);
+            setImageRefreshKey(Date.now());
           }
         } catch (e) {
           console.error('[ExploreScreen] Error loading auctions:', e);
           setError('No se pudo conectar con el servidor.');
           setAuctions(MOCK_AUCTIONS);
+          setImageRefreshKey(Date.now());
         } finally {
           setLoading(false);
         }
@@ -207,9 +222,7 @@ export default function ExploreScreen() {
           <View style={styles.section}>
             <View style={styles.verticalList}>
               {filteredAuctions.map(item => {
-                const imageSource = item.imagenPortada
-                  ? { uri: API_URL.replace('/api', '') + item.imagenPortada }
-                  : require('@/assets/images/rolling_stone_auction.png');
+                const imageSource = buildAuctionImageSource(item.imagenPortada, imageRefreshKey);
 
                 return (
                   <AuctionCard
