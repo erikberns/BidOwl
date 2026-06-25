@@ -40,6 +40,13 @@ export const DeliveryModals: React.FC<DeliveryModalsProps> = ({
   alreadyConfirmed = false,
 }) => {
   const isVisible = showBidWon || showDeliverySelection || showWonInvoice || showDeliverySuccess;
+  const wonItemImageSource = wonItemDetails?.image
+    ? {
+      uri: wonItemDetails.image.startsWith('http')
+        ? wonItemDetails.image
+        : API_URL.replace('/api', '') + wonItemDetails.image
+    }
+    : require('@/assets/images/rolling_stone_auction.png');
 
   const handleBack = () => {
     if (showBidWon) {
@@ -144,8 +151,8 @@ export const DeliveryModals: React.FC<DeliveryModalsProps> = ({
               
               <View style={[styles.offerCard, { flexDirection: 'row', alignItems: 'center', padding: 16, marginHorizontal: 20 }]}>
                 <Image 
-                  source={require('@/assets/images/rolling_stone_auction.png')} 
-                  style={{ width: 80, height: 120, resizeMode: 'contain', marginRight: 16 }} 
+                  source={wonItemImageSource}
+                  style={{ width: 80, height: 120, resizeMode: 'cover', marginRight: 16, borderRadius: 8 }}
                 />
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 14, color: '#8A8A8A', marginBottom: 4 }}>

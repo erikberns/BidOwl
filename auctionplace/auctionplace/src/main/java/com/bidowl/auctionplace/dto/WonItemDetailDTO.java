@@ -8,6 +8,7 @@ public class WonItemDetailDTO {
     private Integer itemId;
     private String subastaTitle;
     private String itemTitle;
+    private String image;
     private Integer loteIndex;
     private Integer totalLotes;
     private BigDecimal importe;

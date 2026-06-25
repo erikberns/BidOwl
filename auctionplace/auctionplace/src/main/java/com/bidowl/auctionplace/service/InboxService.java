@@ -237,6 +237,7 @@ public class InboxService {
         dto.setItemId(itemId);
         dto.setSubastaTitle(subastaTitle);
         dto.setItemTitle(item.getProducto().getNombre());
+        dto.setImage(item.getProducto() != null ? "/api/productos/" + item.getProducto().getIdentificador() + "/foto" : null);
         dto.setLoteIndex(loteIndex);
         dto.setTotalLotes(totalLotes);
         dto.setImporte(importe);
