@@ -14,6 +14,8 @@ import { ImageCarouselModal } from '@/components/auction/ImageCarouselModal';
 import { authHeaders } from '@/services/authSession';
 import { AuctionRealtimeEvent, connectAuctionRealtime } from '@/services/auctionRealtime';
 
+const IMAGE_CACHE_KEY = Date.now();
+
 // Helper to resolve Image URLs
 const getImageUrl = (path: any, refreshKey?: number) => {
   if (!path) return null;
@@ -48,7 +50,11 @@ const auctionPaymentStorageKey = (auctionId: string) => `auctionPaymentMethod:${
 
 const parseBidDateMs = (value: any): number | null => {
   if (!value) return null;
-  const date = new Date(value);
+  const text = String(value).trim().replace(' ', 'T');
+  const argentinaTime = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(text) && !/(Z|[+-]\d{2}:\d{2})$/.test(text)
+    ? `${text}-03:00`
+    : text;
+  const date = new Date(argentinaTime);
   const ms = date.getTime();
   return Number.isNaN(ms) ? null : ms;
 };
@@ -210,7 +216,6 @@ export default function BiddingScreen() {
   const [photoIndex, setPhotoIndex] = useState(0);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [currentPhotosCount, setCurrentPhotosCount] = useState<number>(1);
-  const [imageRefreshKey, setImageRefreshKey] = useState(Date.now());
 
   const currentItem = items[currentIndex] || {
     id: '',
@@ -241,20 +246,20 @@ export default function BiddingScreen() {
         if (urls && urls.length > 0) {
           setItemPhotos(urls.map((u: string) => {
             const baseUrl = API_URL.replace('/api', '');
-            return `${baseUrl}${u}?t=${imageRefreshKey}`;
+            return `${baseUrl}${u}?t=${IMAGE_CACHE_KEY}`;
           }));
         } else {
           // Fallback to 6 of the same main photo
-          const mainImgUri = getImageUrl(currentItem.image, imageRefreshKey)?.uri || currentItem.image;
+          const mainImgUri = getImageUrl(currentItem.image, IMAGE_CACHE_KEY)?.uri || currentItem.image;
           setItemPhotos(Array(6).fill(mainImgUri));
         }
       } else {
-        const mainImgUri = getImageUrl(currentItem.image, imageRefreshKey)?.uri || currentItem.image;
+        const mainImgUri = getImageUrl(currentItem.image, IMAGE_CACHE_KEY)?.uri || currentItem.image;
         setItemPhotos(Array(6).fill(mainImgUri));
       }
     } catch (e) {
       console.error('[BiddingScreen] Error loading item photos:', e);
-      const mainImgUri = getImageUrl(currentItem.image, imageRefreshKey)?.uri || currentItem.image;
+      const mainImgUri = getImageUrl(currentItem.image, IMAGE_CACHE_KEY)?.uri || currentItem.image;
       setItemPhotos(Array(6).fill(mainImgUri));
     } finally {
       setLoadingPhotos(false);
@@ -307,9 +312,6 @@ export default function BiddingScreen() {
     async function loadAuctionAndItems() {
       try {
         setLoading(true);
-        const currentImageRefreshKey = Date.now();
-        setImageRefreshKey(currentImageRefreshKey);
-
         // 1. Fetch subasta details (for time logic)
         const subastaRes = await fetch(`${API_URL}/subastas/${auctionIdStr}?detalle=true`);
         let detailData: any = null;
@@ -333,7 +335,7 @@ export default function BiddingScreen() {
               title: item.nombre || `Lote ${idx + 1}`,
               basePrice: formatPrice(basePriceVal, detailData?.moneda || 'pesos'),
               basePriceNum: basePriceVal,
-              image: item.imagen ? getImageUrl(item.imagen, currentImageRefreshKey) : require('@/assets/images/rolling_stone_auction.png'),
+              image: item.imagen ? getImageUrl(item.imagen, IMAGE_CACHE_KEY) : require('@/assets/images/rolling_stone_auction.png'),
               owner: item.duenioNombre || 'Dueño Desconocido',
               duenioId: item.duenioId,
               details: item.descripcion || 'Sin descripción detallada.',
@@ -552,6 +554,14 @@ export default function BiddingScreen() {
       realtimeRef.current = null;
     };
   }, [auctionIdStr, currentIndex, currentItem?.id, isFocused, auctionCurrency]);
+
+  useEffect(() => {
+    if (!isFocused || !currentItem?.id || isBiddingFinished) return;
+    const timer = setInterval(() => {
+      fetchBidsForItem(currentItem.id, currentIndex);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [currentIndex, currentItem?.id, isFocused, isBiddingFinished, auctionCurrency]);
 
   // Local Lote Countdown Timer Effect
   useEffect(() => {

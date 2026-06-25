@@ -10,6 +10,8 @@ import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { MOCK_AUCTIONS } from '@/constants/mockData';
 import { API_URL } from '@/constants/api';
 
+const IMAGE_CACHE_KEY = Date.now();
+
 const CATEGORIES = ['COMUN', 'ESPECIAL', 'PLATA', 'ORO', 'PLATINO'];
 
 function parseAuctionDateTime(dateStr: string, timeStr: string): Date {
@@ -74,7 +76,6 @@ export default function ExploreScreen() {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [selectedCategory, setSelectedCategory] = React.useState('COMUN');
   const [auctions, setAuctions] = React.useState<any[]>([]);
-  const [imageRefreshKey, setImageRefreshKey] = React.useState(Date.now());
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const isFocused = useIsFocused();
@@ -91,17 +92,14 @@ export default function ExploreScreen() {
           if (res.ok) {
             const data = await res.json();
             setAuctions(data);
-            setImageRefreshKey(Date.now());
           } else {
             setError('No se pudieron cargar las subastas.');
             setAuctions(MOCK_AUCTIONS);
-            setImageRefreshKey(Date.now());
           }
         } catch (e) {
           console.error('[ExploreScreen] Error loading auctions:', e);
           setError('No se pudo conectar con el servidor.');
           setAuctions(MOCK_AUCTIONS);
-          setImageRefreshKey(Date.now());
         } finally {
           setLoading(false);
         }
@@ -222,7 +220,7 @@ export default function ExploreScreen() {
           <View style={styles.section}>
             <View style={styles.verticalList}>
               {filteredAuctions.map(item => {
-                const imageSource = buildAuctionImageSource(item.imagenPortada, imageRefreshKey);
+                const imageSource = buildAuctionImageSource(item.imagenPortada, IMAGE_CACHE_KEY);
 
                 return (
                   <AuctionCard

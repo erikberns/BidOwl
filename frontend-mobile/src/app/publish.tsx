@@ -11,6 +11,7 @@ import {
   View,
   Text,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack, Tabs } from 'expo-router';
@@ -59,7 +60,7 @@ export default function PublishScreen() {
   const [isArtpiece, setIsArtpiece] = useState(false);
   const [isBelonging, setIsBelonging] = useState(false);
   const [images, setImages] = useState<string[]>([]);
-  const [isGuest, setIsGuest] = useState(true);
+  const [isGuest, setIsGuest] = useState<boolean | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
@@ -111,11 +112,12 @@ export default function PublishScreen() {
 
   useEffect(() => {
     if (isFocused) {
+      setIsGuest(null);
       async function loadGuestStatus() {
         try {
           const isGuestStr = await AsyncStorage.getItem('isGuest');
           const userStr = await AsyncStorage.getItem('user');
-          setIsGuest(isGuestStr === 'true' || !userStr);
+          setIsGuest((isGuestStr === 'true' || isGuestStr === null) && !userStr);
         } catch {
           setIsGuest(true);
         }
@@ -331,6 +333,29 @@ export default function PublishScreen() {
           >
             <Text style={styles.successButtonText}>Entendido</Text>
           </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (isGuest === null) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <Tabs.Screen options={{ headerShown: false }} />
+        <View style={styles.headerBar}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <Image
+              source={require('../../assets/images/Chevron-Left.png')}
+              style={styles.backButtonImage}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Solicitar Subasta de Articulo</Text>
+          <View style={styles.backButtonPlaceholder} />
+        </View>
+        <View style={styles.successContainer}>
+          <ActivityIndicator size="large" color="#051C2C" />
         </View>
       </SafeAreaView>
     );

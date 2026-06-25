@@ -15,6 +15,8 @@ import { MOCK_AUCTIONS, MOCK_AUCTION_ITEMS } from '@/constants/mockData';
 import { API_URL } from '@/constants/api';
 import { authHeaders } from '@/services/authSession';
 
+const IMAGE_CACHE_KEY = Date.now();
+
 // Helper to resolve Image URLs
 const getImageUrl = (path: string, refreshKey?: number) => {
   if (!path) return null;
@@ -99,7 +101,6 @@ export default function AuctionDetailScreen() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [subastaPhotos, setSubastaPhotos] = useState<any[]>([]);
   const [headerImageIndex, setHeaderImageIndex] = useState(0);
-  const [imageRefreshKey, setImageRefreshKey] = useState(Date.now());
 
   // Joining and Payment State
   const [hasJoined, setHasJoined] = useState(false);
@@ -242,7 +243,6 @@ export default function AuctionDetailScreen() {
       if (res.ok) {
         const data = await res.json();
         setAuctionDetail(data);
-        setImageRefreshKey(Date.now());
         setError(null);
       } else {
         // Fallback to mock data if not found in backend
@@ -269,7 +269,6 @@ export default function AuctionDetailScreen() {
             descripcion: item.details
           }))
         });
-        setImageRefreshKey(Date.now());
       }
 
       // 4. Fetch subasta photos
@@ -315,7 +314,6 @@ export default function AuctionDetailScreen() {
           descripcion: item.details
         }))
       });
-      setImageRefreshKey(Date.now());
     } finally {
       setLoading(false);
     }
@@ -416,12 +414,12 @@ export default function AuctionDetailScreen() {
   const maxBid = currentLeaderBid + (baseValue * 0.20);
 
   const coverImage = detail.imagenPortada
-    ? getImageUrl(detail.imagenPortada, imageRefreshKey)
+    ? getImageUrl(detail.imagenPortada, IMAGE_CACHE_KEY)
     : require('@/assets/images/rolling_stone_auction.png');
 
   // Setup list of images for the carousel
   const collectionImages = subastaPhotos.length > 0
-    ? subastaPhotos.map((p: string) => getImageUrl(p, imageRefreshKey))
+    ? subastaPhotos.map((p: string) => getImageUrl(p, IMAGE_CACHE_KEY))
     : [coverImage];
 
   // Timer UI state configuration
@@ -568,7 +566,7 @@ export default function AuctionDetailScreen() {
           <View style={styles.itemsList}>
             {previews.slice(0, 3).map((item: any, idx: number) => {
               const itemImageSource = item.imagen
-                ? getImageUrl(item.imagen, imageRefreshKey)
+                ? getImageUrl(item.imagen, IMAGE_CACHE_KEY)
                 : require('@/assets/images/rolling_stone_auction.png');
               return (
                 <View key={item.iditem || idx} style={styles.itemCard}>

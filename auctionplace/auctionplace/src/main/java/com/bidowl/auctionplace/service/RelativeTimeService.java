@@ -2,18 +2,21 @@ package com.bidowl.auctionplace.service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 import org.springframework.stereotype.Service;
 
 @Service
 public class RelativeTimeService {
 
+    private static final ZoneId ARGENTINA_ZONE = ZoneId.of("America/Argentina/Buenos_Aires");
+
     public String describe(LocalDateTime dateTime) {
         if (dateTime == null) {
             return "N/A";
         }
 
-        Duration duration = Duration.between(dateTime, LocalDateTime.now());
+        Duration duration = Duration.between(dateTime, LocalDateTime.now(ARGENTINA_ZONE));
         long seconds = duration.getSeconds();
         if (seconds < 0) {
             return "hace unos segundos";

@@ -9,6 +9,8 @@ import { API_URL } from '@/constants/api';
 
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 
+const IMAGE_CACHE_KEY = Date.now();
+
 // Helper to resolve Image URLs
 const getImageUrl = (path: string, refreshKey?: number) => {
   if (!path) return null;
@@ -41,7 +43,6 @@ export default function CatalogScreen() {
   const auctionIdStr = Array.isArray(id) ? id[0] : id || '1';
   const [items, setItems] = useState<any[]>([]);
   const [isGuest, setIsGuest] = useState<boolean | null>(null);
-  const [imageRefreshKey, setImageRefreshKey] = useState(Date.now());
 
   useEffect(() => {
     async function loadGuestStatus() {
@@ -63,7 +64,6 @@ export default function CatalogScreen() {
         if (res.ok) {
           const data = await res.json();
           setItems(data);
-          setImageRefreshKey(Date.now());
         }
       } catch (e) {
         console.error('[CatalogScreen] Error fetching catalog:', e);
@@ -111,7 +111,7 @@ export default function CatalogScreen() {
         <View style={styles.itemsList}>
           {mockItems.map((item) => {
             const itemImageSource = item.imagen
-              ? getImageUrl(item.imagen, imageRefreshKey)
+              ? getImageUrl(item.imagen, IMAGE_CACHE_KEY)
               : require('@/assets/images/rolling_stone_auction.png');
             return (
               <View key={item.id} style={styles.itemCard}>

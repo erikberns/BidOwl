@@ -622,10 +622,7 @@ public class SubastaService {
                 ItemCatalogo item = items.get(i);
                 if (item.getFechaFinPuja() == null) {
                     if (i == 0) {
-                        java.time.LocalDateTime inicioArgentina = java.time.LocalDateTime.of(dateFecha, timeHora);
-                        java.time.ZonedDateTime zonedDateTime = inicioArgentina.atZone(java.time.ZoneId.of("America/Argentina/Buenos_Aires"));
-                        java.time.LocalDateTime inicioSystemDefault = zonedDateTime.withZoneSameInstant(java.time.ZoneId.systemDefault()).toLocalDateTime();
-                        item.setFechaFinPuja(inicioSystemDefault.plusMinutes(10));
+                        item.setFechaFinPuja(java.time.LocalDateTime.of(dateFecha, timeHora).plusMinutes(10));
                     } else {
                         item.setFechaFinPuja(null);
                     }

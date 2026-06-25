@@ -59,6 +59,7 @@ export function connectAuctionRealtime(
   let ws: WebSocket | null = new WebSocket(WS_URL);
   let connected = false;
   let subscriptionId = `subasta-${subastaId}-item-${itemId}`;
+  let auctionSubscriptionId = `subasta-${subastaId}`;
 
   const send = (frame: string) => {
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -77,6 +78,11 @@ export function connectAuctionRealtime(
     parseFrames(String(message.data)).forEach(frame => {
       if (frame.command === 'CONNECTED') {
         connected = true;
+        send(encodeFrame('SUBSCRIBE', {
+          id: auctionSubscriptionId,
+          destination: `/topic/subasta/${subastaId}`,
+          ack: 'auto',
+        }));
         send(encodeFrame('SUBSCRIBE', {
           id: subscriptionId,
           destination: `/topic/subasta/${subastaId}/items/${itemId}`,
@@ -106,6 +112,7 @@ export function connectAuctionRealtime(
   const disconnect = () => {
     if (!ws) return;
     if (connected && ws.readyState === WebSocket.OPEN) {
+      send(encodeFrame('UNSUBSCRIBE', { id: auctionSubscriptionId }));
       send(encodeFrame('UNSUBSCRIBE', { id: subscriptionId }));
       send(encodeFrame('DISCONNECT', { receipt: `bye-${Date.now()}` }));
     }

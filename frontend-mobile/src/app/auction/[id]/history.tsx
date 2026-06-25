@@ -27,7 +27,11 @@ const formatPrice = (value: number | string) => {
 
 const parseBidDateMs = (value: any): number | null => {
   if (!value) return null;
-  const date = new Date(value);
+  const text = String(value).trim().replace(' ', 'T');
+  const argentinaTime = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(text) && !/(Z|[+-]\d{2}:\d{2})$/.test(text)
+    ? `${text}-03:00`
+    : text;
+  const date = new Date(argentinaTime);
   const ms = date.getTime();
   return Number.isNaN(ms) ? null : ms;
 };

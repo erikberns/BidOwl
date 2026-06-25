@@ -44,6 +44,24 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
   const [auctionCategory, setAuctionCategory] = useState<string>('COMUN');
   const [userCategory, setUserCategory] = useState<string>('COMUN');
   const [auctionCurrency, setAuctionCurrency] = useState<string>('pesos');
+  const [errorModalVisible, setErrorModalVisible] = useState(false);
+  const [errorModalTitle, setErrorModalTitle] = useState('No se pudo entrar');
+  const [errorModalMessage, setErrorModalMessage] = useState('');
+
+  const showErrorModal = (title: string, message: string) => {
+    setErrorModalTitle(title);
+    setErrorModalMessage(message);
+    setErrorModalVisible(true);
+  };
+
+  const normalizeJoinError = (message?: string) => {
+    if (!message) return 'No se pudo unir a la subasta.';
+    const normalized = message.toLowerCase();
+    if (normalized.includes('deuda') || normalized.includes('multa') || normalized.includes('suspendida')) {
+      return 'Tenes una multa o deuda pendiente. Debes pagarla desde tu perfil antes de poder participar en otra subasta.';
+    }
+    return message;
+  };
 
   const getIconName = (type: string) => {
     switch (type) {
@@ -240,7 +258,7 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
     }
   };
 
-  const handleJoinPress = () => {
+  const handleJoinPressLegacy = () => {
     if (isGuest) {
       Alert.alert(
         'Acceso requerido',
@@ -251,6 +269,31 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
         ]
       );
       return;
+    }
+
+    setIsModalVisible(true);
+  };
+  void handleJoinPressLegacy;
+
+  const handleJoinPress = async () => {
+    if (isGuest) {
+      showErrorModal('Acceso requerido', 'Debes iniciar sesion para entrar a la subasta.');
+      return;
+    }
+
+    try {
+      const elegRes = await fetch(`${API_URL}/subastas/${auctionId}/elegibilidad?_=${Date.now()}`, {
+        headers: await authHeaders()
+      });
+      if (elegRes.ok) {
+        const elegibilidad = await elegRes.json();
+        if (elegibilidad && elegibilidad.puedeUnirse === false) {
+          showErrorModal('Participacion suspendida', normalizeJoinError(elegibilidad.motivoRechazo));
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('[JoinAuctionBar] No se pudo verificar elegibilidad antes de entrar:', e);
     }
 
     setIsModalVisible(true);
@@ -431,9 +474,9 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
                       router.push(`/auction/${auctionId}/bidding` as any);
                     } else {
                       const errorData = await response.json().catch(() => ({}));
-                      Alert.alert(
+                      showErrorModal(
                         'No se pudo entrar',
-                        errorData.error || errorData.motivoRechazo || errorData.mensaje || 'No se pudo unir a la subasta.'
+                        normalizeJoinError(errorData.error || errorData.motivoRechazo || errorData.mensaje)
                       );
                     }
                   } catch (e) {
@@ -445,6 +488,30 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
                 <Text style={styles.modalEnterButtonText}>¡Entrar!</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={errorModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setErrorModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.errorModalContent}>
+            <View style={styles.errorIconCircle}>
+              <Text style={styles.errorIconText}>!</Text>
+            </View>
+            <Text style={styles.errorModalTitle}>{errorModalTitle}</Text>
+            <Text style={styles.errorModalMessage}>{errorModalMessage}</Text>
+            <TouchableOpacity
+              style={styles.modalEnterButton}
+              activeOpacity={0.8}
+              onPress={() => setErrorModalVisible(false)}
+            >
+              <Text style={styles.modalEnterButtonText}>Entendido</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -506,6 +573,42 @@ const styles = StyleSheet.create({
     padding: 24,
     width: '90%',
     maxWidth: 360,
+  },
+  errorModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 24,
+    width: '88%',
+    maxWidth: 360,
+    alignItems: 'center',
+  },
+  errorIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFE8E8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  errorIconText: {
+    color: '#E30613',
+    fontSize: 28,
+    fontWeight: '900',
+  },
+  errorModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#051C2C',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  errorModalMessage: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#4F5B62',
+    textAlign: 'center',
+    marginBottom: 22,
   },
   modalHeader: {
     flexDirection: 'row',

@@ -11,6 +11,8 @@ import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { MOCK_AUCTIONS } from '@/constants/mockData';
 import { API_URL } from '@/constants/api';
 
+const IMAGE_CACHE_KEY = Date.now();
+
 function parseAuctionDateTime(dateStr: string, timeStr: string): Date {
   try {
     if (!dateStr) return new Date();
@@ -66,7 +68,6 @@ export default function HomeScreen() {
   const isFocused = useIsFocused();
   const [username, setUsername] = React.useState('Invitado');
   const [auctions, setAuctions] = React.useState<any[]>([]);
-  const [imageRefreshKey, setImageRefreshKey] = React.useState(Date.now());
 
   React.useEffect(() => {
     if (isFocused) {
@@ -96,15 +97,12 @@ export default function HomeScreen() {
           if (res.ok) {
             const data = await res.json();
             setAuctions(data);
-            setImageRefreshKey(Date.now());
           } else {
             setAuctions(MOCK_AUCTIONS);
-            setImageRefreshKey(Date.now());
           }
         } catch (e) {
           console.error('[HomeScreen] Error loading auctions:', e);
           setAuctions(MOCK_AUCTIONS);
-          setImageRefreshKey(Date.now());
         }
       }
       loadAuctions();
@@ -207,7 +205,7 @@ export default function HomeScreen() {
               contentContainerStyle={styles.horizontalScrollContent}
             >
               {activeAuctions.map(item => {
-                const imageSource = buildAuctionImageSource(item.imagenPortada, imageRefreshKey);
+                const imageSource = buildAuctionImageSource(item.imagenPortada, IMAGE_CACHE_KEY);
                 return (
                   <AuctionCard
                     key={`active-${item.id}`}
@@ -236,7 +234,7 @@ export default function HomeScreen() {
               contentContainerStyle={styles.horizontalScrollContent}
             >
               {upcomingAuctions.map(item => {
-                const imageSource = buildAuctionImageSource(item.imagenPortada, imageRefreshKey);
+                const imageSource = buildAuctionImageSource(item.imagenPortada, IMAGE_CACHE_KEY);
                 return (
                   <AuctionCard
                     key={`upcoming-${item.id}`}
