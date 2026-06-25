@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Modal, Image, StyleSheet } from 'react-native';
+import { Alert, View, Text, TouchableOpacity, ScrollView, Modal, Image, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 
@@ -44,7 +44,18 @@ export const ProposalModals: React.FC<ProposalModalsProps> = ({
   checkUserStatusAndFetch,
   API_URL,
 }) => {
-  const bankMethods = paymentMethods.filter(method => method.type === 'bank');
+  const proposalCurrency = selectedProposal?.propuesta?.moneda || 'pesos';
+  const currencyLabel = proposalCurrency === 'dolares' ? 'USD' : 'ARS';
+  const formatProposalAmount = (value: number | string) => {
+    const amount = Number(value);
+    if (Number.isNaN(amount)) {
+      return `${value} ${currencyLabel}`;
+    }
+    return `${amount.toLocaleString(proposalCurrency === 'dolares' ? 'en-US' : 'es-AR')} ${currencyLabel}`;
+  };
+  const bankMethods = paymentMethods.filter(method =>
+    method.type === 'bank' && (method.moneda || 'pesos') === proposalCurrency
+  );
 
   React.useEffect(() => {
     if (showPaymentSelection) {
@@ -53,9 +64,11 @@ export const ProposalModals: React.FC<ProposalModalsProps> = ({
         if (!exists) {
           setSelectedPayment(bankMethods[0].id);
         }
+      } else {
+        setSelectedPayment('');
       }
     }
-  }, [showPaymentSelection, paymentMethods, selectedPayment]);
+  }, [showPaymentSelection, paymentMethods, selectedPayment, proposalCurrency]);
 
   const isVisible = showOfferDetails || showPaymentSelection || showProposalSuccess || showProposalRejected;
 
@@ -118,7 +131,7 @@ export const ProposalModals: React.FC<ProposalModalsProps> = ({
                   <Text style={styles.offerLabel}>Valor Base Propuesto</Text>
                   <Text style={styles.offerValue}>
                     {selectedProposal?.propuesta?.valorBase != null
-                      ? `${Number(selectedProposal.propuesta.valorBase).toLocaleString('es-AR')} AR$`
+                      ? formatProposalAmount(selectedProposal.propuesta.valorBase)
                       : 'No especificado'}
                   </Text>
                 </View>
@@ -234,8 +247,8 @@ export const ProposalModals: React.FC<ProposalModalsProps> = ({
                   ))
                 ) : (
                   <View style={styles.noPaymentContainer}>
-                    <Text style={styles.noPaymentText}>No posee cuentas bancarias registradas en su perfil.</Text>
-                    <Text style={styles.noPaymentSubtext}>Debe registrar al menos una cuenta bancaria para poder continuar y recibir la comisión.</Text>
+                    <Text style={styles.noPaymentText}>No posee cuentas bancarias en {currencyLabel} registradas en su perfil.</Text>
+                    <Text style={styles.noPaymentSubtext}>Debe registrar una cuenta bancaria compatible con la moneda de la propuesta para poder continuar.</Text>
                   </View>
                 )}
               </View>
@@ -262,12 +275,12 @@ export const ProposalModals: React.FC<ProposalModalsProps> = ({
                         setShowPaymentSelection(false);
                         setShowProposalSuccess(true);
                       } else {
-                        console.error('Error accepting proposal:', response.statusText);
-                        setShowPaymentSelection(false);
+                        const errorData = await response.json().catch(() => ({}));
+                        Alert.alert('No se pudo aceptar la propuesta', errorData.error || errorData.message || 'Revise la cuenta bancaria seleccionada.');
                       }
                     } catch (err) {
                       console.error('Network error accepting proposal:', err);
-                      setShowPaymentSelection(false);
+                      Alert.alert('No se pudo aceptar la propuesta', 'Revise su conexion e intente nuevamente.');
                     }
                   } else {
                     setShowPaymentSelection(false);

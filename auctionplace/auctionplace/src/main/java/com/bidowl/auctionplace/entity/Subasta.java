@@ -58,5 +58,8 @@ public class Subasta {
 
     @Column(table = "subastas_datos_adicionales", name = "direccion_detallada", length = 350)
     private String direccionDetallada;
+
+    @Column(table = "subastas_datos_adicionales", name = "moneda", length = 10, nullable = false)
+    private String moneda = "pesos";
 }
 

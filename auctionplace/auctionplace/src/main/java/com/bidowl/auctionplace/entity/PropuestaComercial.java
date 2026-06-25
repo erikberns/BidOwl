@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 
 @Entity
 @Table(name = "propuestas_comerciales")
+@SecondaryTable(name = "propuestas_comerciales_datos_adicionales", pkJoinColumns = @PrimaryKeyJoinColumn(name = "id"))
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -36,4 +37,7 @@ public class PropuestaComercial {
 
     @Column(name = "estado", length = 50)
     private String estado = "PENDIENTE"; // PENDIENTE, ACEPTADA, RECHAZADA
+
+    @Column(table = "propuestas_comerciales_datos_adicionales", name = "moneda", length = 10, nullable = false)
+    private String moneda = "pesos";
 }

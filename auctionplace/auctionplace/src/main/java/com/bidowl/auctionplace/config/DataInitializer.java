@@ -9,7 +9,10 @@ import org.springframework.stereotype.Component;
 import java.util.Arrays;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.UUID;
+import java.util.List;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 
@@ -100,6 +103,9 @@ public class DataInitializer implements CommandLineRunner {
     private CuentaBancariaRepository cuentaBancariaRepository;
 
     @Autowired
+    private ChequeCertificadoRepository chequeCertificadoRepository;
+
+    @Autowired
     private MetodoPagoRepository metodoPagoRepository;
 
     @Autowired
@@ -126,6 +132,18 @@ public class DataInitializer implements CommandLineRunner {
     @Autowired
     private DuenioRepository duenioRepository;
 
+    @Autowired
+    private SubastaRepository subastaRepository;
+
+    @Autowired
+    private CatalogoRepository catalogoRepository;
+
+    @Autowired
+    private ItemCatalogoRepository itemCatalogoRepository;
+
+    @Autowired
+    private CatalogoFotoRepository catalogoFotoRepository;
+
     @PersistenceContext
     private EntityManager entityManager;
 
@@ -135,27 +153,35 @@ public class DataInitializer implements CommandLineRunner {
         try {
             jdbcTemplate.execute("SET FOREIGN_KEY_CHECKS = 0");
             jdbcTemplate.execute("TRUNCATE TABLE notificaciones");
+            jdbcTemplate.execute("TRUNCATE TABLE clientes_deudas_subasta");
             jdbcTemplate.execute("TRUNCATE TABLE registro_de_subasta_datos_adicionales");
             jdbcTemplate.execute("TRUNCATE TABLE registroDeSubasta");
+            jdbcTemplate.execute("TRUNCATE TABLE cheques_certificados_compromisos");
+            jdbcTemplate.execute("TRUNCATE TABLE pujos_datos_adicionales");
             jdbcTemplate.execute("TRUNCATE TABLE pujos");
             jdbcTemplate.execute("TRUNCATE TABLE asistentes");
             jdbcTemplate.execute("TRUNCATE TABLE items_catalogo_datos_adicionales");
             jdbcTemplate.execute("TRUNCATE TABLE itemsCatalogo");
+            jdbcTemplate.execute("TRUNCATE TABLE catalogos_fotos");
             jdbcTemplate.execute("TRUNCATE TABLE catalogos");
+            jdbcTemplate.execute("TRUNCATE TABLE subastas_conexiones_activas");
             jdbcTemplate.execute("TRUNCATE TABLE subastas_datos_adicionales");
             jdbcTemplate.execute("TRUNCATE TABLE subastas");
             jdbcTemplate.execute("TRUNCATE TABLE fotos");
+            jdbcTemplate.execute("TRUNCATE TABLE propuestas_comerciales_datos_adicionales");
             jdbcTemplate.execute("TRUNCATE TABLE propuestas_comerciales");
             jdbcTemplate.execute("TRUNCATE TABLE productos_datos_adicionales");
             jdbcTemplate.execute("TRUNCATE TABLE productos");
             jdbcTemplate.execute("TRUNCATE TABLE seguros");
             jdbcTemplate.execute("TRUNCATE TABLE metodoPago");
+            jdbcTemplate.execute("TRUNCATE TABLE chequeCertificado");
             jdbcTemplate.execute("TRUNCATE TABLE tarjetaCredito");
             jdbcTemplate.execute("TRUNCATE TABLE cuentaBancaria");
             jdbcTemplate.execute("TRUNCATE TABLE duenios");
             jdbcTemplate.execute("TRUNCATE TABLE clientes");
             jdbcTemplate.execute("TRUNCATE TABLE subastadores");
             jdbcTemplate.execute("TRUNCATE TABLE empleados");
+            jdbcTemplate.execute("TRUNCATE TABLE sesiones_personas");
             jdbcTemplate.execute("TRUNCATE TABLE personas_datos_adicionales");
             jdbcTemplate.execute("TRUNCATE TABLE personas_documentos_fotos");
             jdbcTemplate.execute("TRUNCATE TABLE personas_estadisticas");
@@ -503,13 +529,17 @@ public class DataInitializer implements CommandLineRunner {
                     }
 
                     // Crear Propuesta Comercial
-                    BigDecimal valorBase = BigDecimal.valueOf(1000000L + prodNum * 500000L);
+                    boolean monedaDolares = prodNum >= 15;
+                    BigDecimal valorBase = monedaDolares
+                            ? BigDecimal.valueOf(5000L + (prodNum - 14L) * 1500L)
+                            : BigDecimal.valueOf(1000000L + prodNum * 500000L);
                     BigDecimal comisionVal = BigDecimal.valueOf(10.00); // 10% comision
                     
                     PropuestaComercial propuesta = new PropuestaComercial();
                     propuesta.setProducto(prodGuardado);
                     propuesta.setValorBase(valorBase);
                     propuesta.setComision(comisionVal);
+                    propuesta.setMoneda(monedaDolares ? "dolares" : "pesos");
                     propuesta.setUbicacionSubasta("Depósito Principal - BidOwl");
                     propuesta.setFechaEstimada(LocalDate.now().plusDays(15));
                     propuesta.setEstado("ACEPTADA");
@@ -569,6 +599,198 @@ public class DataInitializer implements CommandLineRunner {
             }
 
             entityManager.clear();
+        }
+
+        asegurarMetodosPagoParaPruebas(paisDefault, avatarBytes);
+        crearSubastasParaPruebas(martinRevisor, avatarBytes);
+    }
+
+    private void asegurarMetodosPagoParaPruebas(Pais paisDefault, byte[] comprobanteBytes) {
+        clienteRepository.findByEmail("comprador@bidowl.com").ifPresent(comprador -> {
+            crearCuenta(comprador, paisDefault, "Banco Nacion", "CBU-ARS-SEED-" + comprador.getIdentificador(), "pesos", comprobanteBytes);
+            crearCuenta(comprador, paisDefault, "Banco Galicia USD", "IBAN-USD-SEED-" + comprador.getIdentificador(), "dolares", comprobanteBytes);
+            crearCheque(comprador, paisDefault, "Banco Ciudad", "CHQ-ARS-SEED-" + comprador.getIdentificador(), BigDecimal.valueOf(8500000), "pesos", comprobanteBytes);
+            crearCheque(comprador, paisDefault, "Banco Santander USD", "CHQ-USD-SEED-" + comprador.getIdentificador(), BigDecimal.valueOf(35000), "dolares", comprobanteBytes);
+        });
+
+        clienteRepository.findByEmail("usuario_seeder_3@bidowl.com").ifPresent(cliente -> {
+            crearCuenta(cliente, paisDefault, "Banco Macro", "CBU-ARS-SEED-" + cliente.getIdentificador(), "pesos", comprobanteBytes);
+        });
+    }
+
+    private void crearCuenta(Cliente cliente, Pais pais, String banco, String cbu, String moneda, byte[] comprobanteBytes) {
+        CuentaBancaria cuenta = new CuentaBancaria();
+        cuenta.setTitularCuenta(cliente.getNombre() + " " + cliente.getApellido());
+        cuenta.setNombreBanco(banco);
+        cuenta.setPais(pais);
+        cuenta.setCbuIban(cbu);
+        cuenta.setMoneda(moneda);
+        cuenta.setComprobante(comprobanteBytes);
+        CuentaBancaria cuentaGuardada = cuentaBancariaRepository.save(cuenta);
+
+        MetodoPago metodoPago = new MetodoPago();
+        metodoPago.setPersona(cliente);
+        metodoPago.setCuentaBancaria(cuentaGuardada);
+        metodoPagoRepository.save(metodoPago);
+    }
+
+    private void crearCheque(Cliente cliente, Pais pais, String banco, String numeroCheque, BigDecimal monto, String moneda, byte[] comprobanteBytes) {
+        ChequeCertificado cheque = new ChequeCertificado();
+        cheque.setTitular(cliente.getNombre() + " " + cliente.getApellido());
+        cheque.setBancoEmisor(banco);
+        cheque.setNumeroCheque(numeroCheque);
+        cheque.setMonto(monto);
+        cheque.setPais(pais);
+        cheque.setMoneda(moneda);
+        cheque.setComprobante(comprobanteBytes);
+        ChequeCertificado chequeGuardado = chequeCertificadoRepository.save(cheque);
+
+        MetodoPago metodoPago = new MetodoPago();
+        metodoPago.setPersona(cliente);
+        metodoPago.setChequeCertificado(chequeGuardado);
+        metodoPagoRepository.save(metodoPago);
+    }
+
+    private void crearSubastasParaPruebas(Empleado responsable, byte[] fotoBytes) {
+        if (subastaRepository.count() > 0 || responsable == null) {
+            return;
+        }
+
+        Subastador subastador = subastadorRepository.findAll().stream().findFirst().orElse(null);
+        if (subastador == null) {
+            return;
+        }
+
+        List<PropuestaSeed> propuestasPesos = propuestaComercialRepository.findAll().stream()
+                .filter(propuesta -> "ACEPTADA".equalsIgnoreCase(propuesta.getEstado()))
+                .filter(propuesta -> "pesos".equalsIgnoreCase(propuesta.getMoneda()))
+                .map(this::toPropuestaSeed)
+                .filter(PropuestaSeed::isCompleta)
+                .limit(9)
+                .toList();
+
+        List<PropuestaSeed> propuestasDolares = propuestaComercialRepository.findAll().stream()
+                .filter(propuesta -> "ACEPTADA".equalsIgnoreCase(propuesta.getEstado()))
+                .filter(propuesta -> "dolares".equalsIgnoreCase(propuesta.getMoneda()))
+                .map(this::toPropuestaSeed)
+                .filter(PropuestaSeed::isCompleta)
+                .limit(4)
+                .toList();
+
+        crearSubastaConCatalogo(
+                "Joyas y coleccionables argentinos",
+                "Subasta activa de prueba en pesos para validar pujas, sesiones y metodos de pago ARS.",
+                "Buenos Aires",
+                "La Boca, CABA",
+                "pesos",
+                LocalDate.now(),
+                LocalTime.now().minusMinutes(5),
+                "abierta",
+                subastador,
+                responsable,
+                propuestasPesos.stream().limit(6).toList(),
+                fotoBytes);
+
+        crearSubastaConCatalogo(
+                "Antiguedades internacionales",
+                "Subasta activa de prueba en dolares para validar moneda y medios de pago USD.",
+                "Buenos Aires",
+                "Recoleta, CABA",
+                "dolares",
+                LocalDate.now(),
+                LocalTime.now().minusMinutes(3),
+                "abierta",
+                subastador,
+                responsable,
+                propuestasDolares,
+                fotoBytes);
+
+        crearSubastaConCatalogo(
+                "Proxima subasta especial",
+                "Subasta futura para validar estados previos al inicio.",
+                "Buenos Aires",
+                "Palermo, CABA",
+                "pesos",
+                LocalDate.now().plusDays(1),
+                LocalTime.of(19, 0),
+                "carrada",
+                subastador,
+                responsable,
+                propuestasPesos.stream().skip(6).limit(3).toList(),
+                fotoBytes);
+    }
+
+    private void crearSubastaConCatalogo(
+            String titulo,
+            String descripcion,
+            String ubicacion,
+            String direccionDetallada,
+            String moneda,
+            LocalDate fecha,
+            LocalTime hora,
+            String estado,
+            Subastador subastador,
+            Empleado responsable,
+            List<PropuestaSeed> propuestas,
+            byte[] fotoBytes) {
+        if (propuestas == null || propuestas.isEmpty()) {
+            return;
+        }
+
+        Subasta subasta = new Subasta();
+        subasta.setTitulo(titulo);
+        subasta.setDescripcion(descripcion);
+        subasta.setFecha(fecha);
+        subasta.setHora(hora);
+        subasta.setEstado(estado);
+        subasta.setSubastador(subastador);
+        subasta.setUbicacion(ubicacion);
+        subasta.setDireccionDetallada(direccionDetallada);
+        subasta.setCapacidadAsistentes(120);
+        subasta.setTieneDeposito("si");
+        subasta.setSeguridadPropia("si");
+        subasta.setCategoria("comun");
+        subasta.setMoneda(moneda);
+        Subasta subastaGuardada = subastaRepository.save(subasta);
+
+        Catalogo catalogo = new Catalogo();
+        catalogo.setDescripcion("Catalogo seed - " + titulo);
+        catalogo.setSubasta(subastaGuardada);
+        catalogo.setResponsable(responsable);
+        Catalogo catalogoGuardado = catalogoRepository.save(catalogo);
+
+        if (fotoBytes != null) {
+            CatalogoFoto foto = new CatalogoFoto();
+            foto.setCatalogo(catalogoGuardado);
+            foto.setFoto(fotoBytes);
+            catalogoFotoRepository.save(foto);
+        }
+
+        LocalDateTime finPrimerItem = LocalDateTime.now().plusMinutes(10);
+        for (int index = 0; index < propuestas.size(); index++) {
+            PropuestaSeed propuesta = propuestas.get(index);
+            ItemCatalogo item = new ItemCatalogo();
+            item.setCatalogo(catalogoGuardado);
+            item.setProducto(propuesta.producto());
+            item.setPrecioBase(propuesta.valorBase());
+            item.setComision(propuesta.comision());
+            item.setSubastado("no");
+            if ("abierta".equalsIgnoreCase(estado) && index == 0) {
+                item.setFechaFinPuja(finPrimerItem);
+            }
+            itemCatalogoRepository.save(item);
+        }
+    }
+
+    private PropuestaSeed toPropuestaSeed(PropuestaComercial propuesta) {
+        Integer productoId = propuesta.getProducto() != null ? propuesta.getProducto().getIdentificador() : null;
+        Producto producto = productoId != null ? productoRepository.findById(productoId).orElse(null) : null;
+        return new PropuestaSeed(producto, propuesta.getValorBase(), propuesta.getComision(), propuesta.getMoneda());
+    }
+
+    private record PropuestaSeed(Producto producto, BigDecimal valorBase, BigDecimal comision, String moneda) {
+        boolean isCompleta() {
+            return producto != null && valorBase != null && comision != null && moneda != null;
         }
     }
 }

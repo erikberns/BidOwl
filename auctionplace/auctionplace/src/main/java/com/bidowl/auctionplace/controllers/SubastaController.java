@@ -4,6 +4,8 @@ import com.bidowl.auctionplace.dto.*;
 import com.bidowl.auctionplace.entity.Subasta;
 import com.bidowl.auctionplace.entity.ItemCatalogo;
 import com.bidowl.auctionplace.entity.Asistente;
+import com.bidowl.auctionplace.entity.SesionPersona;
+import com.bidowl.auctionplace.service.SesionService;
 import com.bidowl.auctionplace.service.SubastaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -27,6 +29,9 @@ public class SubastaController {
     @Autowired
     private com.bidowl.auctionplace.service.ItemCatalogoService itemCatalogoService;
 
+    @Autowired
+    private SesionService sesionService;
+
     @GetMapping
     public ResponseEntity<?> obtenerTodasOCatalogo(
             @RequestParam(required = false) String estado,
@@ -44,9 +49,7 @@ public class SubastaController {
                 return ResponseEntity.ok(catalogo);
             }
         } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.badRequest().body(error);
+            return ResponseEntity.badRequest().body(ControllerSupport.errorBody(e.getMessage()));
         }
     }
 
@@ -69,9 +72,7 @@ public class SubastaController {
                 return ResponseEntity.ok(subasta);
             }
         } catch (Exception e) {
-            Map<String, Object> response = new HashMap<>();
-            response.put("error", e.getMessage());
-            return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ControllerSupport.errorBody(e.getMessage()));
         }
     }
 
@@ -131,8 +132,15 @@ public class SubastaController {
         Map<String, Object> response = new HashMap<>();
         try {
             if (autorizacion != null && !autorizacion.isEmpty()) {
-                Integer clienteId = extraerIdDelToken(autorizacion);
-                UnirseResponse respuesta = subastaService.unirseAlStreaming(clienteId, id);
+                SesionPersona sesion = null;
+                Integer clienteId;
+                try {
+                    sesion = sesionService.resolverSesionActiva(autorizacion);
+                    clienteId = sesion.getPersona().getIdentificador();
+                } catch (Exception ignored) {
+                    clienteId = ControllerSupport.resolvePersonaIdOrDefault(autorizacion, sesionService, 1);
+                }
+                UnirseResponse respuesta = subastaService.unirseAlStreaming(clienteId, id, sesion);
                 return ResponseEntity.ok(respuesta);
             }
             if (requestBody != null && requestBody.containsKey("clienteId")) {
@@ -141,21 +149,32 @@ public class SubastaController {
                     throw new Exception("El campo 'clienteId' es requerido.");
                 }
                 Asistente asistente = subastaService.unirseASubasta(clienteId, id);
-                response.put("mensaje", "Te has unido a la subasta con éxito.");
+                response.put("mensaje", "Te has unido a la subasta con Ã©xito.");
                 response.put("asistente", asistente);
                 return ResponseEntity.ok(response);
             }
             throw new Exception("Debe proporcionar un token de Autorizacion o un request body con clienteId.");
         } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
             if (e.getMessage().contains("no encontrado")) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
-            } else if (e.getMessage().contains("categoría") || e.getMessage().contains("método de pago")) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ControllerSupport.errorBody(e.getMessage()));
+            } else if (e.getMessage().contains("categorÃ­a") || e.getMessage().contains("mÃ©todo de pago")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ControllerSupport.errorBody(e.getMessage()));
             } else {
-                return ResponseEntity.badRequest().body(error);
+                return ResponseEntity.badRequest().body(ControllerSupport.errorBody(e.getMessage()));
             }
+        }
+    }
+
+    @PostMapping("/{id}/salir")
+    public ResponseEntity<?> salir(
+            @PathVariable Integer id,
+            @RequestHeader("Autorizacion") String autorizacion) {
+        try {
+            Integer clienteId = ControllerSupport.resolvePersonaIdOrDefault(autorizacion, sesionService, 1);
+            subastaService.desconectarDeSubasta(clienteId, id);
+            return ResponseEntity.ok(Map.of("mensaje", "Conexion a subasta finalizada."));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ControllerSupport.errorBody(e.getMessage()));
         }
     }
 
@@ -172,9 +191,7 @@ public class SubastaController {
             EstadoItemSubastaDTO estado = subastaService.obtenerEstadoItem(idSubasta, iditem);
             return ResponseEntity.ok(estado);
         } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ControllerSupport.errorBody(e.getMessage()));
         }
     }
 
@@ -191,14 +208,12 @@ public class SubastaController {
             List<HistorialPujaDTO> historial = subastaService.obtenerHistorialPujas(idSubasta, iditem);
             return ResponseEntity.ok(historial);
         } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ControllerSupport.errorBody(e.getMessage()));
         }
     }
 
     /**
-     * GET - Obtener límites de puja
+     * GET - Obtener lÃ­mites de puja
      * GET /api/subastas/{idSubasta}/items/{iditem}/limites-puja
      */
     @GetMapping("/{idSubasta}/items/{iditem}/limites-puja")
@@ -210,12 +225,10 @@ public class SubastaController {
             LimitesPujaDTO limites = subastaService.obtenerLimitesPuja(idSubasta, iditem);
             return ResponseEntity.ok(limites);
         } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
             if (e.getMessage().contains("acceso")) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ControllerSupport.errorBody(e.getMessage()));
             }
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ControllerSupport.errorBody(e.getMessage()));
         }
     }
 
@@ -230,12 +243,10 @@ public class SubastaController {
             @RequestHeader("Autorizacion") String autorizacion,
             @RequestBody CrearPujaRequest request) {
         try {
-            Integer clienteId = extraerIdDelToken(autorizacion);
+            Integer clienteId = ControllerSupport.resolvePersonaIdOrDefault(autorizacion, sesionService, 1);
             
             if (request.getMonto() == null || request.getMonto().compareTo(BigDecimal.ZERO) <= 0) {
-                Map<String, Object> error = new HashMap<>();
-                error.put("error", "El monto debe ser mayor a 0");
-                return ResponseEntity.badRequest().body(error);
+                return ResponseEntity.badRequest().body(ControllerSupport.errorBody("El monto debe ser mayor a 0"));
             }
 
             CrearPujaResponse respuesta = subastaService.crearPuja(
@@ -248,17 +259,14 @@ public class SubastaController {
 
             return ResponseEntity.status(HttpStatus.CREATED).body(respuesta);
         } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            
             if (e.getMessage().contains("conflicto") || e.getMessage().contains("ya existe")) {
-                return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(ControllerSupport.errorBody(e.getMessage()));
             } else if (e.getMessage().contains("acceso") || e.getMessage().contains("no autorizado")) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ControllerSupport.errorBody(e.getMessage()));
             } else if (e.getMessage().contains("no encontrado")) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ControllerSupport.errorBody(e.getMessage()));
             } else {
-                return ResponseEntity.badRequest().body(error);
+                return ResponseEntity.badRequest().body(ControllerSupport.errorBody(e.getMessage()));
             }
         }
     }
@@ -286,29 +294,12 @@ public class SubastaController {
             CrearPujaResponse respuesta = subastaService.simularPuja(idSubasta, iditem, clienteId, monto);
             return ResponseEntity.status(HttpStatus.CREATED).body(respuesta);
         } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.badRequest().body(error);
-        }
-    }
-
-
-    /**
-     * Método auxiliar para extraer ID del token (simulado)
-     */
-    private Integer extraerIdDelToken(String token) throws Exception {
-        if (token == null || token.isEmpty()) {
-            throw new Exception("Token no proporcionado");
-        }
-        try {
-            return Integer.parseInt(token.trim());
-        } catch (NumberFormatException e) {
-            return 1; // Fallback al ID por defecto si no es numérico
+            return ResponseEntity.badRequest().body(ControllerSupport.errorBody(e.getMessage()));
         }
     }
 
     /**
-     * GET - Obtener catálogo de items de una subasta
+     * GET - Obtener catÃ¡logo de items de una subasta
      * GET /api/subastas/{idSubasta}/catalogo
      */
     @GetMapping("/{idSubasta}/catalogo")
@@ -319,9 +310,7 @@ public class SubastaController {
             List<ItemCatalogoDTO> items = subastaService.obtenerCatalogoItemsSubasta(idSubasta);
             return ResponseEntity.ok(items);
         } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ControllerSupport.errorBody(e.getMessage()));
         }
     }
 
@@ -334,21 +323,19 @@ public class SubastaController {
             @PathVariable Integer idSubasta,
             @RequestHeader("Autorizacion") String autorizacion) {
         try {
-            Integer clienteId = extraerIdDelToken(autorizacion);
+            Integer clienteId = ControllerSupport.resolvePersonaIdOrDefault(autorizacion, sesionService, 1);
             ElegibilidadDTO elegibilidad = subastaService.verificarElegibilidad(clienteId, idSubasta);
             return ResponseEntity.ok(elegibilidad);
         } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
             if (e.getMessage().contains("no encontrado")) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ControllerSupport.errorBody(e.getMessage()));
             }
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ControllerSupport.errorBody(e.getMessage()));
         }
     }
 
     /**
-     * POST - Crear una nueva subasta con su catálogo e ítems
+     * POST - Crear una nueva subasta con su catÃ¡logo e Ã­tems
      * POST /api/subastas
      */
     @PostMapping
@@ -357,13 +344,9 @@ public class SubastaController {
             Subasta subasta = subastaService.crearSubastaConCatalogo(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(subasta);
         } catch (IllegalArgumentException | IllegalStateException e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.badRequest().body(error);
+            return ResponseEntity.badRequest().body(ControllerSupport.errorBody(e.getMessage()));
         } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", "Error interno del servidor: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            return ControllerSupport.errorResponse("Error interno del servidor: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -373,19 +356,15 @@ public class SubastaController {
             @RequestParam("foto") MultipartFile foto) {
         try {
             if (foto == null || foto.isEmpty()) {
-                Map<String, Object> error = new HashMap<>();
-                error.put("error", "El archivo de foto es requerido.");
-                return ResponseEntity.badRequest().body(error);
+                return ResponseEntity.badRequest().body(ControllerSupport.errorBody("El archivo de foto es requerido."));
             }
             Subasta subasta = subastaService.guardarFotoSubasta(id, foto.getBytes());
             return ResponseEntity.ok(subasta);
         } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
             if (e instanceof java.util.NoSuchElementException) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ControllerSupport.errorBody(e.getMessage()));
             }
-            return ResponseEntity.badRequest().body(error);
+            return ResponseEntity.badRequest().body(ControllerSupport.errorBody(e.getMessage()));
         }
     }
 
@@ -401,9 +380,7 @@ public class SubastaController {
             ItemCatalogo item = itemCatalogoService.finalizarSubastaDeItem(iditem);
             return ResponseEntity.ok(item);
         } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.badRequest().body(error);
+            return ResponseEntity.badRequest().body(ControllerSupport.errorBody(e.getMessage()));
         }
     }
 }

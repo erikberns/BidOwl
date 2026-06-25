@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '@/constants/api';
 import { InputField } from '../ui/InputField';
+import { saveLoginSession } from '@/services/authSession';
 
 interface Props {
   onBack: () => void;
@@ -76,9 +77,7 @@ export function LoginScreen({ onBack, onSuccess, onForgotPassword }: Props) {
 
       console.log('Login exitoso. Nombre:', result.persona?.nombre, 'ID:', result.persona?.identificador, 'Configuración requerida:', result.requiereConfiguracion);
 
-      // Guardar usuario en AsyncStorage
-      await AsyncStorage.setItem('user', JSON.stringify(result.persona));
-      await AsyncStorage.removeItem('isGuest');
+      await saveLoginSession(result);
       if (result.requiereConfiguracion) {
         await AsyncStorage.setItem('registrationStage2Status', 'in_progress');
         await AsyncStorage.setItem('registrationStage2Step', 'password');

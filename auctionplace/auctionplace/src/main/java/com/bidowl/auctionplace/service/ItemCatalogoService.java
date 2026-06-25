@@ -31,7 +31,7 @@ public class ItemCatalogoService {
     private MetodoPagoRepository metodoPagoRepository;
 
     @Autowired
-    private NotificacionRepository notificacionRepository;
+    private NotificacionService notificacionService;
 
     @Autowired
     private SubastaRepository subastaRepository;
@@ -44,6 +44,12 @@ public class ItemCatalogoService {
 
     @Autowired
     private EmpleadoRepository empleadoRepository;
+
+    @Autowired
+    private MonedaService monedaService;
+
+    @Autowired
+    private ChequeCompromisoService chequeCompromisoService;
 
     @Autowired
     private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
@@ -73,6 +79,7 @@ public class ItemCatalogoService {
             Pujo pujaGanadora = pujaGanadoraOpt.get();
             pujaGanadora.setGanador("si");
             pujoRepository.save(pujaGanadora);
+            chequeCompromisoService.ejecutarCompromisoGanador(pujaGanadora);
 
             item.setSubastado("si");
             guardado = itemCatalogoRepository.save(item);
@@ -111,15 +118,25 @@ public class ItemCatalogoService {
             registro.setProducto(producto);
             registro.setCliente(clienteGanador);
             
-            List<MetodoPago> pagos = metodoPagoRepository.findByPersonaIdentificador(clienteGanador.getIdentificador());
-            if (!pagos.isEmpty()) {
-                registro.setMetodoPago(pagos.get(0));
+            MetodoPago metodoGanador = pujaGanadora.getMetodoPago();
+            if (metodoGanador != null) {
+                registro.setMetodoPago(metodoGanador);
             } else {
+                List<MetodoPago> pagos = metodoPagoRepository.findByPersonaIdentificador(clienteGanador.getIdentificador());
+                if (!pagos.isEmpty()) {
+                    String monedaSubasta = monedaService.monedaSubasta(item.getCatalogo() != null ? item.getCatalogo().getSubasta() : null);
+                    MetodoPago pagoCompatible = pagos.stream()
+                            .filter(pago -> monedaSubasta.equals(monedaService.monedaMetodoPago(pago)))
+                            .findFirst()
+                            .orElse(pagos.get(0));
+                    registro.setMetodoPago(pagoCompatible);
+                } else {
                 // Crear un método de pago ficticio para evitar fallar la finalización si el ganador no tiene métodos registrados
-                MetodoPago metodoFicticio = new MetodoPago();
-                metodoFicticio.setPersona(clienteGanador);
-                metodoPagoRepository.save(metodoFicticio);
-                registro.setMetodoPago(metodoFicticio);
+                    MetodoPago metodoFicticio = new MetodoPago();
+                    metodoFicticio.setPersona(clienteGanador);
+                    metodoPagoRepository.save(metodoFicticio);
+                    registro.setMetodoPago(metodoFicticio);
+                }
             }
 
             registro.setImporte(pujaGanadora.getImporte());
@@ -139,7 +156,7 @@ public class ItemCatalogoService {
             notificacion.setAccion("show_bid_won:" + item.getIdentificador());
             notificacion.setLeida(false);
             notificacion.setFecha(java.time.LocalDateTime.now());
-            guardarNotificacionSiNoExiste(notificacion);
+            notificacionService.guardarSiNoExiste(notificacion);
         } else {
             // Regla TPO: Si nadie puja por un artículo, la empresa compra el mismo por el valor base al finalizar
             Duenio companyDuenio = duenioRepository.findAll().stream()
@@ -206,13 +223,4 @@ public class ItemCatalogoService {
         return guardado;
     }
 
-    private void guardarNotificacionSiNoExiste(Notificacion notif) {
-        if (notif.getPersonaId() == null) return;
-        List<Notificacion> existencias = notificacionRepository.findByPersonaIdOrderByFechaDesc(notif.getPersonaId());
-        boolean yaExiste = existencias.stream()
-                .anyMatch(n -> notif.getAccion() != null && notif.getAccion().equals(n.getAccion()));
-        if (!yaExiste) {
-            notificacionRepository.save(notif);
-        }
-    }
 }

@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 public class PropuestaCrearRequest {
     private BigDecimal valorBase;
     private BigDecimal comision;
+    private String moneda;
     private String ubicacionSubasta;
     private String fechaEstimada; // yyyy-MM-dd
 }

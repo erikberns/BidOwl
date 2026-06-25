@@ -10,6 +10,25 @@ import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { PaymentMethodsScreen } from '@/components/payment/PaymentMethodsScreen';
 import { API_URL } from '@/constants/api';
 import { PasswordScreen } from '@/components/auth/PasswordScreen';
+import { authHeaders } from '@/services/authSession';
+
+const formatDebtAmount = (value: number | string | null | undefined) => {
+  const numeric = Number(value || 0);
+  return numeric.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' ARS';
+};
+
+const formatDebtDate = (value: string | null | undefined) => {
+  if (!value) return 'Sin fecha';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -18,7 +37,58 @@ export default function ProfileScreen() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isGuest, setIsGuest] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [pendingDebt, setPendingDebt] = useState<any>(null);
   const [photoError, setPhotoError] = useState(false);
+
+  const loadPendingDebt = async () => {
+    try {
+      const res = await fetch(`${API_URL}/inbox/deudas/pendiente`, {
+        headers: await authHeaders(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPendingDebt(data?.pendiente ? data : null);
+      } else {
+        setPendingDebt(null);
+      }
+    } catch (err) {
+      console.warn('Error fetching pending debt:', err);
+      setPendingDebt(null);
+    }
+  };
+
+  const regularizeDebt = async () => {
+    if (!pendingDebt?.deudaId) return;
+    try {
+      const res = await fetch(`${API_URL}/inbox/deudas/${pendingDebt.deudaId}/regularizar`, {
+        method: 'POST',
+        headers: await authHeaders(),
+      });
+      if (res.ok) {
+        setPendingDebt(null);
+        if (Platform.OS === 'web') {
+          alert('Deuda regularizada. Ya podes volver a participar en subastas.');
+        } else {
+          Alert.alert('Deuda regularizada', 'Ya podes volver a participar en subastas.');
+        }
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        const message = errorData.error || 'No se pudo regularizar la deuda.';
+        if (Platform.OS === 'web') {
+          alert(message);
+        } else {
+          Alert.alert('Error', message);
+        }
+      }
+    } catch (err) {
+      console.error('Error regularizing debt:', err);
+      if (Platform.OS === 'web') {
+        alert('No se pudo conectar con el servidor.');
+      } else {
+        Alert.alert('Error', 'No se pudo conectar con el servidor.');
+      }
+    }
+  };
 
 
   useEffect(() => {
@@ -30,6 +100,7 @@ export default function ProfileScreen() {
           if (isGuestStr === 'true' || !userStr) {
             setIsGuest(true);
             setCurrentUser(null);
+            setPendingDebt(null);
           } else {
             setIsGuest(false);
             const parsedUser = JSON.parse(userStr);
@@ -47,6 +118,7 @@ export default function ProfileScreen() {
             } catch (err) {
               console.warn('Error fetching latest user details:', err);
             }
+            await loadPendingDebt();
           }
         } catch (e) {
           setIsGuest(true);
@@ -60,6 +132,7 @@ export default function ProfileScreen() {
     const performLogout = async () => {
       try {
         await AsyncStorage.removeItem('user');
+        await AsyncStorage.removeItem('tokenSesion');
         await AsyncStorage.removeItem('isGuest');
         await AsyncStorage.setItem('hasSeenAuth', 'false');
         if (Platform.OS === 'web') {
@@ -152,6 +225,7 @@ export default function ProfileScreen() {
                     await AsyncStorage.removeItem('hasSeenOnboarding');
                     await AsyncStorage.removeItem('hasSeenAuth');
                     await AsyncStorage.removeItem('user');
+                    await AsyncStorage.removeItem('tokenSesion');
                     await AsyncStorage.removeItem('isGuest');
                     if (Platform.OS === 'web') {
                       alert('Onboarding restablecido. Por favor, reinicia la aplicación.');
@@ -263,6 +337,32 @@ export default function ProfileScreen() {
           <View style={styles.divider} />
         </View>
 
+        {pendingDebt && (
+          <View style={styles.debtSection}>
+            <View style={styles.debtCard}>
+              <View style={styles.debtIconCircle}>
+                <SymbolView
+                  tintColor="#BA4B4B"
+                  // @ts-ignore
+                  name={{ ios: 'exclamationmark.triangle.fill', android: 'warning', web: 'warning' }}
+                  size={22}
+                />
+              </View>
+              <View style={styles.debtContent}>
+                <Text style={styles.debtTitle}>Participacion suspendida</Text>
+                <Text style={styles.debtText}>
+                  Tenes una multa pendiente. Regularizala para volver a participar en subastas.
+                </Text>
+                <Text style={styles.debtAmount}>Total: {formatDebtAmount(pendingDebt.montoTotal)}</Text>
+                <Text style={styles.debtText}>Vence: {formatDebtDate(pendingDebt.fechaVencimiento)}</Text>
+                <TouchableOpacity style={styles.debtButton} onPress={regularizeDebt}>
+                  <Text style={styles.debtButtonText}>Regularizar deuda</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Statistics Section */}
         <View style={styles.statsSection}>
           <Text style={styles.sectionTitle}>Estadísticas</Text>
@@ -360,6 +460,7 @@ export default function ProfileScreen() {
                 await AsyncStorage.removeItem('hasSeenOnboarding');
                 await AsyncStorage.removeItem('hasSeenAuth');
                 await AsyncStorage.removeItem('user');
+                await AsyncStorage.removeItem('tokenSesion');
                 await AsyncStorage.removeItem('isGuest');
                 if (Platform.OS === 'web') {
                   alert('Onboarding y sesión restablecidos. Por favor, reinicia la aplicación.');
@@ -521,6 +622,60 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#051C2C',
     textDecorationLine: 'underline',
+  },
+  debtSection: {
+    paddingHorizontal: 24,
+    marginBottom: 28,
+  },
+  debtCard: {
+    flexDirection: 'row',
+    gap: 14,
+    borderWidth: 1.5,
+    borderColor: '#FFCBCB',
+    backgroundColor: '#FFF6F6',
+    borderRadius: 8,
+    padding: 16,
+  },
+  debtIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFE3E3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  debtContent: {
+    flex: 1,
+  },
+  debtTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#BA4B4B',
+    marginBottom: 6,
+  },
+  debtText: {
+    fontSize: 13,
+    color: '#5F3333',
+    lineHeight: 19,
+    marginBottom: 6,
+  },
+  debtAmount: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#051C2C',
+    marginBottom: 4,
+  },
+  debtButton: {
+    marginTop: 10,
+    backgroundColor: '#BA4B4B',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  debtButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '800',
   },
   statsSection: {
     paddingHorizontal: 24,

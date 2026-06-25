@@ -8,6 +8,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { MOCK_AUCTION_ITEMS } from '@/constants/mockData';
 import { API_URL } from '@/constants/api';
+import { authHeaders } from '@/services/authSession';
+import { connectAuctionRealtime } from '@/services/auctionRealtime';
 
 // Helper to format prices
 const formatPrice = (value: number | string) => {
@@ -21,6 +23,37 @@ const formatPrice = (value: number | string) => {
   }
   if (isNaN(num)) return value.toString();
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " ARS";
+};
+
+const parseBidDateMs = (value: any): number | null => {
+  if (!value) return null;
+  const date = new Date(value);
+  const ms = date.getTime();
+  return Number.isNaN(ms) ? null : ms;
+};
+
+const formatRelativeBidTime = (bid: any, _tick: number) => {
+  const createdAtMs = bid.createdAtMs ?? parseBidDateMs(bid.fechaHora);
+  if (!createdAtMs) {
+    return bid.time || 'Hace unos instantes';
+  }
+
+  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - createdAtMs) / 1000));
+  if (elapsedSeconds < 10) return 'Hace unos instantes';
+  if (elapsedSeconds < 60) return `Hace ${elapsedSeconds} segundos`;
+
+  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+  if (elapsedMinutes < 60) {
+    return elapsedMinutes === 1 ? 'Hace 1 minuto' : `Hace ${elapsedMinutes} minutos`;
+  }
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 24) {
+    return elapsedHours === 1 ? 'Hace 1 hora' : `Hace ${elapsedHours} horas`;
+  }
+
+  const elapsedDays = Math.floor(elapsedHours / 24);
+  return elapsedDays === 1 ? 'Hace 1 dia' : `Hace ${elapsedDays} dias`;
 };
 
 const BidderAvatar = ({ idpersona, style }: { idpersona: string | number; style: any }) => {
@@ -50,6 +83,7 @@ export default function BidsHistoryScreen() {
   const [loading, setLoading] = useState<boolean>(true);
   const [bids, setBids] = useState<any[]>([]);
   const [isBiddingFinished, setIsBiddingFinished] = useState<boolean>(false);
+  const [relativeTick, setRelativeTick] = useState(0);
 
   const selectedIndex = itemIndex ? parseInt(itemIndex as string, 10) : 0;
   const auctionIdStr = Array.isArray(id) ? id[0] : id || '1';
@@ -93,15 +127,15 @@ export default function BidsHistoryScreen() {
       }
 
       const res = await fetch(`${API_URL}/subastas/${auctionIdStr}/items/${targetItemId}/pujas`, {
-        headers: {
-          'Autorizacion': String(user.identificador)
-        }
+        headers: await authHeaders()
       });
       if (res.ok) {
         const data = await res.json();
         const mappedBids = data.map((bid: any, idx: number) => ({
           idpersona: bid.idpersona,
           name: bid.nombre,
+          fechaHora: bid.fechaHora,
+          createdAtMs: parseBidDateMs(bid.fechaHora),
           time: (bid.hace && bid.hace !== 'N/A') ? bid.hace : 'Hace unos instantes',
           amount: formatPrice(bid.monto),
           isLead: idx === 0
@@ -113,9 +147,7 @@ export default function BidsHistoryScreen() {
 
       // Fetch dynamic item timer and completion status
       const statusRes = await fetch(`${API_URL}/subastas/${auctionIdStr}/items/${targetItemId}`, {
-        headers: {
-          'Autorizacion': String(user.identificador)
-        }
+        headers: await authHeaders()
       });
       if (statusRes.ok) {
         const statusData = await statusRes.json();
@@ -153,12 +185,20 @@ export default function BidsHistoryScreen() {
     const targetItemId = Array.isArray(itemId) ? itemId[0] : itemId;
     if (!targetItemId) return;
 
-    const interval = setInterval(() => {
-      fetchBids();
-    }, 4000);
+    const realtime = connectAuctionRealtime(
+      auctionIdStr,
+      String(targetItemId),
+      () => fetchBids(),
+      (message) => console.warn('[BidsHistoryScreen] WebSocket:', message),
+    );
 
-    return () => clearInterval(interval);
+    return () => realtime.disconnect();
   }, [itemId, isGuest]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setRelativeTick(prev => prev + 1), 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   if (isGuest === null) {
     return null;
@@ -212,7 +252,7 @@ export default function BidsHistoryScreen() {
                   />
                   <View style={styles.bidderInfo}>
                     <Text style={styles.bidderName}>{bid.name}</Text>
-                    <Text style={styles.bidTime}>{bid.time}</Text>
+                    <Text style={styles.bidTime}>{formatRelativeBidTime(bid, relativeTick)}</Text>
                   </View>
                   <View style={styles.bidAmountContainer}>
                     {bid.isLead && <Text style={styles.leadBidLabel}>Puja Lider</Text>}

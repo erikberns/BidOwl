@@ -27,7 +27,7 @@ public class DuenioController {
             response.put("duenio", creado);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            return ResponseEntity.badRequest().body(ControllerSupport.errorBody(e.getMessage()));
         }
     }
 }

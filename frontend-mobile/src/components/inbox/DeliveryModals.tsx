@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Modal, Image, StyleSheet } from 'react-native';
+import { Alert, View, Text, TouchableOpacity, ScrollView, Modal, Image, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
+import { authHeaders } from '@/services/authSession';
 
 interface DeliveryModalsProps {
   showBidWon: boolean;
@@ -65,6 +66,53 @@ export const DeliveryModals: React.FC<DeliveryModalsProps> = ({
     if (showWonInvoice) return 'Factura de Puja';
     if (showDeliverySuccess) return deliveryType === 'envio' ? 'Envio del Articulo' : 'Retiro del Articulo';
     return '';
+  };
+
+  const submitDeliveryDecision = async (noPuedePagar = false) => {
+    if (!wonItemDetails?.itemId) {
+      setShowWonInvoice(false);
+      return;
+    }
+
+    try {
+      const base = wonItemDetails.importe ? Number(wonItemDetails.importe) : 0;
+      const shipping = (deliveryType === 'envio' && wonItemDetails.costoEnvio) ? Number(wonItemDetails.costoEnvio) : 0;
+      const response = await fetch(`${API_URL}/inbox/won-item/${wonItemDetails.itemId}/confirmar-entrega`, {
+        method: 'POST',
+        headers: await authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(noPuedePagar
+          ? { noPuedePagar: true }
+          : {
+            tipoEntrega: deliveryType,
+            costoEnvio: shipping,
+            total: base + shipping
+          }),
+      });
+
+      if (response.ok) {
+        setShowWonInvoice(false);
+        if (noPuedePagar) {
+          Alert.alert('Multa registrada', 'Se registro la multa y tu participacion queda suspendida hasta regularizar.');
+          checkUserStatusAndFetch();
+        } else {
+          setShowDeliverySuccess(true);
+        }
+      } else {
+        let message = 'No se pudo registrar la decision de pago.';
+        try {
+          const errorData = await response.json();
+          message = errorData.error || message;
+        } catch {
+          message = response.statusText || message;
+        }
+        Alert.alert('Error', message);
+        console.error('Error confirming delivery details:', message);
+        setShowWonInvoice(false);
+      }
+    } catch (err) {
+      console.error('Network error confirming delivery details:', err);
+      setShowWonInvoice(false);
+    }
   };
 
   return (
@@ -272,45 +320,20 @@ export const DeliveryModals: React.FC<DeliveryModalsProps> = ({
                   <Text style={[styles.modalButtonText, { color: '#fff', fontWeight: 'bold' }]}>Volver</Text>
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity 
-                  style={[styles.modalButton, { backgroundColor: '#ADFF2F', borderColor: '#ADFF2F' }]} 
-                  onPress={async () => {
-                    if (wonItemDetails && wonItemDetails.itemId) {
-                      try {
-                        const base = wonItemDetails.importe ? Number(wonItemDetails.importe) : 0;
-                        const shipping = (deliveryType === 'envio' && wonItemDetails.costoEnvio) ? Number(wonItemDetails.costoEnvio) : 0;
-                        
-                        const response = await fetch(`${API_URL}/inbox/won-item/${wonItemDetails.itemId}/confirmar-entrega`, {
-                          method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json',
-                            'Autorizacion': loggedInUserId ? String(loggedInUserId) : '',
-                          },
-                          body: JSON.stringify({
-                            tipoEntrega: deliveryType,
-                            costoEnvio: shipping,
-                            total: base + shipping
-                          }),
-                        });
-                        
-                        if (response.ok) {
-                          setShowWonInvoice(false);
-                          setShowDeliverySuccess(true);
-                        } else {
-                          console.error('Error confirming delivery details:', response.statusText);
-                          setShowWonInvoice(false);
-                        }
-                      } catch (err) {
-                        console.error('Network error confirming delivery details:', err);
-                        setShowWonInvoice(false);
-                      }
-                    } else {
-                      setShowWonInvoice(false);
-                    }
-                  }}
-                >
-                  <Text style={[styles.modalButtonText, { color: '#051C2C', fontWeight: 'bold' }]}>Finalizar</Text>
-                </TouchableOpacity>
+                <>
+                  <TouchableOpacity
+                    style={[styles.modalButton, { backgroundColor: '#ADFF2F', borderColor: '#ADFF2F' }]}
+                    onPress={() => submitDeliveryDecision(false)}
+                  >
+                    <Text style={[styles.modalButtonText, { color: '#051C2C', fontWeight: 'bold' }]}>Finalizar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.paymentIssueButton}
+                    onPress={() => submitDeliveryDecision(true)}
+                  >
+                    <Text style={styles.paymentIssueButtonText}>No puedo pagar</Text>
+                  </TouchableOpacity>
+                </>
               )}
             </View>
           </>
@@ -410,6 +433,7 @@ const styles = StyleSheet.create({
   modalFooter: {
     padding: 24,
     paddingBottom: 40,
+    gap: 12,
   },
   modalButton: {
     backgroundColor: '#2E8B57',
@@ -421,6 +445,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  paymentIssueButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#BA4B4B',
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  paymentIssueButtonText: {
+    color: '#BA4B4B',
+    fontSize: 16,
+    fontWeight: '800',
   },
   offerContent: {
     flex: 1,

@@ -34,6 +34,9 @@ export const API_URL = USE_CLOUD
     default: `http://${LOCAL_IP}:8080/api`,
   });
 
+export const WS_URL = API_URL.replace('/api', '').replace(/^http/, 'ws') + '/ws-bidowl';
+
 console.log('[API_URL] API_URL configurado en:', API_URL);
+console.log('[API_URL] WS_URL configurado en:', WS_URL);
 
 

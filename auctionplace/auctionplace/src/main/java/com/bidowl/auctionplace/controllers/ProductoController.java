@@ -28,7 +28,7 @@ public class ProductoController {
             List<ProductoDTO> productos = productoService.obtenerTodos();
             return ResponseEntity.ok(productos);
         } catch (Exception e) {
-            return crearRespuestaError("Error al obtener productos: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerSupport.errorResponseWithStatus("Error al obtener productos: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -42,7 +42,7 @@ public class ProductoController {
             ProductoDTO producto = productoService.obtenerPorId(id);
             return ResponseEntity.ok(producto);
         } catch (Exception e) {
-            return crearRespuestaError(e.getMessage(), HttpStatus.NOT_FOUND);
+            return ControllerSupport.errorResponseWithStatus(e.getMessage(), HttpStatus.NOT_FOUND);
         }
     }
 
@@ -56,12 +56,12 @@ public class ProductoController {
             List<ProductoDTO> productos = productoService.obtenerDisponibles();
             return ResponseEntity.ok(productos);
         } catch (Exception e) {
-            return crearRespuestaError("Error al obtener productos disponibles: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+            return ControllerSupport.errorResponseWithStatus("Error al obtener productos disponibles: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     /**
-     * GET - Obtiene todos los productos de un dueño
+     * GET - Obtiene todos los productos de un dueÃ±o
      * GET /api/v1/productos/duenio/{duenioId}
      */
     @GetMapping("/duenio/{duenioId}")
@@ -70,7 +70,7 @@ public class ProductoController {
             List<ProductoDTO> productos = productoService.obtenerPorDuenio(duenioId);
             return ResponseEntity.ok(productos);
         } catch (Exception e) {
-            return crearRespuestaError(e.getMessage(), HttpStatus.NOT_FOUND);
+            return ControllerSupport.errorResponseWithStatus(e.getMessage(), HttpStatus.NOT_FOUND);
         }
     }
 
@@ -84,7 +84,7 @@ public class ProductoController {
             ProductoDTO nuevoProducto = productoService.crearProducto(productoDTO);
             return ResponseEntity.status(HttpStatus.CREATED).body(nuevoProducto);
         } catch (Exception e) {
-            return crearRespuestaError("Error al crear producto: " + e.getMessage(), HttpStatus.BAD_REQUEST);
+            return ControllerSupport.errorResponseWithStatus("Error al crear producto: " + e.getMessage(), HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -98,7 +98,7 @@ public class ProductoController {
             ProductoDTO productoActualizado = productoService.actualizarProducto(id, productoDTO);
             return ResponseEntity.ok(productoActualizado);
         } catch (Exception e) {
-            return crearRespuestaError(e.getMessage(), HttpStatus.NOT_FOUND);
+            return ControllerSupport.errorResponseWithStatus(e.getMessage(), HttpStatus.NOT_FOUND);
         }
     }
 
@@ -115,12 +115,12 @@ public class ProductoController {
             respuesta.put("id", id.toString());
             return ResponseEntity.ok(respuesta);
         } catch (Exception e) {
-            return crearRespuestaError(e.getMessage(), HttpStatus.NOT_FOUND);
+            return ControllerSupport.errorResponseWithStatus(e.getMessage(), HttpStatus.NOT_FOUND);
         }
     }
 
     /**
-     * PATCH - Acepta el producto en la inspección
+     * PATCH - Acepta el producto en la inspecciÃ³n
      * PATCH /api/productos/{id}/aceptar
      */
     @PatchMapping("/{id}/aceptar")
@@ -138,12 +138,12 @@ public class ProductoController {
             ProductoDTO producto = productoService.marcarComoDisponible(id, descripcionCatalogo);
             return ResponseEntity.ok(producto);
         } catch (Exception e) {
-            return crearRespuestaError(e.getMessage(), HttpStatus.NOT_FOUND);
+            return ControllerSupport.errorResponseWithStatus(e.getMessage(), HttpStatus.NOT_FOUND);
         }
     }
 
     /**
-     * PATCH - Rechaza el producto en la inspección
+     * PATCH - Rechaza el producto en la inspecciÃ³n
      * PATCH /api/productos/{id}/rechazar
      */
     @PatchMapping("/{id}/rechazar")
@@ -161,7 +161,7 @@ public class ProductoController {
             ProductoDTO producto = productoService.marcarComoNoDisponible(id, descripcionCatalogo);
             return ResponseEntity.ok(producto);
         } catch (Exception e) {
-            return crearRespuestaError(e.getMessage(), HttpStatus.NOT_FOUND);
+            return ControllerSupport.errorResponseWithStatus(e.getMessage(), HttpStatus.NOT_FOUND);
         }
     }
 
@@ -186,7 +186,7 @@ public class ProductoController {
             Map<String, Object> seguro = productoService.obtenerSeguroProducto(id);
             return ResponseEntity.ok(seguro);
         } catch (Exception e) {
-            return crearRespuestaError(e.getMessage(), HttpStatus.NOT_FOUND);
+            return ControllerSupport.errorResponseWithStatus(e.getMessage(), HttpStatus.NOT_FOUND);
         }
     }
 
@@ -195,10 +195,10 @@ public class ProductoController {
         try {
             productoService.negociarSeguro(id);
             Map<String, String> respuesta = new HashMap<>();
-            respuesta.put("mensaje", "Email de negociación enviado correctamente");
+            respuesta.put("mensaje", "Email de negociaciÃ³n enviado correctamente");
             return ResponseEntity.ok(respuesta);
         } catch (Exception e) {
-            return crearRespuestaError(e.getMessage(), HttpStatus.BAD_REQUEST);
+            return ControllerSupport.errorResponseWithStatus(e.getMessage(), HttpStatus.BAD_REQUEST);
         }
     }
 
@@ -228,15 +228,5 @@ public class ProductoController {
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
         }
-    }
-
-    /**
-     * Método auxiliar para crear respuestas de error consistentes
-     */
-    private ResponseEntity<?> crearRespuestaError(String mensaje, HttpStatus status) {
-        Map<String, String> error = new HashMap<>();
-        error.put("error", mensaje);
-        error.put("estado", status.toString());
-        return ResponseEntity.status(status).body(error);
     }
 }

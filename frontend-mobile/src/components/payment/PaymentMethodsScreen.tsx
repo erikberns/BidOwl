@@ -735,7 +735,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       setCheckMontoError('El monto certificado es obligatorio.');
       hasErrors = true;
     } else {
-      const parsedMonto = Number(checkMonto);
+      const parsedMonto = Number(checkMonto.replace(/\./g, '').replace(',', '.'));
       if (isNaN(parsedMonto) || parsedMonto <= 0) {
         setCheckMontoError('El monto debe ser un valor numérico positivo.');
         hasErrors = true;
@@ -760,7 +760,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       formData.append('titular', checkTitular);
       formData.append('bancoEmisor', checkBanco);
       formData.append('numeroCheque', checkNumero);
-      formData.append('monto', checkMonto);
+      formData.append('monto', checkMonto.replace(/\./g, '').replace(',', '.'));
       formData.append('paisId', paisId.toString());
       formData.append('moneda', checkMoneda.toLowerCase().includes('d') ? 'dolares' : 'pesos');
 

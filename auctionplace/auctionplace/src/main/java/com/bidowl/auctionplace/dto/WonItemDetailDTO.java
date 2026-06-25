@@ -11,7 +11,13 @@ public class WonItemDetailDTO {
     private Integer loteIndex;
     private Integer totalLotes;
     private BigDecimal importe;
+    private String moneda;
     private String domicilio;
     private BigDecimal costoEnvio;
     private String tipoEntrega;
+    private Boolean bloqueadoPorDeuda;
+    private String deudaEstado;
+    private BigDecimal montoMulta;
+    private BigDecimal montoTotalDeuda;
+    private String fechaVencimientoDeuda;
 }

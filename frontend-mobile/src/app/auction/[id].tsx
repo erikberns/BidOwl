@@ -13,6 +13,7 @@ import { AuctionBidModal } from '@/components/auction/AuctionBidModal';
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { MOCK_AUCTIONS, MOCK_AUCTION_ITEMS } from '@/constants/mockData';
 import { API_URL } from '@/constants/api';
+import { authHeaders } from '@/services/authSession';
 
 const { width } = Dimensions.get('window');
 
@@ -27,7 +28,7 @@ const getImageUrl = (path: string) => {
 };
 
 // Helper to format prices
-const formatPrice = (value: number | string) => {
+const formatPrice = (value: number | string, moneda: string = 'pesos') => {
   if (value === undefined || value === null) return '';
   let num: number;
   if (typeof value === 'number') {
@@ -37,7 +38,8 @@ const formatPrice = (value: number | string) => {
     num = parseFloat(clean);
   }
   if (isNaN(num)) return value.toString();
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " ARS";
+  const suffix = moneda === 'dolares' ? 'USD' : 'ARS';
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + ` ${suffix}`;
 };
 
 // Helper to parse dates from API or Mock
@@ -120,7 +122,7 @@ export default function AuctionDetailScreen() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Autorizacion': String(user.identificador)
+          ...(await authHeaders())
         },
         body: JSON.stringify({})
       });
@@ -217,9 +219,7 @@ export default function AuctionDetailScreen() {
         const user = JSON.parse(userStr);
         try {
           const elegRes = await fetch(`${API_URL}/subastas/${auctionIdStr}/elegibilidad?_=${Date.now()}`, {
-            headers: {
-              'Autorizacion': String(user.identificador)
-            }
+            headers: await authHeaders()
           });
           if (elegRes.ok) {
             const elegData = await elegRes.json();
@@ -401,6 +401,7 @@ export default function AuctionDetailScreen() {
   const detail = auctionDetail || {};
   const previews = detail.previsualizacionitems || [];
   const categoryLabel = (detail.categoria || 'comun').toUpperCase();
+  const moneda = detail.moneda || 'pesos';
 
   const baseValue = previews[0]?.valorBase || 1000000;
   const currentLeaderBid = 1155000;
@@ -574,7 +575,7 @@ export default function AuctionDetailScreen() {
                     <Text style={styles.itemNumber}>{idx + 1}º Articulo</Text>
                     <Text style={styles.itemTitle}>{item.nombre}</Text>
                     {!isGuest && (
-                      <Text style={styles.itemPrice}>Valor Base: {formatPrice(item.valorBase)}</Text>
+                      <Text style={styles.itemPrice}>Valor Base: {formatPrice(item.valorBase, moneda)}</Text>
                     )}
                   </View>
                 </View>

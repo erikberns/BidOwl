@@ -15,6 +15,7 @@ interface BiddingWizardModalProps {
   errorMessage: string | null;
   errorTitle: string | null;
   formatPrice: (value: number | string) => string;
+  currencyLabel?: string;
 }
 
 export const BiddingWizardModal: React.FC<BiddingWizardModalProps> = ({
@@ -30,6 +31,7 @@ export const BiddingWizardModal: React.FC<BiddingWizardModalProps> = ({
   errorMessage,
   errorTitle,
   formatPrice,
+  currencyLabel = 'ARS',
 }) => {
   if (!visible || !bidStep) return null;
 
@@ -117,7 +119,7 @@ export const BiddingWizardModal: React.FC<BiddingWizardModalProps> = ({
                     placeholderTextColor="#666"
                     underlineColorAndroid="transparent"
                   />
-                  <Text style={styles.currencySuffix}>ARS</Text>
+                  <Text style={styles.currencySuffix}>{currencyLabel}</Text>
                 </View>
 
                 <TouchableOpacity 

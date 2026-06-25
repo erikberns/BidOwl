@@ -26,13 +26,9 @@ public class CatalogoController {
             Catalogo catalogo = catalogoService.crearCatalogo(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(catalogo);
         } catch (IllegalArgumentException | IllegalStateException e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
-            return ResponseEntity.badRequest().body(error);
+            return ResponseEntity.badRequest().body(ControllerSupport.errorBody(e.getMessage()));
         } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", "Error interno del servidor: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+            return ControllerSupport.errorResponse("Error interno del servidor: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -42,9 +38,7 @@ public class CatalogoController {
             @RequestParam("foto") MultipartFile[] fotos) {
         try {
             if (fotos == null || fotos.length == 0 || (fotos.length == 1 && fotos[0].isEmpty())) {
-                Map<String, Object> error = new HashMap<>();
-                error.put("error", "Al menos un archivo de foto es requerido.");
-                return ResponseEntity.badRequest().body(error);
+                return ResponseEntity.badRequest().body(ControllerSupport.errorBody("Al menos un archivo de foto es requerido."));
             }
             
             java.util.List<byte[]> fotosBytes = new java.util.ArrayList<>();
@@ -55,9 +49,7 @@ public class CatalogoController {
             }
 
             if (fotosBytes.isEmpty()) {
-                Map<String, Object> error = new HashMap<>();
-                error.put("error", "Los archivos proporcionados están vacíos.");
-                return ResponseEntity.badRequest().body(error);
+                return ResponseEntity.badRequest().body(ControllerSupport.errorBody("Los archivos proporcionados están vacíos."));
             }
 
             catalogoService.guardarFotosCatalogo(id, fotosBytes);
@@ -67,12 +59,10 @@ public class CatalogoController {
             response.put("mensaje", "Fotos subidas con éxito. Cantidad: " + fotosBytes.size());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            Map<String, Object> error = new HashMap<>();
-            error.put("error", e.getMessage());
             if (e instanceof java.util.NoSuchElementException) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ControllerSupport.errorBody(e.getMessage()));
             }
-            return ResponseEntity.badRequest().body(error);
+            return ResponseEntity.badRequest().body(ControllerSupport.errorBody(e.getMessage()));
         }
     }
 

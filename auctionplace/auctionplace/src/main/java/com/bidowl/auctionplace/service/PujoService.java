@@ -1,17 +1,27 @@
 package com.bidowl.auctionplace.service;
 
-import com.bidowl.auctionplace.entity.*;
-import com.bidowl.auctionplace.repository.*;
+import com.bidowl.auctionplace.dto.LimitesPujaDTO;
+import com.bidowl.auctionplace.dto.PujaWebSocketEventDTO;
+import com.bidowl.auctionplace.entity.Asistente;
+import com.bidowl.auctionplace.entity.Cliente;
+import com.bidowl.auctionplace.entity.ItemCatalogo;
+import com.bidowl.auctionplace.entity.MetodoPago;
+import com.bidowl.auctionplace.entity.Pujo;
+import com.bidowl.auctionplace.entity.Subasta;
+import com.bidowl.auctionplace.repository.AsistenteRepository;
+import com.bidowl.auctionplace.repository.ClienteRepository;
+import com.bidowl.auctionplace.repository.ItemCatalogoRepository;
+import com.bidowl.auctionplace.repository.PujoRepository;
+import com.bidowl.auctionplace.repository.SubastaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-/**
- * Servicio encargado de gestionar las ofertas y pujas de los participantes durante una subasta activa.
- * Controla que el importe ofertado sea válido respecto al precio base o a la oferta anterior,
- * y aplica reglas de incrementos mínimos y máximos según la categoría de la subasta.
- */
+
 @Service
 public class PujoService {
 
@@ -27,6 +37,27 @@ public class PujoService {
     @Autowired
     private ClienteRepository clienteRepository;
 
+    @Autowired
+    private SubastaRepository subastaRepository;
+
+    @Autowired
+    private MetodoPagoValidationService metodoPagoValidationService;
+
+    @Autowired
+    private ChequeCompromisoService chequeCompromisoService;
+
+    @Autowired
+    private ClientePenalizacionService clientePenalizacionService;
+
+    @Autowired
+    private CategoryRankService categoryRankService;
+
+    @Autowired
+    private ItemCatalogoService itemCatalogoService;
+
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
+
     public List<Pujo> obtenerHistorial(Integer itemId) {
         return pujoRepository.findByItemIdentificadorOrderByImporteDesc(itemId);
     }
@@ -35,89 +66,249 @@ public class PujoService {
         return pujoRepository.findFirstByItemIdentificadorOrderByImporteDesc(itemId);
     }
 
-    public Pujo registrarPuja(Integer asistenteId, Integer itemId, BigDecimal importe) throws Exception {
-        Asistente asistente = asistenteRepository.findById(asistenteId)
-                .orElseThrow(() -> new Exception("Asistente no registrado en esta subasta."));
-        
-        ItemCatalogo item = itemCatalogoRepository.findById(itemId)
-                .orElseThrow(() -> new Exception("Artículo del catálogo no encontrado."));
+    public LimitesPujaDTO obtenerLimitesPuja(Integer itemId) {
+        ItemCatalogo itemCatalogo = itemCatalogoRepository.findById(itemId)
+                .orElseThrow(() -> new java.util.NoSuchElementException("Item con ID " + itemId + " no encontrado"));
+        return calcularLimites(itemCatalogo);
+    }
 
-        if (item.getProducto().getDuenio().getIdentificador().equals(asistente.getCliente().getIdentificador())) {
-            throw new Exception("No puedes pujar por un artículo de tu propiedad.");
+    public Optional<ItemCatalogo> buscarItemEnSubasta(Integer idSubasta, Integer iditem) {
+        if (idSubasta == null || iditem == null) {
+            return Optional.empty();
+        }
+        return itemCatalogoRepository.findByIdentificadorAndCatalogo_Subasta_Identificador(iditem, idSubasta);
+    }
+
+    public boolean subastaEstaCerrada(Integer idSubasta) {
+        if (idSubasta == null) {
+            return false;
+        }
+        return subastaRepository.findById(idSubasta)
+                .map(subasta -> !"abierta".equalsIgnoreCase(subasta.getEstado()))
+                .orElse(false);
+    }
+
+    @Transactional
+    public Pujo registrarPujaEnSubasta(Integer idSubasta, Integer iditem, BigDecimal monto, String idMetodoPago, Integer clienteId) {
+        if (monto == null || monto.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("El monto debe ser mayor a 0");
         }
 
-        if ("si".equalsIgnoreCase(item.getSubastado())) {
-            throw new Exception("El artículo ya ha sido subastado.");
+        ItemCatalogo itemCatalogo = itemCatalogoRepository
+                .findByIdentificadorAndCatalogo_Subasta_Identificador(iditem, idSubasta)
+                .orElseThrow(() -> new java.util.NoSuchElementException(
+                        "Item con ID " + iditem + " no encontrado en la subasta " + idSubasta));
+
+        Subasta subasta = subastaRepository.findById(idSubasta)
+                .orElseThrow(() -> new IllegalStateException("La subasta no existe o no esta abierta"));
+        if (!"abierta".equalsIgnoreCase(subasta.getEstado())) {
+            throw new IllegalStateException("La subasta no existe o no esta abierta");
         }
 
-        BigDecimal precioBase = item.getPrecioBase();
-        Optional<Pujo> ultimaPujaOpt = pujoRepository.findFirstByItemIdentificadorOrderByImporteDesc(itemId);
+        Cliente cliente = clienteRepository.findById(clienteId)
+                .orElseThrow(() -> new java.util.NoSuchElementException("Cliente no encontrado: " + clienteId));
 
-        if (ultimaPujaOpt.isPresent()) {
-            Pujo ultimaPuja = ultimaPujaOpt.get();
-            BigDecimal montoUltima = ultimaPuja.getImporte();
+        validarClientePuedePujar(cliente, subasta, itemCatalogo);
+        validarLoteHabilitado(idSubasta, iditem);
+        validarItemNoFinalizado(itemCatalogo, idSubasta, iditem);
 
-            // Validar que sea mayor a la última puja
-            if (importe.compareTo(montoUltima) <= 0) {
-                throw new Exception("El importe ofertado debe ser mayor a la oferta líder actual de $" + montoUltima);
-            }
+        MetodoPago metodoPago = metodoPagoValidationService
+                .obtenerCompatibleParaPuja(clienteId, idMetodoPago, subasta, monto, iditem);
 
-            // Validar límites si la subasta NO es de categoría 'oro' o 'platino'
-            String catSubasta = item.getCatalogo().getSubasta().getCategoria();
-            boolean esCategoriaAlta = "oro".equalsIgnoreCase(catSubasta) || "platino".equalsIgnoreCase(catSubasta);
+        validarMontoPermitido(itemCatalogo, monto);
 
-            if (!esCategoriaAlta) {
-                BigDecimal incrementoMinimo = precioBase.multiply(BigDecimal.valueOf(0.01)); // 1% del valor base
-                BigDecimal incrementoMaximo = precioBase.multiply(BigDecimal.valueOf(0.20)); // 20% del valor base
+        Asistente asistente = getOrCreateAsistente(cliente, subasta);
+        itemCatalogo.setFechaFinPuja(LocalDateTime.now().plusMinutes(1));
+        itemCatalogoRepository.save(itemCatalogo);
 
-                BigDecimal pujaMinimaRequerida = montoUltima.add(incrementoMinimo);
-                BigDecimal pujaMaximaPermitida = montoUltima.add(incrementoMaximo);
+        Pujo puja = new Pujo();
+        puja.setAsistente(asistente);
+        puja.setItem(itemCatalogo);
+        puja.setImporte(monto);
+        puja.setGanador("no");
+        puja.setFechaHora(LocalDateTime.now());
+        puja.setMetodoPago(metodoPago);
 
-                if (importe.compareTo(pujaMinimaRequerida) < 0) {
-                    throw new Exception("Incremento insuficiente. Para subastas de categoría " + catSubasta + 
-                                        ", la puja mínima debe ser de $" + pujaMinimaRequerida + 
-                                        " (oferta actual + 1% del precio base de $" + precioBase + ")");
-                }
+        Pujo pujaGuardada = pujoRepository.save(puja);
+        chequeCompromisoService.registrarCompromisoParaPuja(pujaGuardada);
 
-                if (importe.compareTo(pujaMaximaPermitida) > 0) {
-                    throw new Exception("Incremento excedido. Para subastas de categoría " + catSubasta + 
-                                        ", la puja máxima permitida es de $" + pujaMaximaPermitida + 
-                                        " (oferta actual + 20% del precio base de $" + precioBase + ")");
-                }
-            }
-        } else {
-            // Primera puja: debe ser al menos el precio base
-            if (importe.compareTo(precioBase) < 0) {
-                throw new Exception("La oferta inicial debe ser al menos el precio base de $" + precioBase);
-            }
-            
-            String catSubasta = item.getCatalogo().getSubasta().getCategoria();
-            boolean esCategoriaAlta = "oro".equalsIgnoreCase(catSubasta) || "platino".equalsIgnoreCase(catSubasta);
-            
-            if (!esCategoriaAlta) {
-                BigDecimal incrementoMaximo = precioBase.multiply(BigDecimal.valueOf(0.20));
-                BigDecimal pujaMaximaPermitida = precioBase.add(incrementoMaximo);
-                if (importe.compareTo(pujaMaximaPermitida) > 0) {
-                    throw new Exception("La oferta inicial no puede superar el precio base más el 20% ($" + pujaMaximaPermitida + ")");
-                }
-            }
-        }
-
-        // Registrar la puja
-        Pujo nuevaPuja = new Pujo();
-        nuevaPuja.setAsistente(asistente);
-        nuevaPuja.setItem(item);
-        nuevaPuja.setImporte(importe);
-        nuevaPuja.setGanador("no");
-        nuevaPuja.setFechaHora(java.time.LocalDateTime.now());
-
-        Pujo guardada = pujoRepository.save(nuevaPuja);
-
-        // Incrementar métrica del cliente
-        Cliente cliente = asistente.getCliente();
         cliente.setPujasRealizadas((cliente.getPujasRealizadas() != null ? cliente.getPujasRealizadas() : 0) + 1);
         clienteRepository.save(cliente);
 
-        return guardada;
+        publicarEventoNuevaPuja(idSubasta, pujaGuardada);
+
+        return pujaGuardada;
+    }
+
+    private void publicarEventoNuevaPuja(Integer subastaId, Pujo puja) {
+        Integer itemId = puja != null && puja.getItem() != null ? puja.getItem().getIdentificador() : null;
+        PujaWebSocketEventDTO event = PujaWebSocketEventDTO.nuevaPuja(subastaId, puja, obtenerMoneda(puja));
+        messagingTemplate.convertAndSend("/topic/subasta/" + subastaId, event);
+        if (itemId != null) {
+            messagingTemplate.convertAndSend("/topic/subasta/" + subastaId + "/items/" + itemId, event);
+        }
+
+        if (subastaEstaCerrada(subastaId)) {
+            PujaWebSocketEventDTO cierre = PujaWebSocketEventDTO.subastaCerrada(subastaId, "La subasta ha finalizado.");
+            messagingTemplate.convertAndSend("/topic/subasta/" + subastaId, cierre);
+            if (itemId != null) {
+                messagingTemplate.convertAndSend("/topic/subasta/" + subastaId + "/items/" + itemId, cierre);
+            }
+        }
+    }
+
+    private String obtenerMoneda(Pujo pujo) {
+        if (pujo == null
+                || pujo.getItem() == null
+                || pujo.getItem().getCatalogo() == null
+                || pujo.getItem().getCatalogo().getSubasta() == null) {
+            return null;
+        }
+        return pujo.getItem().getCatalogo().getSubasta().getMoneda();
+    }
+
+    @Transactional
+    public Pujo registrarPujaDesdeAsistente(Integer asistenteId, Integer idSubasta, Integer itemId, BigDecimal importe, String idMetodoPago) {
+        Asistente asistente = asistenteRepository.findById(asistenteId)
+                .orElseThrow(() -> new java.util.NoSuchElementException("Asistente no registrado en esta subasta."));
+        if (asistente.getSubasta() == null || !asistente.getSubasta().getIdentificador().equals(idSubasta)) {
+            throw new IllegalArgumentException("El asistente no pertenece a la subasta indicada.");
+        }
+        return registrarPujaEnSubasta(idSubasta, itemId, importe, idMetodoPago, asistente.getCliente().getIdentificador());
+    }
+
+    public Integer obtenerClienteIdDesdeAsistente(Integer asistenteId, Integer idSubasta) {
+        Asistente asistente = asistenteRepository.findById(asistenteId)
+                .orElseThrow(() -> new java.util.NoSuchElementException("Asistente no registrado en esta subasta."));
+        if (asistente.getSubasta() == null || !asistente.getSubasta().getIdentificador().equals(idSubasta)) {
+            throw new IllegalArgumentException("El asistente no pertenece a la subasta indicada.");
+        }
+        if (asistente.getCliente() == null) {
+            throw new java.util.NoSuchElementException("Cliente no encontrado para el asistente indicado.");
+        }
+        return asistente.getCliente().getIdentificador();
+    }
+
+    private void validarClientePuedePujar(Cliente cliente, Subasta subasta, ItemCatalogo itemCatalogo) {
+        clientePenalizacionService.validarClienteSinBloqueo(cliente.getIdentificador());
+        if (itemCatalogo.getProducto() != null
+                && itemCatalogo.getProducto().getDuenio() != null
+                && itemCatalogo.getProducto().getDuenio().getIdentificador().equals(cliente.getIdentificador())) {
+            throw new IllegalArgumentException("No puedes pujar por un articulo de tu propiedad.");
+        }
+        if (categoryRankService.getRank(cliente.getCategoriaCliente()) < categoryRankService.getRank(subasta.getCategoria())) {
+            throw new IllegalArgumentException("Categoria de cliente insuficiente.");
+        }
+    }
+
+    private void validarLoteHabilitado(Integer idSubasta, Integer iditem) {
+        List<ItemCatalogo> todosLosItems = itemCatalogoRepository.findByCatalogoSubastaIdentificador(idSubasta);
+        todosLosItems.sort(java.util.Comparator.comparing(ItemCatalogo::getIdentificador));
+        for (ItemCatalogo item : todosLosItems) {
+            if (item.getIdentificador().equals(iditem)) {
+                return;
+            }
+            if (!"si".equalsIgnoreCase(item.getSubastado())) {
+                throw new IllegalStateException("No se puede pujar sobre este lote porque el lote anterior aun no ha finalizado.");
+            }
+        }
+    }
+
+    private void validarItemNoFinalizado(ItemCatalogo itemCatalogo, Integer idSubasta, Integer iditem) {
+        if (itemCatalogo.getFechaFinPuja() != null && LocalDateTime.now().isAfter(itemCatalogo.getFechaFinPuja())) {
+            try {
+                itemCatalogoService.finalizarSubastaDeItem(iditem);
+            } catch (Exception e) {
+                itemCatalogo.setSubastado("si");
+                itemCatalogoRepository.save(itemCatalogo);
+                Optional<Pujo> pujaLider = pujoRepository.findFirstByItemIdentificadorOrderByImporteDesc(iditem);
+                if (pujaLider.isPresent()) {
+                    Pujo lider = pujaLider.get();
+                    lider.setGanador("si");
+                    pujoRepository.save(lider);
+                    chequeCompromisoService.ejecutarCompromisoGanador(lider);
+                }
+            }
+            throw new IllegalStateException("El remate de este articulo ha finalizado.");
+        }
+        if ("si".equalsIgnoreCase(itemCatalogo.getSubastado())) {
+            throw new IllegalStateException("El remate de este articulo ha finalizado.");
+        }
+    }
+
+    private void validarMontoPermitido(ItemCatalogo itemCatalogo, BigDecimal monto) {
+        LimitesPujaDTO limites = calcularLimites(itemCatalogo);
+        if (limites.getPujaMinima() != null && monto.compareTo(limites.getPujaMinima()) < 0) {
+            throw new IllegalArgumentException("La puja es menor al minimo permitido: " + limites.getPujaMinima());
+        }
+        if (limites.getPujaMaxima() != null && monto.compareTo(limites.getPujaMaxima()) > 0) {
+            throw new IllegalArgumentException("La puja excede el maximo permitido: " + limites.getPujaMaxima());
+        }
+    }
+
+    private LimitesPujaDTO calcularLimites(ItemCatalogo itemCatalogo) {
+        BigDecimal precioBase = itemCatalogo.getPrecioBase();
+        Optional<Pujo> ultimaPujaOpt = pujoRepository.findFirstByItemIdentificadorOrderByImporteDesc(itemCatalogo.getIdentificador());
+
+        String categoria = itemCatalogo.getCatalogo() != null && itemCatalogo.getCatalogo().getSubasta() != null
+                ? itemCatalogo.getCatalogo().getSubasta().getCategoria()
+                : null;
+        boolean esCategoriaAlta = "oro".equalsIgnoreCase(categoria) || "platino".equalsIgnoreCase(categoria);
+
+        BigDecimal pujaMinima;
+        BigDecimal pujaMaxima;
+        if (ultimaPujaOpt.isPresent()) {
+            BigDecimal montoUltima = ultimaPujaOpt.get().getImporte();
+            if (esCategoriaAlta) {
+                pujaMinima = montoUltima.add(BigDecimal.valueOf(0.01));
+                pujaMaxima = null;
+            } else {
+                pujaMinima = montoUltima.add(precioBase.multiply(BigDecimal.valueOf(0.01)));
+                pujaMaxima = montoUltima.add(precioBase.multiply(BigDecimal.valueOf(0.20)));
+            }
+        } else {
+            pujaMinima = precioBase;
+            pujaMaxima = esCategoriaAlta ? null : precioBase.add(precioBase.multiply(BigDecimal.valueOf(0.20)));
+        }
+
+        LimitesPujaDTO limites = new LimitesPujaDTO();
+        limites.setPujaMinima(pujaMinima);
+        limites.setPujaMaxima(pujaMaxima);
+        return limites;
+    }
+
+    private Asistente getOrCreateAsistente(Cliente cliente, Subasta subasta) {
+        return asistenteRepository
+                .findByClienteIdentificadorAndSubastaIdentificador(cliente.getIdentificador(), subasta.getIdentificador())
+                .orElseGet(() -> {
+                    Asistente nuevoAsistente = new Asistente();
+                    nuevoAsistente.setCliente(cliente);
+                    nuevoAsistente.setSubasta(subasta);
+                    nuevoAsistente.setNumeroPostor(generarNumeroPostorUnico(subasta));
+
+                    cliente.setRematesAsistidos((cliente.getRematesAsistidos() != null ? cliente.getRematesAsistidos() : 0) + 1);
+                    clienteRepository.save(cliente);
+
+                    return asistenteRepository.save(nuevoAsistente);
+                });
+    }
+
+    private int generarNumeroPostorUnico(Subasta subasta) {
+        int capacidad = subasta.getCapacidadAsistentes() != null ? subasta.getCapacidadAsistentes() : 100;
+        List<Asistente> asistentesSubasta = asistenteRepository.findBySubastaIdentificador(subasta.getIdentificador());
+        java.util.Set<Integer> numerosUsados = asistentesSubasta.stream()
+                .map(Asistente::getNumeroPostor)
+                .collect(java.util.stream.Collectors.toSet());
+        if (numerosUsados.size() >= capacidad) {
+            capacidad = capacidad * 2;
+        }
+        java.util.Random random = new java.util.Random();
+        int numeroPostor;
+        int intentos = 0;
+        do {
+            numeroPostor = random.nextInt(capacidad) + 1;
+            intentos++;
+        } while (numerosUsados.contains(numeroPostor) && intentos < 1000);
+        return numeroPostor;
     }
 }

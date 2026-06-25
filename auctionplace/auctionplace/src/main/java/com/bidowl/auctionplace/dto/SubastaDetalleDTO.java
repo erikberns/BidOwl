@@ -15,6 +15,7 @@ public class SubastaDetalleDTO {
     private String fecha;
     private String hora;
     private String categoria;
+    private String moneda;
     private String estado;
     private Integer cantidadTotalitems;
     private List<ItemPreviewDTO> previsualizacionitems;

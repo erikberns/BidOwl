@@ -13,6 +13,7 @@ public class PropuestaComercialDTO {
     private Integer id;
     private BigDecimal valorBase;
     private BigDecimal comision;
+    private String moneda;
     private String estado;
     private String ubicacionSubasta;
     private String fechaEstimada;

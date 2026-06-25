@@ -19,6 +19,34 @@ import { useIsFocused } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { API_URL } from '@/constants/api';
 
+const parseArticleDate = (value: string): string | null => {
+  if (!value || value.length !== 14) {
+    return null;
+  }
+
+  const parts = value.split(' / ');
+  if (parts.length !== 3) {
+    return null;
+  }
+
+  const day = Number(parts[0]);
+  const month = Number(parts[1]);
+  const year = Number(parts[2]);
+  if (!Number.isInteger(day) || !Number.isInteger(month) || !Number.isInteger(year)) {
+    return null;
+  }
+
+  const date = new Date(year, month - 1, day);
+  const isValid = date.getFullYear() === year
+    && date.getMonth() === month - 1
+    && date.getDate() === day;
+  if (!isValid) {
+    return null;
+  }
+
+  return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+};
+
 export default function PublishScreen() {
   const router = useRouter();
   const isFocused = useIsFocused();
@@ -192,8 +220,8 @@ export default function PublishScreen() {
         setCreatorNameError('El nombre del creador es obligatorio.');
         hasErrors = true;
       }
-      if (!articleDate || articleDate.length !== 14) {
-        setArticleDateError('La fecha de creación es obligatoria y debe tener el formato DD / MM / YYYY.');
+      if (!parseArticleDate(articleDate)) {
+        setArticleDateError('Ingrese una fecha de creacion valida con formato DD / MM / YYYY.');
         hasErrors = true;
       }
       if (!articleHistory || !articleHistory.trim()) {
@@ -213,13 +241,7 @@ export default function PublishScreen() {
 
     setIsSubmitting(true);
 
-    let apiDate = '';
-    if (isArtpiece && articleDate.length === 14) {
-      const parts = articleDate.split(' / ');
-      if (parts.length === 3) {
-        apiDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
-      }
-    }
+    const apiDate = isArtpiece ? (parseArticleDate(articleDate) || '') : '';
 
     const form = new FormData();
     form.append('nombre', articleName);

@@ -54,6 +54,12 @@ public class InboxService {
     @Autowired
     private com.bidowl.auctionplace.repository.RegistroDeSubastaRepository registroDeSubastaRepository;
 
+    @Autowired
+    private MonedaService monedaService;
+
+    @Autowired
+    private ClientePenalizacionService clientePenalizacionService;
+
     public List<NotificacionDTO> obtenerNotificaciones(Integer personaId) {
         List<Notificacion> notificaciones = notificacionRepository.findByPersonaIdOrderByFechaDesc(personaId);
         return notificaciones.stream().map(n -> {
@@ -165,6 +171,7 @@ public class InboxService {
             dto.setArticuloTitle(p.getNombre());
             dto.setSubastaTitle(item.getCatalogo().getSubasta().getTitulo());
             dto.setUbicacion(item.getCatalogo().getSubasta().getUbicacion());
+            String monedaSubasta = monedaService.monedaSubasta(item.getCatalogo().getSubasta());
             
             List<ItemCatalogo> allItemsInCatalogo = itemCatalogoRepository.findByCatalogoIdentificador(item.getCatalogo().getIdentificador());
             int idx = allItemsInCatalogo.indexOf(item);
@@ -173,9 +180,9 @@ public class InboxService {
             
             Optional<Pujo> pujaLider = pujoRepository.findFirstByItemIdentificadorOrderByImporteDesc(item.getIdentificador());
             if (pujaLider.isPresent()) {
-                dto.setPujaMaxima(NumberFormat.getCurrencyInstance(new Locale("es", "ARS")).format(pujaLider.get().getImporte()));
+                dto.setPujaMaxima(formatMonto(pujaLider.get().getImporte(), monedaSubasta));
             } else {
-                dto.setPujaMaxima(NumberFormat.getCurrencyInstance(new Locale("es", "ARS")).format(item.getPrecioBase()));
+                dto.setPujaMaxima(formatMonto(item.getPrecioBase(), monedaSubasta));
             }
             
             List<Foto> fotos = fotoRepository.findByProductoId(p.getIdentificador());
@@ -226,13 +233,16 @@ public class InboxService {
         }
 
         WonItemDetailDTO dto = new WonItemDetailDTO();
+        String monedaSubasta = monedaService.monedaSubasta(item.getCatalogo() != null ? item.getCatalogo().getSubasta() : null);
         dto.setItemId(itemId);
         dto.setSubastaTitle(subastaTitle);
         dto.setItemTitle(item.getProducto().getNombre());
         dto.setLoteIndex(loteIndex);
         dto.setTotalLotes(totalLotes);
         dto.setImporte(importe);
+        dto.setMoneda(monedaSubasta);
         dto.setDomicilio(domicilio);
+        dto.setBloqueadoPorDeuda(false);
         dto.setCostoEnvio(new BigDecimal("20000.00")); // Costo de envío dinámico de 20.000 AR$
 
         Optional<com.bidowl.auctionplace.entity.RegistroDeSubasta> regOpt = registroDeSubastaRepository.findByProductoIdentificador(item.getProducto().getIdentificador());
@@ -244,6 +254,14 @@ public class InboxService {
             if (reg.getTipoEntrega() != null) {
                 dto.setTipoEntrega(reg.getTipoEntrega());
             }
+            clientePenalizacionService.obtenerDeudaPendientePorProducto(item.getProducto().getIdentificador())
+                    .ifPresent(deuda -> {
+                        dto.setBloqueadoPorDeuda(true);
+                        dto.setDeudaEstado(deuda.getEstado());
+                        dto.setMontoMulta(deuda.getMontoMulta());
+                        dto.setMontoTotalDeuda(deuda.getMontoTotal());
+                        dto.setFechaVencimientoDeuda(deuda.getFechaVencimiento().toString());
+                    });
         }
 
         return dto;
@@ -272,6 +290,35 @@ public class InboxService {
         }
     }
 
+    @org.springframework.transaction.annotation.Transactional
+    public com.bidowl.auctionplace.entity.ClienteDeudaSubasta registrarFaltaDePago(Integer itemId, Integer clienteId) throws Exception {
+        ItemCatalogo item = itemCatalogoRepository.findById(itemId)
+                .orElseThrow(() -> new java.util.NoSuchElementException("Item de catalogo con ID " + itemId + " no encontrado"));
+
+        com.bidowl.auctionplace.entity.RegistroDeSubasta registro = registroDeSubastaRepository.findByProductoIdentificador(item.getProducto().getIdentificador())
+                .orElseThrow(() -> new Exception("No se encontro el registro de subasta para el producto."));
+
+        if (!registro.getCliente().getIdentificador().equals(clienteId)) {
+            throw new IllegalArgumentException("El item ganado no pertenece al cliente autenticado.");
+        }
+
+        com.bidowl.auctionplace.entity.ClienteDeudaSubasta deuda = clientePenalizacionService.generarMultaPorFaltaDePago(registro);
+
+        String accion = "show_bid_won:" + itemId;
+        List<Notificacion> notifs = notificacionRepository.findByPersonaIdOrderByFechaDesc(clienteId);
+        for (Notificacion n : notifs) {
+            if (accion.equals(n.getAccion())) {
+                n.setLeida(true);
+                notificacionRepository.save(n);
+            }
+        }
+        return deuda;
+    }
+
+    public com.bidowl.auctionplace.entity.ClienteDeudaSubasta regularizarDeuda(Integer deudaId, Integer clienteId) {
+        return clientePenalizacionService.regularizarDeuda(deudaId, clienteId);
+    }
+
     public List<HistorialPujaUsuarioDTO> obtenerHistorial(Integer personaId) {
         List<Pujo> pujas = pujoRepository.findByAsistenteClienteIdentificador(personaId);
         List<HistorialPujaUsuarioDTO> dtos = new ArrayList<>();
@@ -296,7 +343,7 @@ public class InboxService {
             dto.setSubastaTitle(item.getCatalogo().getSubasta().getTitulo());
             dto.setArticuloTitle(item.getProducto() != null ? item.getProducto().getNombre() : "Artículo " + item.getIdentificador());
             dto.setImage(item.getProducto() != null ? "/api/productos/" + item.getProducto().getIdentificador() + "/foto" : null);
-            dto.setMonto(NumberFormat.getCurrencyInstance(new Locale("es", "ARS")).format(p.getImporte()));
+            dto.setMonto(formatMonto(p.getImporte(), monedaService.monedaSubasta(item.getCatalogo().getSubasta())));
             dto.setGanador("si".equalsIgnoreCase(p.getGanador()));
             
             List<ItemCatalogo> allItemsInCatalogo = itemCatalogoRepository.findByCatalogoIdentificador(item.getCatalogo().getIdentificador());
@@ -307,5 +354,14 @@ public class InboxService {
             dtos.add(dto);
         }
         return dtos;
+    }
+
+    private String formatMonto(BigDecimal monto, String moneda) {
+        String monedaNormalizada = monedaService.normalizar(moneda);
+        Locale locale = MonedaService.DOLARES.equals(monedaNormalizada) ? Locale.US : new Locale("es", "AR");
+        java.util.Currency currency = java.util.Currency.getInstance(MonedaService.DOLARES.equals(monedaNormalizada) ? "USD" : "ARS");
+        NumberFormat format = NumberFormat.getCurrencyInstance(locale);
+        format.setCurrency(currency);
+        return format.format(monto != null ? monto : BigDecimal.ZERO);
     }
 }

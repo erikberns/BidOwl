@@ -32,7 +32,10 @@ public class CatalogoService {
     private PropuestaComercialRepository propuestaComercialRepository;
 
     @Autowired
-    private FotoRepository fotoRepository;
+    private CatalogoFotoRepository catalogoFotoRepository;
+
+    @Autowired
+    private MonedaService monedaService;
 
     @Transactional
     public Catalogo crearCatalogo(CatalogoCrearRequest request) {
@@ -64,12 +67,19 @@ public class CatalogoService {
         Catalogo catalogoGuardado = catalogoRepository.save(catalogo);
 
         if (request.getItems() != null && !request.getItems().isEmpty()) {
+            String monedaCatalogo = null;
             for (ItemCatalogoCrearRequest itemReq : request.getItems()) {
                 Producto producto = productoRepository.findById(itemReq.getProductoId())
                         .orElseThrow(() -> new java.util.NoSuchElementException("Producto no encontrado con ID: " + itemReq.getProductoId()));
 
                 PropuestaComercial propuesta = propuestaComercialRepository.findByProducto(producto)
                         .orElse(null);
+                String monedaItem = propuesta != null ? monedaService.monedaPropuesta(propuesta) : MonedaService.PESOS;
+                if (monedaCatalogo == null) {
+                    monedaCatalogo = monedaItem;
+                } else {
+                    monedaService.validarMismaMoneda(monedaCatalogo, monedaItem, "Todos los items del catalogo");
+                }
 
                 BigDecimal precioBase = itemReq.getPrecioBase();
                 if (precioBase == null) {
@@ -125,26 +135,19 @@ public class CatalogoService {
                 .orElseThrow(() -> new java.util.NoSuchElementException("Catálogo no encontrado con ID: " + catalogoId));
         
         for (byte[] bytes : fotosBytes) {
-            Foto foto = new Foto();
+            CatalogoFoto foto = new CatalogoFoto();
             foto.setCatalogo(catalogo);
             foto.setFoto(bytes);
-            fotoRepository.save(foto);
+            catalogoFotoRepository.save(foto);
         }
 
         // Si la foto directa en el catálogo es nula, le asignamos la primera
-        if (catalogo.getFoto() == null && !fotosBytes.isEmpty()) {
-            catalogo.setFoto(fotosBytes.get(0));
-            catalogoRepository.save(catalogo);
-        }
     }
 
     public byte[] obtenerFotoCatalogoBytes(Integer catalogoId) {
         Optional<Catalogo> catalogo = catalogoRepository.findById(catalogoId);
         if (catalogo.isPresent()) {
-            if (catalogo.get().getFoto() != null) {
-                return catalogo.get().getFoto();
-            }
-            java.util.List<Foto> fotos = fotoRepository.findByCatalogoId(catalogoId);
+            java.util.List<CatalogoFoto> fotos = catalogoFotoRepository.findByCatalogoId(catalogoId);
             if (fotos != null && !fotos.isEmpty()) {
                 return fotos.get(0).getFoto();
             }

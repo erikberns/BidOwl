@@ -47,7 +47,7 @@ public class SolicitudProductoService {
     private DuenioRepository duenioRepository;
 
     @Autowired
-    private NotificacionRepository notificacionRepository;
+    private NotificacionService notificacionService;
 
     @Autowired
     private PropuestaComercialRepository propuestaComercialRepository;
@@ -57,6 +57,9 @@ public class SolicitudProductoService {
 
     @Autowired
     private MetodoPagoRepository metodoPagoRepository;
+
+    @Autowired
+    private MonedaService monedaService;
 
     /**
      * Crear una nueva solicitud de artículo (usa tabla productos)
@@ -178,7 +181,7 @@ public class SolicitudProductoService {
         notificacion.setAccion("show_inspection_request:" + productoGuardado.getIdentificador());
         notificacion.setLeida(false);
         notificacion.setFecha(java.time.LocalDateTime.now());
-        guardarNotificacionSiNoExiste(notificacion);
+        notificacionService.guardarSiNoExiste(notificacion);
 
         Map<String, Object> respuesta = new HashMap<>();
         respuesta.put("idSolicitud", productoGuardado.getIdentificador().toString());
@@ -262,6 +265,7 @@ public class SolicitudProductoService {
             propuestaDTO.setId(prop.getId());
             propuestaDTO.setValorBase(prop.getValorBase());
             propuestaDTO.setComision(prop.getComision());
+            propuestaDTO.setMoneda(monedaService.monedaPropuesta(prop));
             propuestaDTO.setEstado(prop.getEstado());
             propuestaDTO.setUbicacionSubasta(prop.getUbicacionSubasta());
             propuestaDTO.setFechaEstimada(prop.getFechaEstimada() != null ? prop.getFechaEstimada().toString() : null);
@@ -347,6 +351,8 @@ public class SolicitudProductoService {
             throw new IllegalStateException("La propuesta comercial no posee valores asignados válidos.");
         }
 
+        validarCuentaDepositoPropuesta(p, prop, idCuentaDeposito);
+
         prop.setEstado("ACEPTADA");
         propuestaComercialRepository.save(prop);
         BigDecimal basePrice = prop.getValorBase();
@@ -380,6 +386,39 @@ public class SolicitudProductoService {
         respuesta.put("estado", "ACEPTADO");
 
         return respuesta;
+    }
+
+    private void validarCuentaDepositoPropuesta(Producto producto, PropuestaComercial propuesta, String idCuentaDeposito) {
+        if (idCuentaDeposito == null || idCuentaDeposito.trim().isEmpty()) {
+            throw new IllegalArgumentException("Debe seleccionar una cuenta bancaria para recibir el pago.");
+        }
+
+        Integer mpId;
+        try {
+            mpId = Integer.parseInt(idCuentaDeposito.trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("La cuenta bancaria seleccionada no es valida.");
+        }
+
+        MetodoPago metodoPago = metodoPagoRepository.findById(mpId)
+                .orElseThrow(() -> new IllegalArgumentException("La cuenta bancaria seleccionada no existe."));
+
+        if (metodoPago.getPersona() == null
+                || producto.getDuenio() == null
+                || !metodoPago.getPersona().getIdentificador().equals(producto.getDuenio().getIdentificador())) {
+            throw new IllegalArgumentException("La cuenta bancaria seleccionada no pertenece al duenio del articulo.");
+        }
+
+        if (metodoPago.getChequeCertificado() != null) {
+            throw new IllegalArgumentException("No se pueden recibir comisiones en cheques certificados.");
+        }
+        if (metodoPago.getCuentaBancaria() == null) {
+            throw new IllegalArgumentException("Debe seleccionar una cuenta bancaria para recibir el pago.");
+        }
+
+        String monedaPropuesta = monedaService.monedaPropuesta(propuesta);
+        String monedaCuenta = monedaService.monedaMetodoPago(metodoPago);
+        monedaService.validarMismaMoneda(monedaPropuesta, monedaCuenta, "La cuenta bancaria de cobro");
     }
 
     /**
@@ -424,6 +463,16 @@ public class SolicitudProductoService {
             BigDecimal comision,
             String ubicacionSubasta,
             LocalDate fechaEstimada) throws Exception {
+        enviarPropuestaComercial(idSolicitud, valorBase, comision, ubicacionSubasta, fechaEstimada, "pesos");
+    }
+
+    public void enviarPropuestaComercial(
+            String idSolicitud,
+            BigDecimal valorBase,
+            BigDecimal comision,
+            String ubicacionSubasta,
+            LocalDate fechaEstimada,
+            String moneda) throws Exception {
 
         Integer id = parseId(idSolicitud);
         Optional<Producto> productoOpt = productoRepository.findById(id);
@@ -439,6 +488,7 @@ public class SolicitudProductoService {
         propuesta.setProducto(p);
         propuesta.setValorBase(valorBase);
         propuesta.setComision(comision);
+        propuesta.setMoneda(monedaService.normalizar(moneda));
         propuesta.setUbicacionSubasta(ubicacionSubasta);
         propuesta.setFechaEstimada(fechaEstimada);
         propuesta.setEstado("PENDIENTE");
@@ -454,17 +504,7 @@ public class SolicitudProductoService {
             notificacion.setAccion("show_inspection_result:" + p.getIdentificador());
             notificacion.setLeida(false);
             notificacion.setFecha(java.time.LocalDateTime.now());
-            guardarNotificacionSiNoExiste(notificacion);
-        }
-    }
-
-    private void guardarNotificacionSiNoExiste(Notificacion notif) {
-        if (notif.getPersonaId() == null) return;
-        List<Notificacion> existencias = notificacionRepository.findByPersonaIdOrderByFechaDesc(notif.getPersonaId());
-        boolean yaExiste = existencias.stream()
-                .anyMatch(n -> notif.getAccion() != null && notif.getAccion().equals(n.getAccion()));
-        if (!yaExiste) {
-            notificacionRepository.save(notif);
+            notificacionService.guardarSiNoExiste(notificacion);
         }
     }
 

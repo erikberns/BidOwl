@@ -19,6 +19,7 @@ public class SubastaCrearRequest {
     private String tieneDeposito;   // "si", "no"
     private String seguridadPropia; // "si", "no"
     private String categoria;       // "comun", "especial", "plata", "oro", "platino"
+    private String moneda;          // "pesos", "dolares"
     private Integer subastadorId;
     private Integer responsableId; // Empleado ID (revisor)
     private Integer catalogoId; // Vincular a catálogo/colección existente

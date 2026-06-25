@@ -21,6 +21,7 @@ public interface SubastaRepository extends JpaRepository<Subasta, Integer> {
            "  s.hora, " +
            "  s.ubicacion, " +
            "  s.categoria, " +
+           "  s.moneda, " +
            "  (SELECT count(i) FROM ItemCatalogo i WHERE i.catalogo.subasta = s), " +
            "  concat('/api/subastas/', s.identificador, '/foto'), " +
            "  s.estado" +

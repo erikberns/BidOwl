@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 
 @Entity
 @Table(name = "pujos")
+@SecondaryTable(name = "pujos_datos_adicionales", pkJoinColumns = @PrimaryKeyJoinColumn(name = "identificador"))
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -32,6 +33,10 @@ public class Pujo {
     @Column(name = "ganador", length = 2)
     private String ganador = "no"; // "si", "no"
 
-    @Column(name = "fecha_hora")
+    @Column(table = "pujos_datos_adicionales", name = "fecha_hora")
     private java.time.LocalDateTime fechaHora;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(table = "pujos_datos_adicionales", name = "metodo_pago")
+    private MetodoPago metodoPago;
 }

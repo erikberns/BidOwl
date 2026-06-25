@@ -194,6 +194,56 @@ go
 -- TABLAS NUEVAS AGREGADAS (NO MODIFICAN LAS ORIGINALES)
 -- =========================================================================
 
+-- Tabla secundaria para fotos de catalogos
+create table catalogos_fotos(
+	identificador int not null identity,
+	catalogo int not null,
+	foto varbinary(max) not null,
+	constraint pk_catalogos_fotos primary key (identificador),
+	constraint fk_catalogos_fotos_catalogos foreign key (catalogo) references catalogos(identificador)
+)
+go
+
+-- Tabla secundaria para datos adicionales de pujos
+create table pujos_datos_adicionales(
+	identificador int not null,
+	fecha_hora datetime null,
+	metodo_pago int null,
+	constraint pk_pujos_datos_adicionales primary key (identificador),
+	constraint fk_pujos_datos_adicionales_pujos foreign key (identificador) references pujos(identificador)
+)
+go
+
+-- Tabla auxiliar para sesiones reales por dispositivo/ventana
+create table sesiones_personas(
+	identificador int not null identity,
+	persona int not null,
+	token varchar(100) not null,
+	fecha_creacion datetime not null,
+	fecha_expiracion datetime not null,
+	activa bit not null default 1,
+	constraint pk_sesiones_personas primary key (identificador),
+	constraint uq_sesiones_personas_token unique (token),
+	constraint fk_sesiones_personas_personas foreign key (persona) references personas(identificador)
+)
+go
+
+-- Tabla auxiliar para impedir que una persona este conectada a mas de una subasta a la vez
+create table subastas_conexiones_activas(
+	identificador int not null identity,
+	persona int not null,
+	sesion int null,
+	subasta int not null,
+	fecha_conexion datetime not null,
+	fecha_actualizacion datetime not null,
+	activa bit not null default 1,
+	constraint pk_subastas_conexiones_activas primary key (identificador),
+	constraint fk_subastas_conexiones_personas foreign key (persona) references personas(identificador),
+	constraint fk_subastas_conexiones_sesiones foreign key (sesion) references sesiones_personas(identificador),
+	constraint fk_subastas_conexiones_subastas foreign key (subasta) references subastas(identificador)
+)
+go
+
 -- Tabla para almacenar registros en estado pendiente de aprobación administrativa
 create table registros_pendientes(
 	id int not null identity,
@@ -247,36 +297,158 @@ create table personas_estadisticas(
 )
 go
 
+-- Tabla para tarjetas de crédito
+create table tarjetaCredito(
+	identificador int not null identity,
+	numeroTarjeta varchar(20) not null,
+	titularTarjeta varchar(250) not null,
+	fechaVencimiento varchar(5) not null,
+	cvv int not null,
+	constraint pk_tarjetaCredito primary key (identificador)
+)
+go
+
+-- Tabla para cuentas bancarias
+create table cuentaBancaria(
+	identificador int not null identity,
+	titularCuenta varchar(250) not null,
+	nombreBanco varchar(250) not null,
+	pais int not null,
+	moneda varchar(10) not null,
+	cbuIban varchar(50) not null,
+	comprobante varbinary(max) null,
+	constraint pk_cuentaBancaria primary key (identificador),
+	constraint fk_cuentaBancaria_paises foreign key (pais) references paises(numero)
+)
+go
+
+-- Tabla para cheques certificados
+create table chequeCertificado(
+	identificador int not null identity,
+	titular varchar(250) not null,
+	bancoEmisor varchar(250) not null,
+	numeroCheque varchar(50) not null,
+	monto decimal(18,2) not null,
+	pais int null,
+	moneda varchar(10) null,
+	comprobante varbinary(max) null,
+	constraint pk_chequeCertificado primary key (identificador),
+	constraint fk_chequeCertificado_paises foreign key (pais) references paises(numero)
+)
+go
+
+-- Tabla para métodos de pago
+create table metodoPago(
+	identificador int not null identity,
+	persona int not null,
+	chequeCertificado int null,
+	cuentaBancaria int null,
+	tarjetaCredito int null,
+	constraint pk_metodoPago primary key (identificador),
+	constraint fk_metodoPago_personas foreign key (persona) references personas(identificador),
+	constraint fk_metodoPago_cheques foreign key (chequeCertificado) references chequeCertificado(identificador),
+	constraint fk_metodoPago_cuentas foreign key (cuentaBancaria) references cuentaBancaria(identificador),
+	constraint fk_metodoPago_tarjetas foreign key (tarjetaCredito) references tarjetaCredito(identificador)
+)
+go
+
+alter table pujos_datos_adicionales
+	add constraint fk_pujos_datos_adicionales_metodo_pago foreign key (metodo_pago) references metodoPago(identificador)
+go
+
+-- Tabla auxiliar para compromisos acumulados de cheques certificados
+create table cheques_certificados_compromisos(
+	identificador int not null identity,
+	cheque_certificado int not null,
+	pujo int not null,
+	item int not null,
+	monto decimal(18,2) not null,
+	estado varchar(20) not null default 'ACTIVO',
+	fecha_hora datetime not null,
+	constraint pk_cheques_certificados_compromisos primary key (identificador),
+	constraint fk_cheques_compromisos_cheques foreign key (cheque_certificado) references chequeCertificado(identificador),
+	constraint fk_cheques_compromisos_pujos foreign key (pujo) references pujos(identificador),
+	constraint fk_cheques_compromisos_items foreign key (item) references itemsCatalogo(identificador)
+)
+go
+
 -- Tabla secundaria para método de pago del registro de subastas
 create table registro_de_subasta_datos_adicionales(
 	identificador int not null,
 	metodoPago int not null,
+	tipoEntrega varchar(20) null,
+	costoEnvio decimal(18,2) null,
 	constraint pk_rds_datos_adicionales primary key (identificador),
 	constraint fk_rds_datos_adicionales_rds foreign key (identificador) references registroDeSubasta(identificador),
 	constraint fk_rds_datos_adicionales_metodoPago foreign key (metodoPago) references metodoPago(identificador)
 )
 go
 
--- Tabla secundaria para datos adicionales de subastas (titulo, descripcion, foto)
+-- Tabla auxiliar para multas, plazos y bloqueos por falta de pago
+create table clientes_deudas_subasta(
+	identificador int not null identity,
+	cliente int not null,
+	registro_subasta int not null,
+	monto_original decimal(18,2) not null,
+	monto_multa decimal(18,2) not null,
+	monto_total decimal(18,2) not null,
+	estado varchar(20) not null default 'PENDIENTE',
+	fecha_generacion datetime not null,
+	fecha_vencimiento datetime not null,
+	fecha_regularizacion datetime null,
+	constraint pk_clientes_deudas_subasta primary key (identificador),
+	constraint fk_clientes_deudas_subasta_cliente foreign key (cliente) references clientes(identificador),
+	constraint fk_clientes_deudas_subasta_registro foreign key (registro_subasta) references registroDeSubasta(identificador)
+)
+go
+
+-- Tabla secundaria para datos adicionales de subastas (titulo, descripcion, foto, direccion detallada)
 create table subastas_datos_adicionales(
 	identificador int not null,
 	titulo varchar(250) not null,
 	descripcion varchar(max) null,
+	direccion_detallada varchar(350) null,
+	moneda varchar(10) not null default 'pesos',
 	constraint pk_subastas_datos_adicionales primary key (identificador),
 	constraint fk_subastas_datos_adicionales_subastas foreign key (identificador) references subastas(identificador)
 )
 go
 
--- Tabla secundaria para datos adicionales de productos (nombre, descripcion)
+-- Tabla secundaria para datos adicionales de productos (nombre, descripcion, creador, historia)
 create table productos_datos_adicionales(
 	identificador int not null,
 	nombre varchar(250) not null,
 	descripcion varchar(max) null,
+	esArteODisenador bit null,
+	nombreCreador varchar(250) null,
+	historia varchar(max) null,
 	constraint pk_productos_datos_adicionales primary key (identificador),
 	constraint fk_productos_datos_adicionales_productos foreign key (identificador) references productos(identificador)
 )
 go
 
+-- Tabla para propuestas comerciales
+create table propuestas_comerciales(
+	id int not null identity,
+	producto_id int not null unique,
+	valor_base decimal(18,2) not null,
+	comision decimal(18,2) not null,
+	ubicacion_subasta varchar(350) null,
+	fecha_estimada date null,
+	estado varchar(50) null default 'PENDIENTE',
+	constraint pk_propuestas_comerciales primary key (id),
+	constraint fk_propuestas_comerciales_productos foreign key (producto_id) references productos(identificador)
+)
+go
+
+-- Tabla auxiliar para moneda de propuestas comerciales
+create table propuestas_comerciales_datos_adicionales(
+	id int not null,
+	moneda varchar(10) not null default 'pesos',
+	constraint pk_propuestas_comerciales_datos_adicionales primary key (id),
+	constraint fk_propuestas_comerciales_datos_adicionales_propuestas foreign key (id) references propuestas_comerciales(id)
+)
+go
 
 -- Tabla para notificaciones de sistema
 create table notificaciones(

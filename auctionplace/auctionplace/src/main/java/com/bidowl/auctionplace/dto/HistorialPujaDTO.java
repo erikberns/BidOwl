@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -13,5 +14,6 @@ public class HistorialPujaDTO {
     private String idpersona;
     private String nombre;
     private BigDecimal monto;
+    private LocalDateTime fechaHora;
     private String hace; // Ej: "hace 5 minutos", "hace 2 horas"
 }

@@ -170,6 +170,7 @@ export default function InboxScreen() {
                     id: String(item.identificador),
                     type: 'bank',
                     name: `Cuenta Bancaria ${item.cuentaBancaria.nombreBanco || ''} (****${last4})`,
+                    moneda: item.cuentaBancaria.moneda || 'pesos',
                   };
                 }
                 return null;

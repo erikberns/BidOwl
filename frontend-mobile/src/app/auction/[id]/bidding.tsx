@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, useWindowDimensions, Modal, TextInput, ActivityIndicator, Alert, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
@@ -11,6 +11,8 @@ import { MOCK_AUCTIONS, MOCK_AUCTION_ITEMS } from '@/constants/mockData';
 import { API_URL } from '@/constants/api';
 import { BiddingWizardModal } from '@/components/auction/BiddingWizardModal';
 import { ImageCarouselModal } from '@/components/auction/ImageCarouselModal';
+import { authHeaders } from '@/services/authSession';
+import { AuctionRealtimeEvent, connectAuctionRealtime } from '@/services/auctionRealtime';
 
 const { width } = Dimensions.get('window');
 
@@ -24,7 +26,7 @@ const getImageUrl = (path: string) => {
   return { uri: baseUrl + path };
 };
 
-const formatPrice = (value: number | string) => {
+const formatPrice = (value: number | string, moneda: string = 'pesos') => {
   if (value === undefined || value === null) return '';
   let num: number;
   if (typeof value === 'number') {
@@ -34,7 +36,41 @@ const formatPrice = (value: number | string) => {
     num = parseFloat(clean);
   }
   if (isNaN(num)) return value.toString();
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " ARS";
+  const suffix = moneda === 'dolares' ? 'USD' : 'ARS';
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + ` ${suffix}`;
+};
+
+const auctionPaymentStorageKey = (auctionId: string) => `auctionPaymentMethod:${auctionId}`;
+
+const parseBidDateMs = (value: any): number | null => {
+  if (!value) return null;
+  const date = new Date(value);
+  const ms = date.getTime();
+  return Number.isNaN(ms) ? null : ms;
+};
+
+const formatRelativeBidTime = (bid: any, _tick: number) => {
+  const createdAtMs = bid.createdAtMs ?? parseBidDateMs(bid.fechaHora);
+  if (!createdAtMs) {
+    return bid.time || 'Hace unos instantes';
+  }
+
+  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - createdAtMs) / 1000));
+  if (elapsedSeconds < 10) return 'Hace unos instantes';
+  if (elapsedSeconds < 60) return `Hace ${elapsedSeconds} segundos`;
+
+  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+  if (elapsedMinutes < 60) {
+    return elapsedMinutes === 1 ? 'Hace 1 minuto' : `Hace ${elapsedMinutes} minutos`;
+  }
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 24) {
+    return elapsedHours === 1 ? 'Hace 1 hora' : `Hace ${elapsedHours} horas`;
+  }
+
+  const elapsedDays = Math.floor(elapsedHours / 24);
+  return elapsedDays === 1 ? 'Hace 1 dia' : `Hace ${elapsedDays} dias`;
 };
 
 const BidderAvatar = ({ idpersona, style }: { idpersona: string | number; style: any }) => {
@@ -118,6 +154,7 @@ export default function BiddingScreen() {
   const [auctionState, setAuctionState] = useState<'pending' | 'active' | 'ended'>('pending');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const hasRefetchedAfterStart = React.useRef(false);
+  const realtimeRef = useRef<ReturnType<typeof connectAuctionRealtime> | null>(null);
 
   // Bidding Wizard Modal State
   const [bidStep, setBidStep] = useState<'input' | 'confirm' | 'success' | 'error' | null>(null);
@@ -135,12 +172,33 @@ export default function BiddingScreen() {
 
   // Real payment methods
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
-  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>('1');
+  const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>('');
+  const [auctionCurrency, setAuctionCurrency] = useState<string>('pesos');
 
   // Lote dynamic timer states
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [isBiddingFinished, setIsBiddingFinished] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [relativeTick, setRelativeTick] = useState(0);
+  const finalizedCheckRef = useRef<string | null>(null);
+
+  const syncSelectedPaymentMethod = async (compatibleMethods: any[]) => {
+    if (compatibleMethods.length === 0) {
+      setSelectedPaymentMethodId('');
+      return;
+    }
+
+    const storedPaymentId = await AsyncStorage.getItem(auctionPaymentStorageKey(auctionIdStr));
+    const storedCompatible = compatibleMethods.find((item: any) => String(item.identificador) === String(storedPaymentId));
+    if (storedCompatible) {
+      setSelectedPaymentMethodId(String(storedCompatible.identificador));
+      return;
+    }
+
+    const fallbackId = String(compatibleMethods[0].identificador);
+    setSelectedPaymentMethodId(fallbackId);
+    await AsyncStorage.setItem(auctionPaymentStorageKey(auctionIdStr), fallbackId);
+  };
 
   // Gallery Carousel State
   const [itemPhotos, setItemPhotos] = useState<string[]>([]);
@@ -250,6 +308,7 @@ export default function BiddingScreen() {
         if (subastaRes.ok) {
           detailData = await subastaRes.json();
           setAuctionDetail(detailData);
+          setAuctionCurrency(detailData?.moneda || 'pesos');
         }
 
         // 2. Fetch catalog items
@@ -264,7 +323,7 @@ export default function BiddingScreen() {
               productoId: item.productoId,
               index: idx + 1,
               title: item.nombre || `Lote ${idx + 1}`,
-              basePrice: formatPrice(basePriceVal),
+              basePrice: formatPrice(basePriceVal, detailData?.moneda || 'pesos'),
               basePriceNum: basePriceVal,
               image: item.imagen ? getImageUrl(item.imagen) : require('@/assets/images/rolling_stone_auction.png'),
               owner: item.duenioNombre || 'Dueño Desconocido',
@@ -286,10 +345,15 @@ export default function BiddingScreen() {
             const pmRes = await fetch(`${API_URL}/personas/${user.identificador}/metodos-pago`);
             if (pmRes.ok) {
               const pmData = await pmRes.json();
-              setPaymentMethods(pmData);
-              if (pmData.length > 0) {
-                setSelectedPaymentMethodId(String(pmData[0].identificador));
-              }
+              const monedaSubasta = detailData?.moneda || 'pesos';
+              const compatibles = pmData.filter((item: any) => {
+                const methodCurrency = item.tarjetaCredito
+                  ? 'pesos'
+                  : item.cuentaBancaria?.moneda || item.chequeCertificado?.moneda || 'pesos';
+                return methodCurrency === monedaSubasta;
+              });
+              setPaymentMethods(compatibles);
+              await syncSelectedPaymentMethod(compatibles);
             }
           }
         } else {
@@ -340,17 +404,17 @@ export default function BiddingScreen() {
       const user = JSON.parse(userStr);
 
       const res = await fetch(`${API_URL}/subastas/${auctionIdStr}/items/${itemId}/pujas`, {
-        headers: {
-          'Autorizacion': String(user.identificador)
-        }
+        headers: await authHeaders()
       });
       if (res.ok) {
         const data = await res.json();
         const mappedBids = data.map((bid: any, idx: number) => ({
           idpersona: bid.idpersona,
           name: bid.nombre,
+          fechaHora: bid.fechaHora,
+          createdAtMs: parseBidDateMs(bid.fechaHora),
           time: (bid.hace && bid.hace !== 'N/A') ? bid.hace : 'Hace unos instantes',
-          amount: formatPrice(bid.monto),
+          amount: formatPrice(bid.monto, auctionCurrency),
           isLead: idx === 0
         }));
 
@@ -368,9 +432,7 @@ export default function BiddingScreen() {
 
       // Fetch dynamic item timer and completion status
       const statusRes = await fetch(`${API_URL}/subastas/${auctionIdStr}/items/${itemId}`, {
-        headers: {
-          'Autorizacion': String(user.identificador)
-        }
+        headers: await authHeaders()
       });
       if (statusRes.ok) {
         const statusData = await statusRes.json();
@@ -394,9 +456,66 @@ export default function BiddingScreen() {
     }
   };
 
+  const applyRealtimeEvent = (event: AuctionRealtimeEvent) => {
+    if (!event || event.itemId === undefined || String(event.itemId) !== String(currentItem.id)) {
+      return;
+    }
+
+    if (event.tipo === 'NUEVA_PUJA') {
+      setSecondsLeft(event.fechaFinPuja ? 60 : secondsLeft);
+      setIsBiddingFinished(false);
+      setItems(prevItems => {
+        const nextItems = [...prevItems];
+        const target = nextItems[currentIndex];
+        if (!target) return prevItems;
+        const previous = (target.bids || []).filter((bid: any) => String(bid.pujaId || '') !== String(event.pujaId || ''));
+        const nextBid = {
+          pujaId: event.pujaId,
+          idpersona: event.clienteId,
+          name: event.nombreCliente || `Postor ${event.numeroPostor || ''}`.trim(),
+          fechaHora: event.fechaHora,
+          createdAtMs: parseBidDateMs(event.fechaHora) ?? Date.now(),
+          time: 'Hace unos instantes',
+          amount: formatPrice(event.importe || 0, event.moneda || auctionCurrency),
+          isLead: true,
+        };
+        return nextItems.map((item, idx) => idx === currentIndex
+          ? { ...target, bids: [nextBid, ...previous.map((bid: any) => ({ ...bid, isLead: false }))] }
+          : item);
+      });
+      return;
+    }
+
+    if (event.tipo === 'ITEM_FINALIZADO') {
+      setSecondsLeft(0);
+      setIsBiddingFinished(true);
+      setItems(prevItems => {
+        const nextItems = [...prevItems];
+        if (nextItems[currentIndex]) {
+          nextItems[currentIndex] = { ...nextItems[currentIndex], subastado: 'si' };
+        }
+        return nextItems;
+      });
+      return;
+    }
+
+    if (event.tipo === 'SUBASTA_CERRADA') {
+      setAuctionState('ended');
+      setSecondsLeft(0);
+      setIsBiddingFinished(true);
+      return;
+    }
+
+    if (event.tipo === 'ERROR') {
+      setErrorMessage(event.mensaje || 'No se pudo procesar la puja.');
+      setBidStep('error');
+    }
+  };
+
   useEffect(() => {
     setSecondsLeft(null);
     setIsBiddingFinished(false);
+    finalizedCheckRef.current = null;
   }, [currentIndex, currentItem?.id]);
 
   useEffect(() => {
@@ -407,12 +526,24 @@ export default function BiddingScreen() {
   }, [currentIndex, currentItem?.id, isFocused]);
 
   useEffect(() => {
+    if (!isFocused || paymentMethods.length === 0) return;
+    syncSelectedPaymentMethod(paymentMethods);
+  }, [isFocused, paymentMethods, auctionIdStr]);
+
+  useEffect(() => {
     if (!isFocused || !currentItem || !currentItem.id) return;
-    const interval = setInterval(() => {
-      fetchBidsForItem(currentItem.id, currentIndex);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [currentIndex, currentItem?.id, isFocused]);
+    realtimeRef.current?.disconnect();
+    realtimeRef.current = connectAuctionRealtime(
+      auctionIdStr,
+      String(currentItem.id),
+      applyRealtimeEvent,
+      (message) => console.warn('[BiddingScreen] WebSocket:', message),
+    );
+    return () => {
+      realtimeRef.current?.disconnect();
+      realtimeRef.current = null;
+    };
+  }, [auctionIdStr, currentIndex, currentItem?.id, isFocused, auctionCurrency]);
 
   // Local Lote Countdown Timer Effect
   useEffect(() => {
@@ -422,6 +553,20 @@ export default function BiddingScreen() {
     }, 1000);
     return () => clearInterval(timer);
   }, [secondsLeft, isBiddingFinished, isFocused]);
+
+  useEffect(() => {
+    if (!isFocused) return;
+    const timer = setInterval(() => setRelativeTick(prev => prev + 1), 30000);
+    return () => clearInterval(timer);
+  }, [isFocused]);
+
+  useEffect(() => {
+    if (!isFocused || secondsLeft !== 0 || isBiddingFinished || !currentItem?.id) return;
+    const itemKey = String(currentItem.id);
+    if (finalizedCheckRef.current === itemKey) return;
+    finalizedCheckRef.current = itemKey;
+    fetchBidsForItem(currentItem.id, currentIndex);
+  }, [secondsLeft, isBiddingFinished, isFocused, currentItem?.id, currentIndex]);
 
   // Update Countdown Timer
   useEffect(() => {
@@ -481,6 +626,10 @@ export default function BiddingScreen() {
   }, [auctionDetail, isFocused]);
 
   const handleNext = () => {
+    if (isUserLeading && !isBiddingFinished) {
+      showLeadingAlert();
+      return;
+    }
     if (currentIndex < items.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
@@ -489,6 +638,10 @@ export default function BiddingScreen() {
   };
 
   const handlePrev = () => {
+    if (isUserLeading && !isBiddingFinished) {
+      showLeadingAlert();
+      return;
+    }
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
     } else {
@@ -520,9 +673,7 @@ export default function BiddingScreen() {
       const user = JSON.parse(userStr);
 
       const limitsRes = await fetch(`${API_URL}/subastas/${auctionIdStr}/items/${currentItem.id}/limites-puja`, {
-        headers: {
-          'Autorizacion': String(user.identificador)
-        }
+        headers: await authHeaders()
       });
 
       if (limitsRes.ok) {
@@ -564,12 +715,34 @@ export default function BiddingScreen() {
       const user = JSON.parse(userStr);
 
       const numericBid = parseFloat(bidValue.replace(/\./g, ''));
+      const selectedMethod = paymentMethods.find((method: any) => String(method.identificador) === String(selectedPaymentMethodId));
+      if (!selectedMethod) {
+        setErrorMessage('Debe unirse a la subasta con un metodo de pago compatible para pujar.');
+        setBidStep('error');
+        return;
+      }
+      if (selectedMethod.chequeCertificado?.monto != null && Number(selectedMethod.chequeCertificado.monto) < numericBid) {
+        setErrorMessage(`El cheque certificado seleccionado no cubre la puja. Monto disponible: ${formatPrice(selectedMethod.chequeCertificado.monto, auctionCurrency)}.`);
+        setBidStep('error');
+        return;
+      }
+
+      const sentRealtime = await realtimeRef.current?.sendBid({
+        itemId: currentItem.id,
+        importe: numericBid,
+        idMetodoPago: selectedPaymentMethodId,
+      });
+
+      if (sentRealtime) {
+        setBidStep('success');
+        return;
+      }
 
       const response = await fetch(`${API_URL}/subastas/${auctionIdStr}/items/${currentItem.id}/pujas`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Autorizacion': String(user.identificador)
+          ...(await authHeaders())
         },
         body: JSON.stringify({
           monto: numericBid,
@@ -603,6 +776,17 @@ export default function BiddingScreen() {
     setErrorTitle('Estás liderando la puja');
     setErrorMessage('No puedes abandonar la subasta mientras seas el postor líder. Debes esperar a que finalice el minuto o a que otro usuario supere tu oferta.');
     setBidStep('error');
+  };
+
+  const leaveAuction = async () => {
+    try {
+      await fetch(`${API_URL}/subastas/${auctionIdStr}/salir`, {
+        method: 'POST',
+        headers: await authHeaders(),
+      });
+    } catch (e) {
+      console.warn('[BiddingScreen] No se pudo cerrar la conexion de subasta:', e);
+    }
   };
 
   useEffect(() => {
@@ -814,7 +998,7 @@ export default function BiddingScreen() {
                 />
                 <View style={styles.bidderInfo}>
                   <Text style={[styles.bidderName, bid.isLead && styles.leadBidderName]}>{bid.name}</Text>
-                  <Text style={styles.bidTime}>{bid.time}</Text>
+                  <Text style={styles.bidTime}>{formatRelativeBidTime(bid, relativeTick)}</Text>
                 </View>
                 <View style={styles.bidAmountContainer}>
                   {bid.isLead && <Text style={styles.leadBidLabel}>Puja Lider</Text>}
@@ -837,10 +1021,11 @@ export default function BiddingScreen() {
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => {
+          onPress={async () => {
             if (isUserLeading && !isBiddingFinished) {
               showLeadingAlert();
             } else {
+              await leaveAuction();
               router.navigate(`/auction/${auctionIdStr}` as any);
             }
           }}
@@ -880,7 +1065,8 @@ export default function BiddingScreen() {
         handleConfirmBid={handleConfirmBid}
         errorMessage={errorMessage}
         errorTitle={errorTitle}
-        formatPrice={formatPrice}
+        formatPrice={(value) => formatPrice(value, auctionCurrency)}
+        currencyLabel={auctionCurrency === 'dolares' ? 'USD' : 'ARS'}
       />
 
       {/* Image Viewer / Carousel Modal */}

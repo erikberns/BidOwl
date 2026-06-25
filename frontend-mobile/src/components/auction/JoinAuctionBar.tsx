@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '@/constants/api';
+import { authHeaders } from '@/services/authSession';
 
 const CATEGORY_RANKS: Record<string, number> = {
   'COMUN': 0,
@@ -13,6 +14,8 @@ const CATEGORY_RANKS: Record<string, number> = {
   'ORO': 3,
   'PLATINO': 4
 };
+
+const auctionPaymentStorageKey = (auctionId: string) => `auctionPaymentMethod:${auctionId}`;
 
 function normalizeCategory(value: string) {
   if (!value) return 'COMUN';
@@ -40,6 +43,7 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [auctionCategory, setAuctionCategory] = useState<string>('COMUN');
   const [userCategory, setUserCategory] = useState<string>('COMUN');
+  const [auctionCurrency, setAuctionCurrency] = useState<string>('pesos');
 
   const getIconName = (type: string) => {
     switch (type) {
@@ -66,7 +70,13 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
       const response = await fetch(`${API_URL}/personas/${uId}/metodos-pago`);
       if (response.ok) {
         const data = await response.json();
-        const mapped = data.map((item: any) => {
+        const compatible = data.filter((item: any) => {
+          const methodCurrency = item.tarjetaCredito
+            ? 'pesos'
+            : item.cuentaBancaria?.moneda || item.chequeCertificado?.moneda || 'pesos';
+          return methodCurrency === auctionCurrency;
+        });
+        const mapped = compatible.map((item: any) => {
           if (item.tarjetaCredito) {
             const num = item.tarjetaCredito.numeroTarjeta || '';
             const last4 = num.length >= 4 ? num.slice(-4) : num;
@@ -74,7 +84,7 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
               id: String(item.identificador),
               type: 'visa',
               label: 'Tarjeta de Crédito',
-              details: `**** **** **** ${last4}`,
+              details: `**** **** **** ${last4} · Pesos`,
             };
           } else if (item.cuentaBancaria) {
             const cbu = item.cuentaBancaria.cbuIban || '';
@@ -83,14 +93,14 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
               id: String(item.identificador),
               type: 'bank',
               label: `Cuenta Bancaria ${item.cuentaBancaria.nombreBanco || ''}`,
-              details: `CBU/IBAN: ****${last4}`,
+              details: `CBU/IBAN: ****${last4} · ${item.cuentaBancaria.moneda === 'dolares' ? 'Dolares' : 'Pesos'}`,
             };
           } else if (item.chequeCertificado) {
             return {
               id: String(item.identificador),
               type: 'check',
               label: `Cheque Certificado ${item.chequeCertificado.numeroCheque || ''}`,
-              details: `Banco: ${item.chequeCertificado.bancoEmisor || ''}`,
+              details: `Banco: ${item.chequeCertificado.bancoEmisor || ''} · ${item.chequeCertificado.moneda === 'dolares' ? 'Dolares' : 'Pesos'}`,
             };
           }
           return {
@@ -118,7 +128,7 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
     } else {
       setIsDropdownOpen(false);
     }
-  }, [isModalVisible]);
+  }, [isModalVisible, auctionCurrency]);
 
   const activeColor = '#051C2C';
   const backgroundColor = '#FFFFFF';
@@ -193,6 +203,9 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
               setAuctionCategory(detail.categoria);
             } else if (detail.category) {
               setAuctionCategory(detail.category);
+            }
+            if (detail.moneda) {
+              setAuctionCurrency(detail.moneda);
             }
             if (propIsActive !== undefined) {
               setIsActive(propIsActive);
@@ -357,8 +370,9 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
                     <TouchableOpacity
                       key={method.id}
                       style={styles.dropdownOption}
-                      onPress={() => {
+                      onPress={async () => {
                         setSelectedMethod(method);
+                        await AsyncStorage.setItem(auctionPaymentStorageKey(auctionId), method.id);
                         setIsDropdownOpen(false);
                       }}
                     >
@@ -400,22 +414,27 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
                       return;
                     }
                     const user = JSON.parse(userStr);
+                    await AsyncStorage.setItem(auctionPaymentStorageKey(auctionId), selectedMethod.id);
 
                     const response = await fetch(`${API_URL}/subastas/${auctionId}/unirse`, {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
-                        'Autorizacion': String(user.identificador)
+                        ...(await authHeaders())
                       },
                       body: JSON.stringify({})
                     });
 
                     if (response.ok) {
+                      await AsyncStorage.setItem(auctionPaymentStorageKey(auctionId), selectedMethod.id);
                       setIsModalVisible(false);
                       router.push(`/auction/${auctionId}/bidding` as any);
                     } else {
-                      const errorData = await response.json();
-                      Alert.alert('Error al unirse', errorData.error || 'No se pudo unir a la subasta.');
+                      const errorData = await response.json().catch(() => ({}));
+                      Alert.alert(
+                        'No se pudo entrar',
+                        errorData.error || errorData.motivoRechazo || errorData.mensaje || 'No se pudo unir a la subasta.'
+                      );
                     }
                   } catch (e) {
                     console.error('[JoinAuctionBar] Error joining auction:', e);

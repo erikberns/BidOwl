@@ -1,6 +1,7 @@
 package com.bidowl.auctionplace.controllers;
 
 import com.bidowl.auctionplace.dto.*;
+import com.bidowl.auctionplace.service.SesionService;
 import com.bidowl.auctionplace.service.SolicitudProductoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -20,8 +21,11 @@ public class SolicitudItemController {
     @Autowired
     private SolicitudProductoService solicitudProductoService;
 
+    @Autowired
+    private SesionService sesionService;
+
     /**
-     * POST - Crear solicitud de artículo
+     * POST - Crear solicitud de artÃƒÂ­culo
      * POST /api/solicitudes-items
      * 
      * Header: Autorizacion
@@ -53,30 +57,30 @@ public class SolicitudItemController {
             @RequestParam("imagenes") List<MultipartFile> imagenes) {
 
         try {
-            // Validar parámetros de entrada
+            // Validar parÃƒÂ¡metros de entrada
             if (nombre == null || nombre.trim().isEmpty()) {
                 return ResponseEntity.badRequest()
-                        .body(crearErrorMap("El nombre es requerido", null));
+                        .body(ControllerSupport.errorBodyWithTimestamp("El nombre es requerido", null));
             }
             if (descripcion == null || descripcion.trim().isEmpty()) {
                 return ResponseEntity.badRequest()
-                        .body(crearErrorMap("La descripción es requerida", null));
+                        .body(ControllerSupport.errorBodyWithTimestamp("La descripciÃƒÂ³n es requerida", null));
             }
             if (nombreCreador == null || nombreCreador.trim().isEmpty()) {
                 return ResponseEntity.badRequest()
-                        .body(crearErrorMap("El nombre del creador es requerido", null));
+                        .body(ControllerSupport.errorBodyWithTimestamp("El nombre del creador es requerido", null));
             }
             if (esArteODisenador == null || declaracionPropiedad == null) {
                 return ResponseEntity.badRequest()
-                        .body(crearErrorMap("Los campos booleanos son requeridos", null));
+                        .body(ControllerSupport.errorBodyWithTimestamp("Los campos booleanos son requeridos", null));
             }
             if (imagenes == null || imagenes.isEmpty()) {
                 return ResponseEntity.badRequest()
-                        .body(crearErrorMap("Se requiere al menos una imagen", null));
+                        .body(ControllerSupport.errorBodyWithTimestamp("Se requiere al menos una imagen", null));
             }
 
             // Extraer ID del token
-            Integer creadorId = extraerIdDelToken(autorizacion);
+            Integer creadorId = ControllerSupport.resolvePersonaId(autorizacion, sesionService);
 
             LocalDate fechaCreacion = null;
             if (fechaCreacionStr != null && !fechaCreacionStr.isEmpty()) {
@@ -85,7 +89,7 @@ public class SolicitudItemController {
                     fechaCreacion = LocalDate.parse(fechaCreacionStr, formatter);
                 } catch (Exception e) {
                     return ResponseEntity.badRequest()
-                            .body(crearErrorMap("Formato de fecha inválido. Use yyyy-MM-dd", null));
+                            .body(ControllerSupport.errorBodyWithTimestamp("Formato de fecha invÃƒÂ¡lido. Use yyyy-MM-dd", null));
                 }
             }
 
@@ -106,10 +110,10 @@ public class SolicitudItemController {
         } catch (Exception e) {
             if (e.getMessage().contains("Token") || e.getMessage().contains("no proporcionado")) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(crearErrorMap(e.getMessage(), null));
+                        .body(ControllerSupport.errorBodyWithTimestamp(e.getMessage(), null));
             }
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(crearErrorMap("Error interno del servidor: " + e.getMessage(), null));
+                    .body(ControllerSupport.errorBodyWithTimestamp("Error interno del servidor: " + e.getMessage(), null));
         }
     }
 
@@ -134,18 +138,17 @@ public class SolicitudItemController {
             @RequestHeader("Autorizacion") String autorizacion) {
 
         try {
-            extraerIdDelToken(autorizacion);
-            Integer creadorId = extraerIdDelToken(autorizacion);
+            Integer creadorId = ControllerSupport.resolvePersonaId(autorizacion, sesionService);
             List<ItemActivoDTO> items = solicitudProductoService.obtenerItemsActivosPorCreador(creadorId);
             return ResponseEntity.ok(items);
 
         } catch (Exception e) {
             if (e.getMessage().contains("Token") || e.getMessage().contains("no proporcionado")) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(crearErrorMap(e.getMessage(), null));
+                        .body(ControllerSupport.errorBodyWithTimestamp(e.getMessage(), null));
             }
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(crearErrorMap("Error interno del servidor: " + e.getMessage(), null));
+                    .body(ControllerSupport.errorBodyWithTimestamp("Error interno del servidor: " + e.getMessage(), null));
         }
     }
 
@@ -162,9 +165,9 @@ public class SolicitudItemController {
             @RequestHeader("Autorizacion") String autorizacion) {
         
         try {
-            Integer clienteId = extraerIdDelToken(autorizacion);
+            Integer clienteId = ControllerSupport.resolvePersonaId(autorizacion, sesionService);
             
-            // NOTA: Necesitarías un método en tu SubastaService para esto.
+            // NOTA: NecesitarÃƒÂ­as un mÃƒÂ©todo en tu SubastaService para esto.
             // List<SubastaDTO> misSubastas = subastaService.obtenerSubastasPorParticipante(clienteId);
             
             // Por ahora, devolvemos una respuesta simulada.
@@ -172,7 +175,7 @@ public class SolicitudItemController {
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(crearErrorMap("Token inválido o no proporcionado", null));
+                    .body(ControllerSupport.errorBodyWithTimestamp("Token invÃƒÂ¡lido o no proporcionado", null));
         }
     }
 
@@ -199,28 +202,28 @@ public class SolicitudItemController {
         try {
             if (idSolicitud == null || idSolicitud.trim().isEmpty()) {
                 return ResponseEntity.badRequest()
-                        .body(crearErrorMap("El ID de solicitud es requerido", null));
+                        .body(ControllerSupport.errorBodyWithTimestamp("El ID de solicitud es requerido", null));
             }
 
-            extraerIdDelToken(autorizacion);
+            ControllerSupport.resolvePersonaId(autorizacion, sesionService);
             SolicitudItemDetalleDTO detalle = solicitudProductoService.obtenerDetalleSolicitud(idSolicitud);
             return ResponseEntity.ok(detalle);
 
         } catch (Exception e) {
             if (e.getMessage().contains("Token") || e.getMessage().contains("no proporcionado")) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(crearErrorMap(e.getMessage(), null));
+                        .body(ControllerSupport.errorBodyWithTimestamp(e.getMessage(), null));
             } else if (e.getMessage().contains("no encontrada")) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(crearErrorMap(e.getMessage(), null));
+                        .body(ControllerSupport.errorBodyWithTimestamp(e.getMessage(), null));
             }
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(crearErrorMap("Error interno del servidor: " + e.getMessage(), null));
+                    .body(ControllerSupport.errorBodyWithTimestamp("Error interno del servidor: " + e.getMessage(), null));
         }
     }
 
     /**
-     * POST - Aceptar acuerdo de envío para inspección
+     * POST - Aceptar acuerdo de envÃƒÂ­o para inspecciÃƒÂ³n
      * POST /api/solicitudes-items/{idSolicitud}/acuerdo-envio
      * 
      * Path: idSolicitud
@@ -243,14 +246,14 @@ public class SolicitudItemController {
         try {
             if (idSolicitud == null || idSolicitud.trim().isEmpty()) {
                 return ResponseEntity.badRequest()
-                        .body(crearErrorMap("El ID de solicitud es requerido", null));
+                        .body(ControllerSupport.errorBodyWithTimestamp("El ID de solicitud es requerido", null));
             }
 
-            extraerIdDelToken(autorizacion);
+            ControllerSupport.resolvePersonaId(autorizacion, sesionService);
             
             if (request.getAceptaTerminos() == null || !request.getAceptaTerminos()) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body(crearErrorMap("Debe aceptar los términos de envío", null));
+                        .body(ControllerSupport.errorBodyWithTimestamp("Debe aceptar los tÃƒÂ©rminos de envÃƒÂ­o", null));
             }
 
             AcuerdoEnvioResponse respuesta = solicitudProductoService.aceptarAcuerdoEnvio(
@@ -263,13 +266,13 @@ public class SolicitudItemController {
         } catch (Exception e) {
             if (e.getMessage().contains("Token") || e.getMessage().contains("no proporcionado")) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(crearErrorMap(e.getMessage(), null));
+                        .body(ControllerSupport.errorBodyWithTimestamp(e.getMessage(), null));
             } else if (e.getMessage().contains("no encontrada")) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(crearErrorMap(e.getMessage(), null));
+                        .body(ControllerSupport.errorBodyWithTimestamp(e.getMessage(), null));
             }
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(crearErrorMap("Error interno del servidor: " + e.getMessage(), null));
+                    .body(ControllerSupport.errorBodyWithTimestamp("Error interno del servidor: " + e.getMessage(), null));
         }
     }
 
@@ -294,14 +297,14 @@ public class SolicitudItemController {
         try {
             if (idSolicitud == null || idSolicitud.trim().isEmpty()) {
                 return ResponseEntity.badRequest()
-                        .body(crearErrorMap("El ID de solicitud es requerido", null));
+                        .body(ControllerSupport.errorBodyWithTimestamp("El ID de solicitud es requerido", null));
             }
 
-            extraerIdDelToken(autorizacion);
+            ControllerSupport.resolvePersonaId(autorizacion, sesionService);
             
             if (request.getIdCuentaDeposito() == null || request.getIdCuentaDeposito().trim().isEmpty()) {
                 return ResponseEntity.badRequest()
-                        .body(crearErrorMap("El ID de cuenta de depósito es requerido", null));
+                        .body(ControllerSupport.errorBodyWithTimestamp("El ID de cuenta de depÃƒÂ³sito es requerido", null));
             }
             
             Map<String, String> respuesta = solicitudProductoService.aceptarPropuesta(
@@ -314,13 +317,13 @@ public class SolicitudItemController {
         } catch (Exception e) {
             if (e.getMessage().contains("Token") || e.getMessage().contains("no proporcionado")) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(crearErrorMap(e.getMessage(), null));
+                        .body(ControllerSupport.errorBodyWithTimestamp(e.getMessage(), null));
             } else if (e.getMessage().contains("no encontrada")) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(crearErrorMap(e.getMessage(), null));
+                        .body(ControllerSupport.errorBodyWithTimestamp(e.getMessage(), null));
             }
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(crearErrorMap("Error interno del servidor: " + e.getMessage(), null));
+                    .body(ControllerSupport.errorBodyWithTimestamp("Error interno del servidor: " + e.getMessage(), null));
         }
     }
 
@@ -348,10 +351,10 @@ public class SolicitudItemController {
         try {
             if (idSolicitud == null || idSolicitud.trim().isEmpty()) {
                 return ResponseEntity.badRequest()
-                        .body(crearErrorMap("El ID de solicitud es requerido", null));
+                        .body(ControllerSupport.errorBodyWithTimestamp("El ID de solicitud es requerido", null));
             }
 
-            extraerIdDelToken(autorizacion);
+            ControllerSupport.resolvePersonaId(autorizacion, sesionService);
             
             BigDecimal costoDevolucion = BigDecimal.ZERO;
             if (request != null && request.getCostoDevolucion() != null) {
@@ -368,13 +371,13 @@ public class SolicitudItemController {
         } catch (Exception e) {
             if (e.getMessage().contains("Token") || e.getMessage().contains("no proporcionado")) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(crearErrorMap(e.getMessage(), null));
+                        .body(ControllerSupport.errorBodyWithTimestamp(e.getMessage(), null));
             } else if (e.getMessage().contains("no encontrada")) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(crearErrorMap(e.getMessage(), null));
+                        .body(ControllerSupport.errorBodyWithTimestamp(e.getMessage(), null));
             }
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(crearErrorMap("Error interno del servidor: " + e.getMessage(), null));
+                    .body(ControllerSupport.errorBodyWithTimestamp("Error interno del servidor: " + e.getMessage(), null));
         }
     }
 
@@ -390,11 +393,11 @@ public class SolicitudItemController {
         try {
             if (idSolicitud == null || idSolicitud.trim().isEmpty()) {
                 return ResponseEntity.badRequest()
-                        .body(crearErrorMap("El ID de solicitud es requerido", null));
+                        .body(ControllerSupport.errorBodyWithTimestamp("El ID de solicitud es requerido", null));
             }
             if (request.getValorBase() == null || request.getComision() == null) {
                 return ResponseEntity.badRequest()
-                        .body(crearErrorMap("El valor base y la comisión son requeridos", null));
+                        .body(ControllerSupport.errorBodyWithTimestamp("El valor base y la comisiÃƒÂ³n son requeridos", null));
             }
 
             LocalDate fechaEstimada = null;
@@ -404,7 +407,7 @@ public class SolicitudItemController {
                     fechaEstimada = LocalDate.parse(request.getFechaEstimada(), formatter);
                 } catch (Exception e) {
                     return ResponseEntity.badRequest()
-                            .body(crearErrorMap("Formato de fecha de subasta inválido. Use yyyy-MM-dd", null));
+                            .body(ControllerSupport.errorBodyWithTimestamp("Formato de fecha de subasta invÃƒÂ¡lido. Use yyyy-MM-dd", null));
                 }
             }
 
@@ -413,43 +416,15 @@ public class SolicitudItemController {
                     request.getValorBase(),
                     request.getComision(),
                     request.getUbicacionSubasta(),
-                    fechaEstimada
+                    fechaEstimada,
+                    request.getMoneda()
             );
 
             return ResponseEntity.ok(Collections.singletonMap("mensaje", "Propuesta comercial enviada exitosamente"));
 
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(crearErrorMap("Error interno del servidor: " + e.getMessage(), null));
+                    .body(ControllerSupport.errorBodyWithTimestamp("Error interno del servidor: " + e.getMessage(), null));
         }
-    }
-
-    /**
-     * Método auxiliar para extraer ID del token (simulado)
-     * En producción, usar JWT o similar
-     */
-    private Integer extraerIdDelToken(String token) throws Exception {
-        if (token == null || token.isEmpty()) {
-            throw new Exception("Token no proporcionado");
-        }
-        try {
-            // Permitimos que para pruebas se envíe directamente el ID en el header "Autorizacion"
-            return Integer.parseInt(token.trim());
-        } catch (NumberFormatException e) {
-            throw new Exception("Token inválido. Para pruebas, envíe el ID numérico del usuario.");
-        }
-    }
-
-    /**
-     * Método auxiliar para crear mapas de error consistentes
-     */
-    private Map<String, Object> crearErrorMap(String mensaje, Integer codigo) {
-        Map<String, Object> error = new HashMap<>();
-        error.put("error", mensaje);
-        error.put("timestamp", LocalDate.now());
-        if (codigo != null) {
-            error.put("codigo", codigo);
-        }
-        return error;
     }
 }

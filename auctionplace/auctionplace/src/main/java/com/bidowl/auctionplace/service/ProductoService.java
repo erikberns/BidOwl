@@ -33,7 +33,7 @@ public class ProductoService {
     private FotoRepository fotoRepository;
 
     @Autowired
-    private NotificacionRepository notificacionRepository;
+    private NotificacionService notificacionService;
 
     @Autowired
     private EmailService emailService;
@@ -256,7 +256,7 @@ public class ProductoService {
             notificacion.setAccion("show_inspection_result:" + producto.getIdentificador());
             notificacion.setLeida(false);
             notificacion.setFecha(java.time.LocalDateTime.now());
-            guardarNotificacionSiNoExiste(notificacion);
+            notificacionService.guardarSiNoExiste(notificacion);
         }
 
         return convertToDTO(actualizado);
@@ -292,7 +292,7 @@ public class ProductoService {
             notificacion.setAccion("show_inspection_rejected:" + producto.getIdentificador());
             notificacion.setLeida(false);
             notificacion.setFecha(java.time.LocalDateTime.now());
-            guardarNotificacionSiNoExiste(notificacion);
+            notificacionService.guardarSiNoExiste(notificacion);
         }
 
         return convertToDTO(actualizado);
@@ -388,16 +388,6 @@ public class ProductoService {
             p.getNombre() != null ? p.getNombre() : "Artículo " + p.getIdentificador(),
             p.getSeguro().getNroPoliza()
         );
-    }
-
-    private void guardarNotificacionSiNoExiste(Notificacion notif) {
-        if (notif.getPersonaId() == null) return;
-        List<Notificacion> existencias = notificacionRepository.findByPersonaIdOrderByFechaDesc(notif.getPersonaId());
-        boolean yaExiste = existencias.stream()
-                .anyMatch(n -> notif.getAccion() != null && notif.getAccion().equals(n.getAccion()));
-        if (!yaExiste) {
-            notificacionRepository.save(notif);
-        }
     }
 
     public List<Integer> obtenerIdsFotosProducto(Integer productoId) {

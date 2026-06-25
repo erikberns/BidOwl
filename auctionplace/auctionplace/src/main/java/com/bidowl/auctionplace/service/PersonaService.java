@@ -50,6 +50,9 @@ public class PersonaService implements PersonaServiceInterface {
     @Autowired
     private EmailService emailService;
 
+    @Autowired
+    private MonedaService monedaService;
+
     @Override
     public Persona registrarPaso1(RegistroPaso1Request request, MultipartFile fotoDniFrente, MultipartFile fotoDniDorso) throws Exception {
         
@@ -327,7 +330,7 @@ public class PersonaService implements PersonaServiceInterface {
         cb.setNombreBanco(banco);
         cb.setPais(pais);
         cb.setCbuIban(cbu);
-        cb.setMoneda(moneda.toLowerCase()); // "pesos" o "dolares"
+        cb.setMoneda(monedaService.normalizar(moneda)); // "pesos" o "dolares"
         
         if (comprobante != null && !comprobante.isEmpty()) {
             cb.setComprobante(comprobante.getBytes());
@@ -365,7 +368,7 @@ public class PersonaService implements PersonaServiceInterface {
         cc.setNumeroCheque(numeroCheque);
         cc.setMonto(monto);
         cc.setPais(pais);
-        cc.setMoneda(moneda);
+        cc.setMoneda(monedaService.normalizar(moneda));
 
         if (comprobante != null && !comprobante.isEmpty()) {
             cc.setComprobante(comprobante.getBytes());
