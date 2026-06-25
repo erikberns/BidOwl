@@ -603,6 +603,12 @@ public class DataInitializer implements CommandLineRunner {
 
         asegurarMetodosPagoParaPruebas(paisDefault, avatarBytes);
         crearSubastasParaPruebas(martinRevisor, avatarBytes);
+        if (subastaRepository.count() == 0) {
+            crearSubastasFallbackDesdeProductos(martinRevisor, avatarBytes);
+        }
+        System.out.println("[DataInitializer] Totales seed -> productos=" + productoRepository.count()
+                + ", propuestas=" + propuestaComercialRepository.count()
+                + ", subastas=" + subastaRepository.count());
     }
 
     private void asegurarMetodosPagoParaPruebas(Pais paisDefault, byte[] comprobanteBytes) {
@@ -653,11 +659,14 @@ public class DataInitializer implements CommandLineRunner {
 
     private void crearSubastasParaPruebas(Empleado responsable, byte[] fotoBytes) {
         if (subastaRepository.count() > 0 || responsable == null) {
+            System.out.println("[DataInitializer] Se omite creacion de subastas seed. subastas="
+                    + subastaRepository.count() + ", responsable=" + (responsable != null));
             return;
         }
 
         Subastador subastador = subastadorRepository.findAll().stream().findFirst().orElse(null);
         if (subastador == null) {
+            System.err.println("[DataInitializer] No se encontraron subastadores para crear subastas seed.");
             return;
         }
 
@@ -676,6 +685,9 @@ public class DataInitializer implements CommandLineRunner {
                 .filter(PropuestaSeed::isCompleta)
                 .limit(4)
                 .toList();
+
+        System.out.println("[DataInitializer] Propuestas seed encontradas -> pesos=" + propuestasPesos.size()
+                + ", dolares=" + propuestasDolares.size());
 
         crearSubastaConCatalogo(
                 "Joyas y coleccionables argentinos",
@@ -720,6 +732,95 @@ public class DataInitializer implements CommandLineRunner {
                 fotoBytes);
     }
 
+    private void crearSubastasFallbackDesdeProductos(Empleado responsable, byte[] fotoBytes) {
+        System.err.println("[DataInitializer] No quedaron subastas creadas con propuestas. Se intenta fallback con productos seed.");
+        if (responsable == null) {
+            throw new IllegalStateException("[DataInitializer] No hay empleado responsable para crear subastas seed.");
+        }
+
+        Subastador subastador = subastadorRepository.findAll().stream().findFirst()
+                .orElseThrow(() -> new IllegalStateException("[DataInitializer] No hay subastador para crear subastas seed."));
+
+        List<Producto> productos = productoRepository.findAll();
+        if (productos.isEmpty()) {
+            throw new IllegalStateException("[DataInitializer] No hay productos seed para crear subastas.");
+        }
+
+        List<PropuestaSeed> propuestasPesos = new java.util.ArrayList<>();
+        List<PropuestaSeed> propuestasDolares = new java.util.ArrayList<>();
+        for (int index = 0; index < productos.size(); index++) {
+            Producto producto = productos.get(index);
+            if (index < 14) {
+                propuestasPesos.add(new PropuestaSeed(
+                        producto,
+                        BigDecimal.valueOf(1000000L + (index + 1L) * 500000L),
+                        BigDecimal.valueOf(10),
+                        "pesos"));
+            } else {
+                propuestasDolares.add(new PropuestaSeed(
+                        producto,
+                        BigDecimal.valueOf(5000L + (index - 13L) * 1500L),
+                        BigDecimal.valueOf(10),
+                        "dolares"));
+            }
+        }
+
+        if (propuestasDolares.isEmpty()) {
+            int cantidadDolares = Math.min(4, productos.size());
+            for (int index = 0; index < cantidadDolares; index++) {
+                Producto producto = productos.get(productos.size() - 1 - index);
+                propuestasDolares.add(new PropuestaSeed(
+                        producto,
+                        BigDecimal.valueOf(5000L + (index + 1L) * 1500L),
+                        BigDecimal.valueOf(10),
+                        "dolares"));
+            }
+        }
+
+        crearSubastaConCatalogo(
+                "Joyas y coleccionables argentinos",
+                "Subasta activa de prueba en pesos para validar pujas, sesiones y metodos de pago ARS.",
+                "Buenos Aires",
+                "La Boca, CABA",
+                "pesos",
+                LocalDate.now(),
+                LocalTime.now().minusMinutes(5),
+                "abierta",
+                subastador,
+                responsable,
+                propuestasPesos.stream().limit(6).toList(),
+                fotoBytes);
+
+        crearSubastaConCatalogo(
+                "Antiguedades internacionales",
+                "Subasta activa de prueba en dolares para validar moneda y medios de pago USD.",
+                "Buenos Aires",
+                "Recoleta, CABA",
+                "dolares",
+                LocalDate.now(),
+                LocalTime.now().minusMinutes(3),
+                "abierta",
+                subastador,
+                responsable,
+                propuestasDolares,
+                fotoBytes);
+
+        crearSubastaConCatalogo(
+                "Proxima subasta especial",
+                "Subasta futura para validar estados previos al inicio.",
+                "Buenos Aires",
+                "Palermo, CABA",
+                "pesos",
+                LocalDate.now().plusDays(1),
+                LocalTime.of(19, 0),
+                "carrada",
+                subastador,
+                responsable,
+                propuestasPesos.stream().skip(10).limit(3).toList(),
+                fotoBytes);
+    }
+
+
     private void crearSubastaConCatalogo(
             String titulo,
             String descripcion,
@@ -734,6 +835,7 @@ public class DataInitializer implements CommandLineRunner {
             List<PropuestaSeed> propuestas,
             byte[] fotoBytes) {
         if (propuestas == null || propuestas.isEmpty()) {
+            System.err.println("[DataInitializer] No se crea subasta '" + titulo + "' porque no hay items seed.");
             return;
         }
 
