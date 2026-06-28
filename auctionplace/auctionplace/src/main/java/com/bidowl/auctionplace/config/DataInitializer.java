@@ -259,6 +259,9 @@ public class DataInitializer implements CommandLineRunner {
 
         // 2. Inicializar Empleado por Defecto (Verificador / Revisor)
         if (empleadoRepository.count() == 0) {
+            byte[] palermoBytes = loadResourceBytes("/avatars/palermo.jpg");
+            if (palermoBytes == null) palermoBytes = avatarBytes;
+
             RegistroPendiente rp = new RegistroPendiente();
             rp.setDocumento("30123456");
             rp.setNombre("Martín");
@@ -266,8 +269,8 @@ public class DataInitializer implements CommandLineRunner {
             rp.setEmail("martin.verificador@bidowl.com");
             rp.setDireccion("Av. Figueroa Alcorta 1234");
             rp.setPais(paisDefault != null ? paisDefault.getNombre() : "Argentina");
-            rp.setFotoFrente(avatarBytes);
-            rp.setFotoDorso(avatarBytes);
+            rp.setFotoFrente(palermoBytes);
+            rp.setFotoDorso(palermoBytes);
             rp.setEstado("APROBADO");
             registroPendienteRepository.save(rp);
 
@@ -284,9 +287,9 @@ public class DataInitializer implements CommandLineRunner {
             empleado.setPais(paisDefault);
             empleado.setCargo("Revisor Senior de Coleccionables");
             empleado.setSector(sectorInspeccion != null ? sectorInspeccion.getIdentificador() : 1);
-            empleado.setFoto(avatarBytes);
-            empleado.setFotoFrente(avatarBytes);
-            empleado.setFotoDorso(avatarBytes);
+            empleado.setFoto(palermoBytes);
+            empleado.setFotoFrente(palermoBytes);
+            empleado.setFotoDorso(palermoBytes);
             empleado.setRematesAsistidos(0);
             empleado.setRematesGanados(0);
             empleado.setArticulosPublicados(0);
@@ -296,6 +299,9 @@ public class DataInitializer implements CommandLineRunner {
 
         // 4. Inicializar Subastador por Defecto (Agustin Blanco Vocos)
         if (subastadorRepository.count() == 0) {
+            byte[] blancoBytes = loadResourceBytes("/avatars/blanco.jpg");
+            if (blancoBytes == null) blancoBytes = avatarBytes;
+
             RegistroPendiente rp = new RegistroPendiente();
             rp.setDocumento("22111333");
             rp.setNombre("Agustin");
@@ -303,8 +309,8 @@ public class DataInitializer implements CommandLineRunner {
             rp.setEmail("jorge.subastas@bidowl.com");
             rp.setDireccion("Av. Cabildo 2200");
             rp.setPais(paisDefault != null ? paisDefault.getNombre() : "Argentina");
-            rp.setFotoFrente(avatarBytes);
-            rp.setFotoDorso(avatarBytes);
+            rp.setFotoFrente(blancoBytes);
+            rp.setFotoDorso(blancoBytes);
             rp.setEstado("APROBADO");
             registroPendienteRepository.save(rp);
 
@@ -321,9 +327,9 @@ public class DataInitializer implements CommandLineRunner {
             subastador.setPais(paisDefault);
             subastador.setMatricula("MAT-8947-C");
             subastador.setRegion("Buenos Aires");
-            subastador.setFoto(avatarBytes);
-            subastador.setFotoFrente(avatarBytes);
-            subastador.setFotoDorso(avatarBytes);
+            subastador.setFoto(blancoBytes);
+            subastador.setFotoFrente(blancoBytes);
+            subastador.setFotoDorso(blancoBytes);
             subastador.setRematesAsistidos(0);
             subastador.setRematesGanados(0);
             subastador.setArticulosPublicados(0);
@@ -401,6 +407,11 @@ public class DataInitializer implements CommandLineRunner {
                     doc = "444444" + String.format("%02d", i);
                 }
                 
+                byte[] userAvatarBytes = loadResourceBytes("/avatars/user_" + i + ".jpg");
+                if (userAvatarBytes == null) {
+                    userAvatarBytes = avatarBytes;
+                }
+
                 // 1. Registro Pendiente Aprobado
                 RegistroPendiente rp = new RegistroPendiente();
                 rp.setDocumento(doc);
@@ -415,8 +426,8 @@ public class DataInitializer implements CommandLineRunner {
                     rp.setDireccion("Calle Seeder " + i);
                 }
                 rp.setPais(paisDefault != null ? paisDefault.getNombre() : "Argentina");
-                rp.setFotoFrente(avatarBytes);
-                rp.setFotoDorso(avatarBytes);
+                rp.setFotoFrente(userAvatarBytes);
+                rp.setFotoDorso(userAvatarBytes);
                 rp.setEstado("APROBADO");
                 registroPendienteRepository.save(rp);
 
@@ -444,9 +455,9 @@ public class DataInitializer implements CommandLineRunner {
                 }
                 cliente.setContrasenaCambiada(true);
                 cliente.setEstado("activo");
-                cliente.setFoto(avatarBytes);
-                cliente.setFotoFrente(avatarBytes);
-                cliente.setFotoDorso(avatarBytes);
+                cliente.setFoto(userAvatarBytes);
+                cliente.setFotoFrente(userAvatarBytes);
+                cliente.setFotoDorso(userAvatarBytes);
                 cliente.setPais(paisDefault);
                 
                 cliente.setPaisCliente(paisDefault);
@@ -531,11 +542,15 @@ public class DataInitializer implements CommandLineRunner {
                     Producto prodGuardado = productoRepository.save(prod);
 
                     // Guardar Foto (Se guardan 6 fotos por producto para cumplir con el requisito)
-                    if (avatarBytes != null) {
+                    byte[] prodImageBytes = loadResourceBytes("/products/prod_" + prodNum + ".jpg");
+                    if (prodImageBytes == null) {
+                        prodImageBytes = avatarBytes;
+                    }
+                    if (prodImageBytes != null) {
                         for (int f = 0; f < 6; f++) {
                             Foto foto = new Foto();
                             foto.setProducto(prodGuardado);
-                            foto.setFoto(avatarBytes);
+                            foto.setFoto(prodImageBytes);
                             fotoRepository.save(foto);
                         }
                     }
@@ -733,6 +748,15 @@ public class DataInitializer implements CommandLineRunner {
         System.out.println("[DataInitializer] Propuestas seed encontradas -> pesos=" + propuestasPesos.size()
                 + ", dolares=" + propuestasDolares.size());
 
+        byte[] subasta1Foto = loadResourceBytes("/subastas/sub_1.jpg");
+        if (subasta1Foto == null) subasta1Foto = fotoBytes;
+
+        byte[] subasta2Foto = loadResourceBytes("/subastas/sub_2.jpg");
+        if (subasta2Foto == null) subasta2Foto = fotoBytes;
+
+        byte[] subasta3Foto = loadResourceBytes("/subastas/sub_3.jpg");
+        if (subasta3Foto == null) subasta3Foto = fotoBytes;
+
         crearSubastaConCatalogo(
                 "Joyas y coleccionables argentinos",
                 "Subasta activa de prueba en pesos para validar pujas, sesiones y metodos de pago ARS.",
@@ -745,7 +769,7 @@ public class DataInitializer implements CommandLineRunner {
                 subastador,
                 responsable,
                 propuestasPesos.stream().limit(6).toList(),
-                fotoBytes);
+                subasta1Foto);
 
         crearSubastaConCatalogo(
                 "Antiguedades internacionales",
@@ -759,7 +783,7 @@ public class DataInitializer implements CommandLineRunner {
                 subastador,
                 responsable,
                 propuestasDolares,
-                fotoBytes);
+                subasta2Foto);
 
         crearSubastaConCatalogo(
                 "Proxima subasta especial",
@@ -773,7 +797,7 @@ public class DataInitializer implements CommandLineRunner {
                 subastador,
                 responsable,
                 propuestasPesos.stream().skip(6).limit(3).toList(),
-                fotoBytes);
+                subasta3Foto);
     }
 
     private void crearSubastasFallbackDesdeProductos(Empleado responsable, byte[] fotoBytes) {
@@ -821,6 +845,15 @@ public class DataInitializer implements CommandLineRunner {
             }
         }
 
+        byte[] subasta1Foto = loadResourceBytes("/subastas/sub_1.jpg");
+        if (subasta1Foto == null) subasta1Foto = fotoBytes;
+
+        byte[] subasta2Foto = loadResourceBytes("/subastas/sub_2.jpg");
+        if (subasta2Foto == null) subasta2Foto = fotoBytes;
+
+        byte[] subasta3Foto = loadResourceBytes("/subastas/sub_3.jpg");
+        if (subasta3Foto == null) subasta3Foto = fotoBytes;
+
         crearSubastaConCatalogo(
                 "Joyas y coleccionables argentinos",
                 "Subasta activa de prueba en pesos para validar pujas, sesiones y metodos de pago ARS.",
@@ -833,7 +866,7 @@ public class DataInitializer implements CommandLineRunner {
                 subastador,
                 responsable,
                 propuestasPesos.stream().limit(6).toList(),
-                fotoBytes);
+                subasta1Foto);
 
         crearSubastaConCatalogo(
                 "Antiguedades internacionales",
@@ -847,7 +880,7 @@ public class DataInitializer implements CommandLineRunner {
                 subastador,
                 responsable,
                 propuestasDolares,
-                fotoBytes);
+                subasta2Foto);
 
         crearSubastaConCatalogo(
                 "Proxima subasta especial",
@@ -861,7 +894,7 @@ public class DataInitializer implements CommandLineRunner {
                 subastador,
                 responsable,
                 propuestasPesos.stream().skip(10).limit(3).toList(),
-                fotoBytes);
+                subasta3Foto);
     }
 
 
@@ -950,5 +983,17 @@ public class DataInitializer implements CommandLineRunner {
         boolean isCompleta() {
             return producto != null && valorBase != null && comision != null && moneda != null;
         }
+    }
+
+    private byte[] loadResourceBytes(String path) {
+        try {
+            var resourceStream = getClass().getResourceAsStream(path);
+            if (resourceStream != null) {
+                return resourceStream.readAllBytes();
+            }
+        } catch (Exception e) {
+            System.err.println("[DataInitializer] Error al cargar recurso " + path + ": " + e.getMessage());
+        }
+        return null;
     }
 }
