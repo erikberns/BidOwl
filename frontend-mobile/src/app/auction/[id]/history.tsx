@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -13,7 +12,7 @@ import { authHeaders } from '@/services/authSession';
 import { connectAuctionRealtime } from '@/services/auctionRealtime';
 
 // Helper to format prices
-const formatPrice = (value: number | string) => {
+const formatPrice = (value: number | string, currency: string) => {
   if (value === undefined || value === null) return '';
   let num: number;
   if (typeof value === 'number') {
@@ -23,7 +22,8 @@ const formatPrice = (value: number | string) => {
     num = parseFloat(clean);
   }
   if (isNaN(num)) return value.toString();
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + " ARS";
+  const suffix = currency === 'dolares' ? 'USD' : 'ARS';
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") + ` ${suffix}`;
 };
 
 const parseBidDateMs = (value: any): number | null => {
@@ -83,7 +83,7 @@ const BidderAvatar = ({ idpersona, style }: { idpersona: string | number; style:
 };
 
 export default function BidsHistoryScreen() {
-  const { id, itemId, itemTitle, itemIndex } = useLocalSearchParams();
+  const { id, itemId, itemTitle, itemIndex, moneda } = useLocalSearchParams();
   const [isGuest, setIsGuest] = useState<boolean | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [bids, setBids] = useState<any[]>([]);
@@ -92,6 +92,7 @@ export default function BidsHistoryScreen() {
 
   const selectedIndex = itemIndex ? parseInt(itemIndex as string, 10) : 0;
   const auctionIdStr = Array.isArray(id) ? id[0] : id || '1';
+  const auctionCurrency = (Array.isArray(moneda) ? moneda[0] : moneda) === 'dolares' ? 'dolares' : 'pesos';
   const mockItems = MOCK_AUCTION_ITEMS[auctionIdStr] || MOCK_AUCTION_ITEMS['1'];
   const currentItem = mockItems[selectedIndex] || mockItems[0];
 
@@ -142,7 +143,7 @@ export default function BidsHistoryScreen() {
           fechaHora: bid.fechaHora,
           createdAtMs: parseBidDateMs(bid.fechaHora),
           time: (bid.hace && bid.hace !== 'N/A') ? bid.hace : 'Hace unos instantes',
-          amount: formatPrice(bid.monto),
+          amount: formatPrice(bid.monto, auctionCurrency),
           isLead: idx === 0
         }));
         setBids(mappedBids);
@@ -216,11 +217,10 @@ export default function BidsHistoryScreen() {
       {/* Header Bar */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.navigate(`/auction/${auctionIdStr}/bidding` as any)}>
-          <SymbolView
-            tintColor="#051C2C"
-            // @ts-ignore
-            name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_left' }}
-            size={22}
+          <Image
+            source={require('@/assets/images/Chevron-Left.png')}
+            style={styles.backChevron}
+            resizeMode="contain"
           />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Historial de Pujas</Text>
@@ -290,6 +290,10 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+  },
+  backChevron: {
+    width: 24,
+    height: 24,
   },
   headerTitle: {
     fontSize: 16,

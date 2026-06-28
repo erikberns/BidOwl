@@ -1,6 +1,6 @@
 // Valida elegibilidad, pago y multas antes de conectar al usuario.
 import React, { useEffect, useState } from 'react';
-import { Alert, View, Text, TouchableOpacity, StyleSheet, Modal, useColorScheme } from 'react-native';
+import { Alert, View, Text, Image, TouchableOpacity, StyleSheet, Modal, useColorScheme } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -86,14 +86,14 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
       const uId = user.identificador;
       if (!uId) return;
 
-      const response = await fetch(`${API_URL}/personas/${uId}/metodos-pago`);
+      const response = await fetch(`${API_URL}/personas/${uId}/metodos-pago?_=${Date.now()}`);
       if (response.ok) {
         const data = await response.json();
         const compatible = data.filter((item: any) => {
           const methodCurrency = item.tarjetaCredito
             ? 'pesos'
             : item.cuentaBancaria?.moneda || item.chequeCertificado?.moneda || 'pesos';
-          return methodCurrency === auctionCurrency;
+          return normalizeCurrency(methodCurrency) === normalizeCurrency(auctionCurrency);
         });
         const mapped = compatible.map((item: any) => {
           if (item.tarjetaCredito) {
@@ -224,7 +224,7 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
               setAuctionCategory(detail.category);
             }
             if (detail.moneda) {
-              setAuctionCurrency(detail.moneda);
+              setAuctionCurrency(normalizeCurrency(detail.moneda));
             }
             if (propIsActive !== undefined) {
               setIsActive(propIsActive);
@@ -330,14 +330,10 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
         onPress={handleBack}
         activeOpacity={0.7}
       >
-        <SymbolView
-          // @ts-ignore
-          name={{ ios: 'chevron.left', android: 'arrow_back', web: 'chevron-left' }}
-          tintColor="#FFFFFF"
-          size={20}
-          fallback={
-            <Text style={{ color: '#FFFFFF', fontSize: 18, fontWeight: 'bold' }}>&lt;</Text>
-          }
+        <Image
+          source={require('@/assets/images/Chevron-Left.png')}
+          style={styles.backChevron}
+          resizeMode="contain"
         />
       </TouchableOpacity>
 
@@ -520,6 +516,15 @@ export default function JoinAuctionBar({ auctionId, onBack, isActive: propIsActi
   );
 }
 
+function normalizeCurrency(value?: string) {
+  const normalized = (value || 'pesos')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '');
+  return normalized.includes('dolar') || normalized === 'usd' ? 'dolares' : 'pesos';
+}
+
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
@@ -582,6 +587,11 @@ const styles = StyleSheet.create({
     width: '88%',
     maxWidth: 360,
     alignItems: 'center',
+  },
+  backChevron: {
+    width: 24,
+    height: 24,
+    tintColor: '#FFFFFF',
   },
   errorIconCircle: {
     width: 48,

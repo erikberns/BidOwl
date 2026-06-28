@@ -119,6 +119,15 @@ public class SolicitudProductoService {
         if (declaracionPropiedad == null || !declaracionPropiedad) {
             throw new Exception("Debe aceptar la declaración de propiedad");
         }
+        if (Boolean.TRUE.equals(esArteODisenador)) {
+            if (fechaCreacion == null) {
+                throw new IllegalArgumentException("La fecha de creacion es obligatoria para obras de arte o de disenador.");
+            }
+            LocalDate hoyArgentina = LocalDate.now(java.time.ZoneId.of("America/Argentina/Buenos_Aires"));
+            if (fechaCreacion.isAfter(hoyArgentina)) {
+                throw new IllegalArgumentException("La fecha de creacion no puede estar en el futuro.");
+            }
+        }
 
         // Crear un revisor provisional (empleado por defecto)
         Optional<Empleado> revisor = empleadoRepository.findById(1);

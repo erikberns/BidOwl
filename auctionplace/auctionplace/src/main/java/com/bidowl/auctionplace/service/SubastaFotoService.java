@@ -14,6 +14,7 @@ import com.bidowl.auctionplace.entity.Catalogo;
 import com.bidowl.auctionplace.entity.CatalogoFoto;
 import com.bidowl.auctionplace.repository.CatalogoFotoRepository;
 import com.bidowl.auctionplace.repository.CatalogoRepository;
+import com.bidowl.auctionplace.repository.SubastaRepository;
 
 @Service
 public class SubastaFotoService {
@@ -24,7 +25,13 @@ public class SubastaFotoService {
     @Autowired
     private CatalogoFotoRepository catalogoFotoRepository;
 
+    @Autowired
+    private SubastaRepository subastaRepository;
+
     public byte[] obtenerFotoSubastaBytes(Integer subastaId) {
+        if (subastaId == null || !subastaRepository.existsById(subastaId)) {
+            return null;
+        }
         Optional<Catalogo> catalogoOpt = catalogoRepository.findBySubastaIdentificador(subastaId);
         if (catalogoOpt.isPresent()) {
             List<CatalogoFoto> fotos = catalogoFotoRepository.findByCatalogoId(catalogoOpt.get().getIdentificador());
@@ -32,7 +39,11 @@ public class SubastaFotoService {
                 return fotos.get(0).getFoto();
             }
         }
-        return null;
+        try (var stream = getClass().getResourceAsStream("/rolling_stone_auction.png")) {
+            return stream != null ? stream.readAllBytes() : null;
+        } catch (java.io.IOException e) {
+            return null;
+        }
     }
 
     public List<Integer> obtenerIdsFotosSubasta(Integer subastaId) {

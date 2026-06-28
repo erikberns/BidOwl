@@ -377,16 +377,13 @@ class AuctionplaceApplicationTests {
 
     @Test
     @Transactional
-    void testFlujoCatalogoYSubastaConFotoFallback() throws Exception {
+    void testNoPermiteSubastaConCatalogoVacio() throws Exception {
         Empleado empleadoSeeded = empleadoRepository.findAll().get(0);
         
         CatalogoCrearRequest req = new CatalogoCrearRequest();
         req.setDescripcion("Colección de Arte Fallback");
         req.setResponsableId(empleadoSeeded.getIdentificador());
         Catalogo catalogo = catalogoService.crearCatalogo(req);
-        
-        byte[] fotoCatalogo = new byte[]{10, 20, 30};
-        catalogoService.guardarFotoCatalogo(catalogo.getIdentificador(), fotoCatalogo);
         
         SubastaCrearRequest reqSubasta = new SubastaCrearRequest();
         reqSubasta.setTitulo("Subasta Vinculada");
@@ -395,10 +392,25 @@ class AuctionplaceApplicationTests {
         reqSubasta.setCatalogoId(catalogo.getIdentificador());
         reqSubasta.setResponsableId(empleadoSeeded.getIdentificador());
         reqSubasta.setSaltarValidacionFecha(true);
-        Subasta subasta = subastaService.crearSubastaConCatalogo(reqSubasta);
-        
-        byte[] fotoObtenida = subastaService.obtenerFotoSubastaBytes(subasta.getIdentificador());
-        assertArrayEquals(fotoCatalogo, fotoObtenida);
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> subastaService.crearSubastaConCatalogo(reqSubasta));
+        assertTrue(error.getMessage().contains("sin lotes"));
+    }
+
+    @Test
+    @Transactional
+    void testSubastaSinFotoUsaPlaceholder() {
+        Subasta subasta = new Subasta();
+        subasta.setFecha(LocalDate.now().plusDays(15));
+        subasta.setHora(java.time.LocalTime.NOON);
+        subasta.setEstado("carrada");
+        subasta.setTitulo("Subasta sin portada");
+        subasta = subastaRepository.save(subasta);
+
+        byte[] placeholder = subastaService.obtenerFotoSubastaBytes(subasta.getIdentificador());
+        assertNotNull(placeholder);
+        assertTrue(placeholder.length > 0);
     }
 
     @Test

@@ -571,6 +571,21 @@ public class SubastaService {
                     .orElseThrow(() -> new java.util.NoSuchElementException("No hay empleados disponibles por defecto."));
         }
 
+        // Una subasta siempre debe nacer vinculada a un catalogo con al menos un lote.
+        if (request.getCatalogoId() == null) {
+            throw new IllegalArgumentException("Debe seleccionar un catalogo para crear la subasta.");
+        }
+        Catalogo catalogoValidado = catalogoRepository.findById(request.getCatalogoId())
+                .orElseThrow(() -> new java.util.NoSuchElementException("Catalogo no encontrado con ID: " + request.getCatalogoId()));
+        if (catalogoValidado.getSubasta() != null) {
+            throw new IllegalStateException("El catalogo ya se encuentra vinculado a otra subasta.");
+        }
+        List<ItemCatalogo> itemsValidados = itemCatalogoRepository.findByCatalogoIdentificador(catalogoValidado.getIdentificador());
+        if (itemsValidados.isEmpty()) {
+            throw new IllegalArgumentException("No se puede crear una subasta con un catalogo sin lotes.");
+        }
+        validarMonedaCatalogo(catalogoValidado.getIdentificador(), monedaService.normalizar(request.getMoneda()));
+
         // 4. Crear y guardar Subasta
         Subasta subasta = new Subasta();
         subasta.setFecha(dateFecha);

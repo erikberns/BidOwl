@@ -49,6 +49,15 @@ const formatPrice = (value: number | string, moneda: string = 'pesos') => {
 
 const auctionPaymentStorageKey = (auctionId: string) => `auctionPaymentMethod:${auctionId}`;
 
+const normalizeCurrency = (value?: string) => {
+  const normalized = (value || 'pesos')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '');
+  return normalized.includes('dolar') || normalized === 'usd' ? 'dolares' : 'pesos';
+};
+
 const parseBidDateMs = (value: any): number | null => {
   if (!value) return null;
   const text = String(value).trim().replace(' ', 'T');
@@ -319,7 +328,7 @@ export default function BiddingScreen() {
         if (subastaRes.ok) {
           detailData = await subastaRes.json();
           setAuctionDetail(detailData);
-          setAuctionCurrency(detailData?.moneda || 'pesos');
+          setAuctionCurrency(normalizeCurrency(detailData?.moneda));
         }
 
         // 2. Fetch catalog items
@@ -353,15 +362,15 @@ export default function BiddingScreen() {
           if (userStr) {
             const user = JSON.parse(userStr);
             setCurrentUser(user);
-            const pmRes = await fetch(`${API_URL}/personas/${user.identificador}/metodos-pago`);
+            const pmRes = await fetch(`${API_URL}/personas/${user.identificador}/metodos-pago?_=${Date.now()}`);
             if (pmRes.ok) {
               const pmData = await pmRes.json();
-              const monedaSubasta = detailData?.moneda || 'pesos';
+              const monedaSubasta = normalizeCurrency(detailData?.moneda);
               const compatibles = pmData.filter((item: any) => {
                 const methodCurrency = item.tarjetaCredito
                   ? 'pesos'
                   : item.cuentaBancaria?.moneda || item.chequeCertificado?.moneda || 'pesos';
-                return methodCurrency === monedaSubasta;
+                return normalizeCurrency(methodCurrency) === monedaSubasta;
               });
               setPaymentMethods(compatibles);
               await syncSelectedPaymentMethod(compatibles);
@@ -1029,7 +1038,16 @@ export default function BiddingScreen() {
 
           <TouchableOpacity
             style={styles.historyButton}
-            onPress={() => router.push({ pathname: `/auction/${auctionIdStr}/history`, params: { itemId: currentItem.id, itemTitle: currentItem.title, itemIndex: currentIndex } } as any)}
+            onPress={() => router.push({
+              pathname: '/auction/[id]/history',
+              params: {
+                id: auctionIdStr,
+                itemId: String(currentItem.id),
+                itemTitle: currentItem.title,
+                itemIndex: String(currentIndex),
+                moneda: auctionCurrency,
+              },
+            } as any)}
           >
             <Text style={styles.historyButtonText}>Mostrar Historial Completo</Text>
           </TouchableOpacity>

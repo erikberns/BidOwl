@@ -49,6 +49,12 @@ const parseArticleDate = (value: string): string | null => {
   return `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
 };
 
+const isFutureDate = (isoDate: string) => {
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  return isoDate > today;
+};
+
 export default function PublishScreen() {
   const router = useRouter();
   const isFocused = useIsFocused();
@@ -223,8 +229,12 @@ export default function PublishScreen() {
         setCreatorNameError('El nombre del creador es obligatorio.');
         hasErrors = true;
       }
-      if (!parseArticleDate(articleDate)) {
+      const parsedCreationDate = parseArticleDate(articleDate);
+      if (!parsedCreationDate) {
         setArticleDateError('Ingrese una fecha de creacion valida con formato DD / MM / YYYY.');
+        hasErrors = true;
+      } else if (isFutureDate(parsedCreationDate)) {
+        setArticleDateError('La fecha de creacion no puede estar en el futuro.');
         hasErrors = true;
       }
       if (!articleHistory || !articleHistory.trim()) {
