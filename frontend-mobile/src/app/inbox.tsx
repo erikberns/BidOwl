@@ -1,6 +1,6 @@
 // Reune notificaciones, pujas, publicaciones, propuestas, seguros y compras.
 import React from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Modal } from 'react-native';
+import { Alert, View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, Stack, Tabs } from 'expo-router';
@@ -362,6 +362,7 @@ export default function InboxScreen() {
                   const parts = actionStr.split(':');
                   const actionType = parts[0];
                   const requestId = parts[1];
+                  let actionReady = true;
 
                   if (requestId) {
                     setSelectedRequestId(requestId);
@@ -382,6 +383,7 @@ export default function InboxScreen() {
                         console.error('Network error fetching request details:', err);
                       }
                     } else {
+                      setWonItemDetails(null);
                       try {
                         const response = await fetch(`${API_URL}/inbox/won-item/${requestId}`);
                         if (response.ok) {
@@ -393,15 +395,30 @@ export default function InboxScreen() {
                             setDeliveryType(data.tipoEntrega);
                           }
                         } else {
-                          console.error('Error fetching won item details:', response.statusText);
+                          actionReady = false;
+                          let message = 'No se pudo cargar el detalle del lote ganado.';
+                          try {
+                            const errorData = await response.json();
+                            message = errorData.error || message;
+                          } catch {
+                            // La respuesta puede no tener cuerpo JSON.
+                          }
+                          console.warn('Error fetching won item details:', message);
+                          Alert.alert('Factura no disponible', message);
                         }
                       } catch (err) {
-                        console.error('Network error fetching won item details:', err);
+                        actionReady = false;
+                        console.warn('Network error fetching won item details:', err);
+                        Alert.alert('Factura no disponible', 'No se pudo conectar con el servidor. Intente nuevamente.');
                       }
                     }
                   } else {
                     setSelectedRequestId(null);
                     setSelectedProposal(null);
+                  }
+
+                  if (!actionReady) {
+                    return;
                   }
 
                   if (actionType === 'show_inspection_result') {

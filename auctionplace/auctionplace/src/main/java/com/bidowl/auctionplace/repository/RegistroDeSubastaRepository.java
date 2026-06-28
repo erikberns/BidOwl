@@ -10,5 +10,5 @@ import java.util.Optional;
 @Repository
 public interface RegistroDeSubastaRepository extends JpaRepository<RegistroDeSubasta, Integer> {
     List<RegistroDeSubasta> findByClienteIdentificador(Integer clienteId);
-    Optional<RegistroDeSubasta> findByProductoIdentificador(Integer productoId);
+    Optional<RegistroDeSubasta> findFirstByProductoIdentificadorOrderByIdentificadorDesc(Integer productoId);
 }

@@ -316,7 +316,6 @@ create table cuentaBancaria(
 	pais int not null,
 	moneda varchar(10) not null,
 	cbuIban varchar(50) not null,
-	comprobante varbinary(max) null,
 	constraint pk_cuentaBancaria primary key (identificador),
 	constraint fk_cuentaBancaria_paises foreign key (pais) references paises(numero)
 )

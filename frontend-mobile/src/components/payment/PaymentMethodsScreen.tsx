@@ -30,8 +30,6 @@ interface PaymentMethod {
   bankMoneda?: string;
   bankCbuIban?: string;
   bankTab?: 'CBU' | 'IBAN';
-  bankFile?: any;
-  bankFileUri?: string | null;
   cardNumero?: string;
   cardTitular?: string;
   cardVencimiento?: string;
@@ -103,12 +101,9 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
   const [checkBancoError, setCheckBancoError] = useState('');
   const [checkNumeroError, setCheckNumeroError] = useState('');
   const [checkMontoError, setCheckMontoError] = useState('');
-  const [bankFileError, setBankFileError] = useState('');
   const [checkFileError, setCheckFileError] = useState('');
 
-  // File upload states for bank and check receipts
-  const [bankFileUri, setBankFileUri] = useState<string | null>(null);
-  const [bankFile, setBankFile] = useState<any>(null);
+  // File upload state for certified cheque receipts.
   const [checkFileUri, setCheckFileUri] = useState<string | null>(null);
   const [checkFile, setCheckFile] = useState<any>(null);
 
@@ -117,7 +112,6 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     setBankTitularError('');
     setBankBancoError('');
     setBankCbuIbanError('');
-    setBankFileError('');
     setCardNumeroError('');
     setCardTitularError('');
     setCardVencimientoError('');
@@ -129,43 +123,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     setCheckFileError('');
   }, [currentView]);
 
-  const fileInputBankRef = useRef<any>(null);
   const fileInputCheckRef = useRef<any>(null);
-
-  const handleSelectBankFile = async () => {
-    if (Platform.OS === 'web') {
-      if (fileInputBankRef.current) {
-        fileInputBankRef.current.click();
-      }
-    } else {
-      try {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') {
-          showAlert('Permiso Requerido', 'Se necesita acceso a la galería para poder subir una foto.');
-          return;
-        }
-
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: false,
-          quality: 0.8,
-        });
-
-        if (!result.canceled && result.assets && result.assets.length > 0) {
-          const asset = result.assets[0];
-          setBankFileUri(asset.uri);
-          setBankFile({
-            uri: asset.uri,
-            name: asset.fileName || 'comprobante-banco.jpg',
-            type: asset.mimeType || 'image/jpeg',
-          });
-        }
-      } catch (error: any) {
-        console.error(error);
-        showAlert('Error', 'No se pudo seleccionar el comprobante.');
-      }
-    }
-  };
 
   const handleSelectCheckFile = async () => {
     if (Platform.OS === 'web') {
@@ -202,18 +160,6 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     }
   };
 
-  const handleBankFileChange = (e: any) => {
-    const file = e.target.files[0];
-    if (file) {
-      setBankFile(file);
-      const reader = new FileReader();
-      reader.onload = () => {
-        setBankFileUri(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleCheckFileChange = (e: any) => {
     const file = e.target.files[0];
     if (file) {
@@ -226,16 +172,10 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     }
   };
 
-  const handleRemoveFile = (type: 'bank' | 'check') => {
-    if (type === 'bank') {
-      setBankFile(null);
-      setBankFileUri(null);
-      setBankFileError('');
-    } else {
-      setCheckFile(null);
-      setCheckFileUri(null);
-      setCheckFileError('');
-    }
+  const handleRemoveFile = () => {
+    setCheckFile(null);
+    setCheckFileUri(null);
+    setCheckFileError('');
   };
 
   const [availablePaises, setAvailablePaises] = useState<any[]>([
@@ -384,8 +324,6 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     setBankNumeroCuenta('1234567890');
     setBankCbuIban('0720123456789012345678');
     setBankTab('CBU');
-    setBankFile(null);
-    setBankFileUri(null);
 
     setCardNumero('4444555566662345');
     setCardTitular('Jose Claudio Godio');
@@ -414,8 +352,6 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       setBankNumeroCuenta(numCuenta);
       setBankCbuIban(cbu);
       setBankTab(method.bankTab || 'CBU');
-      setBankFile(method.bankFile || null);
-      setBankFileUri(method.bankFileUri || null);
       setCurrentView('form_bank');
     } else if (method.type === 'card') {
       setCardNumero(method.cardNumero || '');
@@ -451,7 +387,6 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     setBankBancoError('');
     setBankNumeroCuentaError('');
     setBankCbuIbanError('');
-    setBankFileError('');
 
     let hasErrors = false;
     if (!bankTitular || !bankTitular.trim()) {
@@ -527,21 +462,13 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       formData.append('cbuIban', bankCbuIban);
       formData.append('moneda', bankMoneda.toLowerCase().includes('d') ? 'dolares' : 'pesos');
 
-      if (bankFile) {
-        if (Platform.OS === 'web') {
-          formData.append('comprobante', bankFile);
-        } else {
-          formData.append('comprobante', {
-            uri: bankFile.uri,
-            name: bankFile.name,
-            type: bankFile.type,
-          } as any);
-        }
-      }
-
-      console.log(`Registrando cuenta bancaria para usuario ${finalUserId}...`);
-      const response = await fetch(`${API_URL}/personas/${finalUserId}/metodo-pago/cuenta`, {
-        method: 'POST',
+      const isEditing = editingId !== null;
+      const endpoint = isEditing
+        ? `${API_URL}/personas/${finalUserId}/metodo-pago/${editingId}/cuenta`
+        : `${API_URL}/personas/${finalUserId}/metodo-pago/cuenta`;
+      console.log(`${isEditing ? 'Actualizando' : 'Registrando'} cuenta bancaria para usuario ${finalUserId}...`);
+      const response = await fetch(endpoint, {
+        method: isEditing ? 'PUT' : 'POST',
         body: formData,
         headers: {},
       });
@@ -551,7 +478,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
         throw new Error(result.error || 'Error al registrar la cuenta bancaria.');
       }
 
-      showAlert('Éxito', 'Cuenta bancaria registrada con éxito.');
+      showAlert('Éxito', `Cuenta bancaria ${isEditing ? 'actualizada' : 'registrada'} con éxito.`);
       const cbu = bankCbuIban || '';
       const last4 = cbu.length >= 4 ? cbu.slice(-4) : cbu;
       addMethod({
@@ -564,14 +491,9 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
         bankMoneda,
         bankCbuIban,
         bankTab,
-        bankFile,
-        bankFileUri,
       }, result.metodoPago ? String(result.metodoPago.identificador) : undefined);
-      // Clear form & file
-      setBankFile(null);
-      setBankFileUri(null);
     } catch (error: any) {
-      console.error('Error al registrar cuenta bancaria:', error);
+      console.error('Error al guardar cuenta bancaria:', error);
       showAlert('Error', error.message || 'Error al conectar con el servidor.');
     } finally {
       setIsLoading(false);
@@ -961,13 +883,13 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
 
   // InputField y CountryDropdownField se movieron al final del archivo para evitar pérdida de foco
 
-  const renderFileUpload = (type: 'bank' | 'check') => {
-    const fileUri = type === 'bank' ? bankFileUri : checkFileUri;
-    const fileObj = type === 'bank' ? bankFile : checkFile;
-    const selectHandler = type === 'bank' ? handleSelectBankFile : handleSelectCheckFile;
-    const fileInputRef = type === 'bank' ? fileInputBankRef : fileInputCheckRef;
-    const fileChangeHandler = type === 'bank' ? handleBankFileChange : handleCheckFileChange;
-    const fileError = type === 'bank' ? bankFileError : checkFileError;
+  const renderFileUpload = (_type: 'bank' | 'check') => {
+    const fileUri = checkFileUri;
+    const fileObj = checkFile;
+    const selectHandler = handleSelectCheckFile;
+    const fileInputRef = fileInputCheckRef;
+    const fileChangeHandler = handleCheckFileChange;
+    const fileError = checkFileError;
 
     return (
       <View style={styles.fileUploadSection}>
@@ -1006,7 +928,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
                 {fileObj ? fileObj.name || 'Archivo seleccionado' : 'Sin archivo'}
               </Text>
             </View>
-            {fileUri && type === 'check' && (
+            {fileUri && (
               <View style={styles.fileActionRow}>
                 <TouchableOpacity
                   style={styles.fileActionButton}
@@ -1017,7 +939,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.fileActionButton, styles.fileActionButtonDelete]}
-                  onPress={() => handleRemoveFile(type)}
+                  onPress={handleRemoveFile}
                   disabled={isLoading}
                 >
                   <Text style={styles.fileActionButtonText}>Eliminar</Text>

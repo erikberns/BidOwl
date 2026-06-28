@@ -69,6 +69,7 @@ export default function HomeScreen() {
   const isFocused = useIsFocused();
   const [username, setUsername] = React.useState('Invitado');
   const [auctions, setAuctions] = React.useState<any[]>([]);
+  const activeAuctionsScrollRef = React.useRef<ScrollView>(null);
 
   React.useEffect(() => {
     if (isFocused) {
@@ -150,6 +151,13 @@ export default function HomeScreen() {
       return dateA.getTime() - dateB.getTime();
     });
 
+  const activeAuctionIds = activeAuctions.map(item => item.id).join(',');
+  React.useEffect(() => {
+    requestAnimationFrame(() => {
+      activeAuctionsScrollRef.current?.scrollTo({ x: 0, animated: false });
+    });
+  }, [activeAuctionIds]);
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -201,6 +209,7 @@ export default function HomeScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Subastas Activas.</Text>
             <ScrollView
+              ref={activeAuctionsScrollRef}
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.horizontalScrollContent}

@@ -310,7 +310,7 @@ public class PersonaService implements PersonaServiceInterface {
     }
 
     @Override
-    public MetodoPago registrarCuenta(Integer personaId, String titular, String banco, Integer paisId, String cbu, String moneda, org.springframework.web.multipart.MultipartFile comprobante) throws Exception {
+    public MetodoPago registrarCuenta(Integer personaId, String titular, String banco, Integer paisId, String cbu, String moneda) throws Exception {
         Persona persona = obtenerPorId(personaId);
         Pais pais = paisRepository.findById(paisId)
                 .orElseThrow(() -> new Exception("País no encontrado"));
@@ -333,10 +333,6 @@ public class PersonaService implements PersonaServiceInterface {
         cb.setCbuIban(cbu);
         cb.setMoneda(monedaService.normalizar(moneda)); // "pesos" o "dolares"
         
-        if (comprobante != null && !comprobante.isEmpty()) {
-            cb.setComprobante(comprobante.getBytes());
-        }
-
         CuentaBancaria cbGuardada = cuentaBancariaRepository.save(cb);
 
         MetodoPago mp = new MetodoPago();
@@ -344,6 +340,41 @@ public class PersonaService implements PersonaServiceInterface {
         mp.setCuentaBancaria(cbGuardada);
 
         return metodoPagoRepository.save(mp);
+    }
+
+    @Override
+    public MetodoPago actualizarCuenta(Integer personaId, Integer metodoPagoId, String titular, String banco,
+            Integer paisId, String cbu, String moneda) throws Exception {
+        Pais pais = paisRepository.findById(paisId)
+                .orElseThrow(() -> new Exception("Pais no encontrado"));
+        MetodoPago metodoPago = metodoPagoRepository.findById(metodoPagoId)
+                .orElseThrow(() -> new Exception("Metodo de pago no encontrado."));
+
+        if (metodoPago.getPersona() == null
+                || !metodoPago.getPersona().getIdentificador().equals(personaId)) {
+            throw new Exception("El metodo de pago no pertenece a este usuario.");
+        }
+        if (metodoPago.getCuentaBancaria() == null) {
+            throw new Exception("El metodo de pago seleccionado no es una cuenta bancaria.");
+        }
+
+        String cleanCbu = cbu.trim();
+        for (MetodoPago existente : metodoPagoRepository.findByPersonaIdentificador(personaId)) {
+            if (!existente.getIdentificador().equals(metodoPagoId)
+                    && existente.getCuentaBancaria() != null
+                    && existente.getCuentaBancaria().getCbuIban().trim().equalsIgnoreCase(cleanCbu)) {
+                throw new Exception("Esta cuenta bancaria ya se encuentra registrada para este usuario.");
+            }
+        }
+
+        CuentaBancaria cuenta = metodoPago.getCuentaBancaria();
+        cuenta.setTitularCuenta(titular);
+        cuenta.setNombreBanco(banco);
+        cuenta.setPais(pais);
+        cuenta.setCbuIban(cbu);
+        cuenta.setMoneda(monedaService.normalizar(moneda));
+        cuentaBancariaRepository.save(cuenta);
+        return metodoPago;
     }
 
     @Override

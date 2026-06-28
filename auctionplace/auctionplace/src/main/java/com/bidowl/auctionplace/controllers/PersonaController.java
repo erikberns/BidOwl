@@ -269,8 +269,7 @@ public class PersonaController {
     @PostMapping(value = "/{id}/metodo-pago/cuenta", consumes = { "multipart/form-data" })
     public ResponseEntity<?> registrarCuenta(
             @PathVariable Integer id,
-            @ModelAttribute CuentaRequest request,
-            @RequestParam(value = "comprobante", required = false) MultipartFile comprobante) {
+            @ModelAttribute CuentaRequest request) {
         Map<String, Object> response = new HashMap<>();
         try {
             MetodoPago mp = personaService.registrarCuenta(
@@ -279,9 +278,32 @@ public class PersonaController {
                     request.getNombreBanco(),
                     request.getPaisId(),
                     request.getCbuIban(),
-                    request.getMoneda(),
-                    comprobante);
+                    request.getMoneda());
             response.put("mensaje", "Cuenta bancaria registrada con éxito.");
+            response.put("metodoPago", mp);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            response.put("error", e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @PutMapping(value = "/{id}/metodo-pago/{metodoPagoId}/cuenta", consumes = { "multipart/form-data" })
+    public ResponseEntity<?> actualizarCuenta(
+            @PathVariable Integer id,
+            @PathVariable Integer metodoPagoId,
+            @ModelAttribute CuentaRequest request) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            MetodoPago mp = personaService.actualizarCuenta(
+                    id,
+                    metodoPagoId,
+                    request.getTitularCuenta(),
+                    request.getNombreBanco(),
+                    request.getPaisId(),
+                    request.getCbuIban(),
+                    request.getMoneda());
+            response.put("mensaje", "Cuenta bancaria actualizada con exito.");
             response.put("metodoPago", mp);
             return ResponseEntity.ok(response);
         } catch (Exception e) {

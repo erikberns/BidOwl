@@ -375,7 +375,7 @@ public class ProductoService {
         // Si el producto ya fue subastado y vendido, el dueño actual en DB es el comprador.
         // Buscamos si existe RegistroDeSubasta (factura) para obtener el dueño/vendedor original.
         Duenio destinatarioSeguro = p.getDuenio();
-        Optional<RegistroDeSubasta> registroOpt = registroDeSubastaRepository.findByProductoIdentificador(id);
+        Optional<RegistroDeSubasta> registroOpt = registroDeSubastaRepository.findFirstByProductoIdentificadorOrderByIdentificadorDesc(id);
         if (registroOpt.isPresent()) {
             destinatarioSeguro = registroOpt.get().getDuenio();
         }

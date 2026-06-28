@@ -302,7 +302,8 @@ public class SolicitudProductoService {
 
         Producto p = producto.get();
         // SUGERENCIA: Usar un estado más descriptivo, ej: "PENDIENTE_INSPECCION"
-        p.setDisponible("si"); 
+        // El acuerdo de envio inicia la inspeccion; todavia no habilita el bien para catalogos.
+        p.setDisponible("no");
         productoRepository.save(p);
 
         // SUGERENCIA: Estos valores no deberían estar hardcodeados.

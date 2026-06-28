@@ -181,6 +181,13 @@ public class DataInitializer implements CommandLineRunner {
             jdbcTemplate.execute("TRUNCATE TABLE chequeCertificado");
             jdbcTemplate.execute("TRUNCATE TABLE tarjetaCredito");
             jdbcTemplate.execute("TRUNCATE TABLE cuentaBancaria");
+            Integer comprobanteCuentaExiste = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM information_schema.COLUMNS "
+                            + "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cuentaBancaria' AND COLUMN_NAME = 'comprobante'",
+                    Integer.class);
+            if (comprobanteCuentaExiste != null && comprobanteCuentaExiste > 0) {
+                jdbcTemplate.execute("ALTER TABLE cuentaBancaria DROP COLUMN comprobante");
+            }
             jdbcTemplate.execute("TRUNCATE TABLE duenios");
             jdbcTemplate.execute("TRUNCATE TABLE clientes");
             jdbcTemplate.execute("TRUNCATE TABLE subastadores");
@@ -373,6 +380,7 @@ public class DataInitializer implements CommandLineRunner {
         if (martinRevisor == null) {
             throw new IllegalStateException("Martín Palermo (verificador) no existe en la base de datos");
         }
+        asegurarDuenioInstitucional(paisDefault, martinRevisor, avatarBytes);
 
         if (clienteRepository.findByEmail("comprador@bidowl.com").isEmpty()) {
             java.util.Random random = new java.util.Random();
@@ -617,25 +625,57 @@ public class DataInitializer implements CommandLineRunner {
 
     private void asegurarMetodosPagoParaPruebas(Pais paisDefault, byte[] comprobanteBytes) {
         clienteRepository.findByEmail("comprador@bidowl.com").ifPresent(comprador -> {
-            crearCuenta(comprador, paisDefault, "Banco Nacion", "CBU-ARS-SEED-" + comprador.getIdentificador(), "pesos", comprobanteBytes);
-            crearCuenta(comprador, paisDefault, "Banco Galicia USD", "IBAN-USD-SEED-" + comprador.getIdentificador(), "dolares", comprobanteBytes);
+            crearCuenta(comprador, paisDefault, "Banco Nacion", "CBU-ARS-SEED-" + comprador.getIdentificador(), "pesos");
+            crearCuenta(comprador, paisDefault, "Banco Galicia USD", "IBAN-USD-SEED-" + comprador.getIdentificador(), "dolares");
             crearCheque(comprador, paisDefault, "Banco Ciudad", "CHQ-ARS-SEED-" + comprador.getIdentificador(), BigDecimal.valueOf(8500000), "pesos", comprobanteBytes);
             crearCheque(comprador, paisDefault, "Banco Santander USD", "CHQ-USD-SEED-" + comprador.getIdentificador(), BigDecimal.valueOf(35000), "dolares", comprobanteBytes);
         });
 
         clienteRepository.findByEmail("usuario_seeder_3@bidowl.com").ifPresent(cliente -> {
-            crearCuenta(cliente, paisDefault, "Banco Macro", "CBU-ARS-SEED-" + cliente.getIdentificador(), "pesos", comprobanteBytes);
+            crearCuenta(cliente, paisDefault, "Banco Macro", "CBU-ARS-SEED-" + cliente.getIdentificador(), "pesos");
         });
     }
 
-    private void crearCuenta(Cliente cliente, Pais pais, String banco, String cbu, String moneda, byte[] comprobanteBytes) {
+    private void asegurarDuenioInstitucional(Pais pais, Empleado verificador, byte[] avatarBytes) {
+        if (duenioRepository.findByEmailIgnoreCase("empresa@bidowl.com").isPresent()) {
+            return;
+        }
+
+        Duenio bidOwl = new Duenio();
+        bidOwl.setDocumento("99999999");
+        bidOwl.setNombre("BidOwl");
+        bidOwl.setApellido("S.A.");
+        bidOwl.setEmail("empresa@bidowl.com");
+        bidOwl.setContrasena(UUID.randomUUID().toString());
+        bidOwl.setContrasenaCambiada(true);
+        bidOwl.setDireccion("Deposito Central BidOwl Pilar");
+        bidOwl.setEstado("activo");
+        bidOwl.setCategoria("platino");
+        bidOwl.setFoto(avatarBytes);
+        bidOwl.setPais(pais);
+        bidOwl.setPaisCliente(pais);
+        bidOwl.setPaisDuenio(pais);
+        bidOwl.setAdmitido("si");
+        bidOwl.setCategoriaCliente("platino");
+        bidOwl.setVerificador(verificador);
+        bidOwl.setVerificacionFinanciera("si");
+        bidOwl.setVerificacionJudicial("si");
+        bidOwl.setCalificacionRiesgo(1);
+        bidOwl.setVerificadorDuenio(verificador);
+        bidOwl.setRematesAsistidos(0);
+        bidOwl.setRematesGanados(0);
+        bidOwl.setArticulosPublicados(0);
+        bidOwl.setPujasRealizadas(0);
+        duenioRepository.save(bidOwl);
+    }
+
+    private void crearCuenta(Cliente cliente, Pais pais, String banco, String cbu, String moneda) {
         CuentaBancaria cuenta = new CuentaBancaria();
         cuenta.setTitularCuenta(cliente.getNombre() + " " + cliente.getApellido());
         cuenta.setNombreBanco(banco);
         cuenta.setPais(pais);
         cuenta.setCbuIban(cbu);
         cuenta.setMoneda(moneda);
-        cuenta.setComprobante(comprobanteBytes);
         CuentaBancaria cuentaGuardada = cuentaBancariaRepository.save(cuenta);
 
         MetodoPago metodoPago = new MetodoPago();

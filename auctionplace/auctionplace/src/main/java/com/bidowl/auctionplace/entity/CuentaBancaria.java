@@ -33,8 +33,4 @@ public class CuentaBancaria {
 
     @Column(name = "cbuIban", length = 50, nullable = false)
     private String cbuIban;
-
-    @Lob
-    @Column(name = "comprobante", columnDefinition = "LONGBLOB")
-    private byte[] comprobante;
 }

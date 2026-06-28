@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 /**
  * Servicio encargado de gestionar los artículos individuales que pertenecen a un catálogo.
  * Controla el proceso de finalización de subastas por ítem, determina ganadores basándose en ofertas máximas,
@@ -19,6 +20,7 @@ import java.util.Optional;
 public class ItemCatalogoService {
 
     private static final ZoneId ARGENTINA_ZONE = ZoneId.of("America/Argentina/Buenos_Aires");
+    private static final String BIDOWL_EMAIL = "empresa@bidowl.com";
 
     @Autowired
     private ItemCatalogoRepository itemCatalogoRepository;
@@ -49,6 +51,9 @@ public class ItemCatalogoService {
 
     @Autowired
     private EmpleadoRepository empleadoRepository;
+
+    @Autowired
+    private PaisRepository paisRepository;
 
     @Autowired
     private MonedaService monedaService;
@@ -160,36 +165,11 @@ public class ItemCatalogoService {
             notificacion.setCuerpo("Has ganado la subasta para '" + item.getProducto().getNombre() + "'. Te entregaremos la factura correspondiente para formalizar la operación. A continuación, podrás confirmar la modalidad de entrega.");
             notificacion.setAccion("show_bid_won:" + item.getIdentificador());
             notificacion.setLeida(false);
-            notificacion.setFecha(fechaHoraArgentina());
+            notificacion.setFecha(LocalDateTime.now());
             notificacionService.guardarSiNoExiste(notificacion);
         } else {
             // Regla TPO: Si nadie puja por un artículo, la empresa compra el mismo por el valor base al finalizar
-            Duenio companyDuenio = duenioRepository.findAll().stream()
-                    .filter(d -> "empresa@bidowl.com".equalsIgnoreCase(d.getEmail()))
-                    .findFirst()
-                    .orElse(null);
-            if (companyDuenio == null) {
-                companyDuenio = new Duenio();
-                companyDuenio.setDocumento("99999999");
-                companyDuenio.setNombre("BidOwl");
-                companyDuenio.setApellido("S.A.");
-                companyDuenio.setEmail("empresa@bidowl.com");
-                companyDuenio.setContrasena("bidowl123");
-                companyDuenio.setDireccion("Av. Siempreviva 742");
-                companyDuenio.setEstado("activo");
-                companyDuenio.setCategoria("platino");
-                companyDuenio.setAdmitido("si");
-                companyDuenio.setCategoriaCliente("platino");
-                companyDuenio.setVerificacionFinanciera("si");
-                companyDuenio.setVerificacionJudicial("si");
-                companyDuenio.setCalificacionRiesgo(1);
-                
-                Empleado verificador = empleadoRepository.findAll().stream().findFirst().orElse(null);
-                companyDuenio.setVerificador(verificador);
-                companyDuenio.setVerificadorDuenio(verificador);
-                
-                companyDuenio = duenioRepository.save(companyDuenio);
-            }
+            Duenio companyDuenio = obtenerOCrearDuenioBidOwl();
             
             Producto producto = item.getProducto();
             if (producto != null) {
@@ -230,6 +210,39 @@ public class ItemCatalogoService {
 
     private LocalDateTime fechaHoraArgentina() {
         return LocalDateTime.now(ARGENTINA_ZONE);
+    }
+
+    private Duenio obtenerOCrearDuenioBidOwl() {
+        return duenioRepository.findByEmailIgnoreCase(BIDOWL_EMAIL)
+                .orElseGet(() -> {
+                    Empleado verificador = empleadoRepository.findAll().stream().findFirst().orElse(null);
+                    Pais pais = paisRepository.findById(54).orElse(null);
+                    Duenio bidOwl = new Duenio();
+                    bidOwl.setDocumento("99999999");
+                    bidOwl.setNombre("BidOwl");
+                    bidOwl.setApellido("S.A.");
+                    bidOwl.setEmail(BIDOWL_EMAIL);
+                    bidOwl.setContrasena(UUID.randomUUID().toString());
+                    bidOwl.setContrasenaCambiada(true);
+                    bidOwl.setDireccion("Deposito Central BidOwl Pilar");
+                    bidOwl.setEstado("activo");
+                    bidOwl.setCategoria("platino");
+                    bidOwl.setPais(pais);
+                    bidOwl.setPaisCliente(pais);
+                    bidOwl.setPaisDuenio(pais);
+                    bidOwl.setAdmitido("si");
+                    bidOwl.setCategoriaCliente("platino");
+                    bidOwl.setVerificacionFinanciera("si");
+                    bidOwl.setVerificacionJudicial("si");
+                    bidOwl.setCalificacionRiesgo(1);
+                    bidOwl.setVerificador(verificador);
+                    bidOwl.setVerificadorDuenio(verificador);
+                    bidOwl.setRematesAsistidos(0);
+                    bidOwl.setRematesGanados(0);
+                    bidOwl.setArticulosPublicados(0);
+                    bidOwl.setPujasRealizadas(0);
+                    return duenioRepository.save(bidOwl);
+                });
     }
 
 }

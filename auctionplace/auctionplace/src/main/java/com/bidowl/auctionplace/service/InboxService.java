@@ -247,7 +247,7 @@ public class InboxService {
         dto.setBloqueadoPorDeuda(false);
         dto.setCostoEnvio(new BigDecimal("20000.00")); // Costo de envío dinámico de 20.000 AR$
 
-        Optional<com.bidowl.auctionplace.entity.RegistroDeSubasta> regOpt = registroDeSubastaRepository.findByProductoIdentificador(item.getProducto().getIdentificador());
+        Optional<com.bidowl.auctionplace.entity.RegistroDeSubasta> regOpt = registroDeSubastaRepository.findFirstByProductoIdentificadorOrderByIdentificadorDesc(item.getProducto().getIdentificador());
         if (regOpt.isPresent()) {
             com.bidowl.auctionplace.entity.RegistroDeSubasta reg = regOpt.get();
             if (reg.getCostoEnvio() != null) {
@@ -274,7 +274,7 @@ public class InboxService {
         ItemCatalogo item = itemCatalogoRepository.findById(itemId)
                 .orElseThrow(() -> new java.util.NoSuchElementException("Item de catálogo con ID " + itemId + " no encontrado"));
         
-        com.bidowl.auctionplace.entity.RegistroDeSubasta registro = registroDeSubastaRepository.findByProductoIdentificador(item.getProducto().getIdentificador())
+        com.bidowl.auctionplace.entity.RegistroDeSubasta registro = registroDeSubastaRepository.findFirstByProductoIdentificadorOrderByIdentificadorDesc(item.getProducto().getIdentificador())
                 .orElseThrow(() -> new Exception("No se encontró el registro de subasta para el producto."));
         
         registro.setTipoEntrega(tipoEntrega);
@@ -297,7 +297,7 @@ public class InboxService {
         ItemCatalogo item = itemCatalogoRepository.findById(itemId)
                 .orElseThrow(() -> new java.util.NoSuchElementException("Item de catalogo con ID " + itemId + " no encontrado"));
 
-        com.bidowl.auctionplace.entity.RegistroDeSubasta registro = registroDeSubastaRepository.findByProductoIdentificador(item.getProducto().getIdentificador())
+        com.bidowl.auctionplace.entity.RegistroDeSubasta registro = registroDeSubastaRepository.findFirstByProductoIdentificadorOrderByIdentificadorDesc(item.getProducto().getIdentificador())
                 .orElseThrow(() -> new Exception("No se encontro el registro de subasta para el producto."));
 
         if (!registro.getCliente().getIdentificador().equals(clienteId)) {

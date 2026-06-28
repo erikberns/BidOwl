@@ -16,7 +16,8 @@ public interface PersonaServiceInterface {
     Persona login(String email, String contrasena) throws Exception;
     Persona obtenerPorId(Integer id) throws Exception;
     MetodoPago registrarTarjeta(Integer personaId, String numero, String titular, String vencimiento, Integer cvv) throws Exception;
-    MetodoPago registrarCuenta(Integer personaId, String titular, String banco, Integer paisId, String cbu, String moneda, org.springframework.web.multipart.MultipartFile comprobante) throws Exception;
+    MetodoPago registrarCuenta(Integer personaId, String titular, String banco, Integer paisId, String cbu, String moneda) throws Exception;
+    MetodoPago actualizarCuenta(Integer personaId, Integer metodoPagoId, String titular, String banco, Integer paisId, String cbu, String moneda) throws Exception;
     MetodoPago registrarCheque(Integer personaId, String titular, String banco, String numeroCheque, BigDecimal monto, Integer paisId, String moneda, org.springframework.web.multipart.MultipartFile comprobante) throws Exception;
     String aprobarRegistro(Integer id) throws Exception;
     String aprobarRegistro(Integer id, String categoria) throws Exception;
