@@ -1,3 +1,4 @@
+// Normaliza pesos y dolares y asegura compatibilidad entre subastas y pagos.
 package com.bidowl.auctionplace.service;
 
 import java.text.Normalizer;

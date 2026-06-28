@@ -1,3 +1,4 @@
+// Centraliza lectura del token de sesion y construccion de headers autenticados.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export async function saveLoginSession(result: any) {

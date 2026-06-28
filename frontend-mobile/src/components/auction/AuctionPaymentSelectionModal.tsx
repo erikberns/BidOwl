@@ -1,3 +1,4 @@
+// Permite elegir el medio de pago compatible antes de entrar a la subasta.
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Modal, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

@@ -1,3 +1,4 @@
+// Implementa el formulario para solicitar la publicacion de un articulo.
 import React, { useState, useEffect } from 'react';
 import { Modal, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';

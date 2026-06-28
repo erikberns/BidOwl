@@ -1,3 +1,4 @@
+// Genera multas, plazos y bloqueos por falta de pago y permite regularizarlos.
 package com.bidowl.auctionplace.service;
 
 import java.math.BigDecimal;

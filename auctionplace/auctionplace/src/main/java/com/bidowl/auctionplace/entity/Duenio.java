@@ -1,3 +1,4 @@
+// Representa al cliente que tambien posee bienes publicados o adjudicados.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

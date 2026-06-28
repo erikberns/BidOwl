@@ -1,3 +1,4 @@
+// Convierte las categorias de clientes y subastas en niveles comparables.
 package com.bidowl.auctionplace.service;
 
 import org.springframework.stereotype.Service;

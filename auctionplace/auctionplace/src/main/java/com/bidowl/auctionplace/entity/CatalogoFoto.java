@@ -1,3 +1,4 @@
+// Guarda fotografias auxiliares del catalogo sin alterar la tabla original.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

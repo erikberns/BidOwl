@@ -1,3 +1,4 @@
+// Renderiza y valida los campos de una cuenta bancaria.
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { InputField, CountryDropdownField, CurrencyDropdownField } from './FormFields';

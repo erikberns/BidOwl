@@ -1,3 +1,4 @@
+// Presenta las pantallas iniciales que introducen la experiencia BidOwl.
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, Image, useWindowDimensions, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

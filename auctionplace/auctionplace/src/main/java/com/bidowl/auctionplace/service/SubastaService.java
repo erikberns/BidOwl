@@ -1,3 +1,4 @@
+// Orquesta consulta, elegibilidad, conexion, catalogo, moneda y pujas de subastas.
 package com.bidowl.auctionplace.service;
 
 import com.bidowl.auctionplace.dto.*;

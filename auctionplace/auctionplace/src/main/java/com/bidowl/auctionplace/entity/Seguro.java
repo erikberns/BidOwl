@@ -1,3 +1,4 @@
+// Representa la poliza y cobertura contratada para uno o varios bienes.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

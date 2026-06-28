@@ -1,3 +1,4 @@
+// Muestra el inicio con subastas destacadas y acceso al detalle de cada una.
 import React from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

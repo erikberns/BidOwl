@@ -1,3 +1,4 @@
+// Provee campos reutilizables para los formularios de medios de pago.
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 

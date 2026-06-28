@@ -1,3 +1,4 @@
+// Permite aceptar o rechazar la propuesta y elegir la cuenta de cobro.
 import React from 'react';
 import { Alert, View, Text, TouchableOpacity, ScrollView, Modal, Image, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

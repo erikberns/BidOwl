@@ -1,3 +1,4 @@
+// Representa un sector interno y su empleado responsable.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

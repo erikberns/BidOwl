@@ -1,3 +1,4 @@
+// Gestiona factura, modalidad de entrega y declaracion de falta de pago.
 import React from 'react';
 import { Alert, View, Text, TouchableOpacity, ScrollView, Modal, Image, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

@@ -1,3 +1,4 @@
+// Gestiona registro, aprobacion, login, perfil, recuperacion y medios de pago.
 package com.bidowl.auctionplace.controllers;
 
 import com.bidowl.auctionplace.dto.*;

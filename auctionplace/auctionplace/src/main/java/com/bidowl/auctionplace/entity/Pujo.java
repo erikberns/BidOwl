@@ -1,3 +1,4 @@
+// Representa una puja, su postor, importe, momento, pago y estado ganador.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

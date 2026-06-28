@@ -1,3 +1,4 @@
+// Permite recorrer en pantalla completa las imagenes de un articulo.
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Modal, Image, ActivityIndicator, StyleSheet } from 'react-native';
 

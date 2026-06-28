@@ -1,3 +1,4 @@
+// Informa la categoria asignada luego de aprobar y configurar la cuenta.
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

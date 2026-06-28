@@ -1,3 +1,4 @@
+// Transforma subastas, catalogos y productos en DTOs preparados para el frontend.
 package com.bidowl.auctionplace.service;
 
 import java.util.List;

@@ -1,3 +1,4 @@
+// Registra cuanto de un cheque queda comprometido por cada puja o lote.
 package com.bidowl.auctionplace.entity;
 
 import java.math.BigDecimal;

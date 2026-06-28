@@ -1,3 +1,4 @@
+// Define los datos comunes, documentos y estadisticas de cualquier persona.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

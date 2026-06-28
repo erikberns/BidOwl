@@ -1,3 +1,4 @@
+// Almacena una imagen binaria vinculada a un producto.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

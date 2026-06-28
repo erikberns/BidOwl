@@ -1,3 +1,4 @@
+// Gestiona productos, disponibilidad, fotografias, seguros y avisos al duenio.
 package com.bidowl.auctionplace.service;
 
 import com.bidowl.auctionplace.dto.ProductoDTO;

@@ -1,3 +1,4 @@
+// Recopila identidad, domicilio, pais y fotografias del documento.
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

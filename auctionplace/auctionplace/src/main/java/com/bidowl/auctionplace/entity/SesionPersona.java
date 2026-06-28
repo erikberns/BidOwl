@@ -1,3 +1,4 @@
+// Persiste tokens de sesion con vencimiento y usuario asociado.
 package com.bidowl.auctionplace.entity;
 
 import java.time.LocalDateTime;

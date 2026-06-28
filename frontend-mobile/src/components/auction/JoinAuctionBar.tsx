@@ -1,3 +1,4 @@
+// Valida elegibilidad, pago y multas antes de conectar al usuario.
 import React, { useEffect, useState } from 'react';
 import { Alert, View, Text, TouchableOpacity, StyleSheet, Modal, useColorScheme } from 'react-native';
 import { SymbolView } from 'expo-symbols';

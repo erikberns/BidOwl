@@ -1,3 +1,4 @@
+// Presenta la confirmacion y resultado visual de una puja.
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { SymbolView } from 'expo-symbols';

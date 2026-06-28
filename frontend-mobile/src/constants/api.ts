@@ -1,3 +1,4 @@
+// Resuelve las URLs HTTP y WebSocket para Railway, web y dispositivos moviles.
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 

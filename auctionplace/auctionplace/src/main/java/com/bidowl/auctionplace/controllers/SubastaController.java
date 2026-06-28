@@ -1,3 +1,4 @@
+// Expone catalogos, conexion, elegibilidad, pujas y ciclo de vida de las subastas.
 package com.bidowl.auctionplace.controllers;
 
 import com.bidowl.auctionplace.dto.*;

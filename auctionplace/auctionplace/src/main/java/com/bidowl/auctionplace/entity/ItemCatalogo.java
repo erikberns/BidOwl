@@ -1,3 +1,4 @@
+// Representa un lote con precio base, comision, estado y temporizador de puja.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

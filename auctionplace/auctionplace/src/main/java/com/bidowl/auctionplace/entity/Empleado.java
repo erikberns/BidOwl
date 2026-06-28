@@ -1,3 +1,4 @@
+// Representa al personal que verifica, revisa o administra procesos internos.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

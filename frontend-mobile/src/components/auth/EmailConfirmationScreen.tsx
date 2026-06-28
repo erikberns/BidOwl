@@ -1,3 +1,4 @@
+// Verifica el correo y envia la documentacion inicial para aprobacion.
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ScrollView, Alert, ActivityIndicator, Platform, Image, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

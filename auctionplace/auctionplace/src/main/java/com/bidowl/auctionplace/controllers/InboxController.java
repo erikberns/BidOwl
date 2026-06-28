@@ -1,3 +1,4 @@
+// Expone notificaciones, historial, adjudicaciones, entregas y regularizacion de multas.
 package com.bidowl.auctionplace.controllers;
 
 import com.bidowl.auctionplace.dto.MiSubastaDTO;

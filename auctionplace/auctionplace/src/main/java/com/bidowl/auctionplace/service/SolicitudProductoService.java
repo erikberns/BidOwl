@@ -1,3 +1,4 @@
+// Coordina publicacion, inspeccion, propuestas, cuentas de cobro y seguros.
 package com.bidowl.auctionplace.service;
 
 import com.bidowl.auctionplace.dto.*;

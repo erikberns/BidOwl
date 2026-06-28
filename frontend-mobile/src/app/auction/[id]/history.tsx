@@ -1,3 +1,4 @@
+// Muestra y actualiza el historial de pujas del lote seleccionado.
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

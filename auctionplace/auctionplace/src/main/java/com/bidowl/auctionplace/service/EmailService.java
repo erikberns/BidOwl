@@ -1,3 +1,4 @@
+// Envia tokens, credenciales, rechazos y avisos mediante Brevo o correo SMTP.
 package com.bidowl.auctionplace.service;
 
 import java.net.URI;

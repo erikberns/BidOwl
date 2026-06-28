@@ -1,3 +1,4 @@
+// Arma la bandeja del usuario y coordina adjudicacion, entrega, historial y deuda.
 package com.bidowl.auctionplace.service;
 
 import com.bidowl.auctionplace.dto.MiSubastaDTO;

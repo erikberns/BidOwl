@@ -1,3 +1,4 @@
+// Representa la deuda, multa, vencimiento y regularizacion de una compra impaga.
 package com.bidowl.auctionplace.entity;
 
 import java.math.BigDecimal;

@@ -1,3 +1,4 @@
+// Guia al usuario para definir un monto valido y confirmar la puja.
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { SymbolView } from 'expo-symbols';

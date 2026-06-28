@@ -1,3 +1,4 @@
+// Representa los paises utilizados por personas y medios de pago.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

@@ -1,3 +1,4 @@
+// Convierte fechas de eventos en textos relativos usando la hora de Argentina.
 package com.bidowl.auctionplace.service;
 
 import java.time.Duration;

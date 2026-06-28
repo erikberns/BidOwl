@@ -1,3 +1,4 @@
+// Renderiza una subasta resumida en los listados de inicio y exploracion.
 import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, ImageSourcePropType, StyleProp, ViewStyle } from 'react-native';
 

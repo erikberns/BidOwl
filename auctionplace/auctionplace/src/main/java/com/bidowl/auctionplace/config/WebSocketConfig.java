@@ -1,3 +1,4 @@
+// Configura STOMP, SockJS y los canales WebSocket usados por las pujas en tiempo real.
 package com.bidowl.auctionplace.config;
 
 import org.springframework.context.annotation.Configuration;

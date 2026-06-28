@@ -1,3 +1,4 @@
+// Renderiza y valida los datos de una tarjeta de credito.
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { InputField } from './FormFields';

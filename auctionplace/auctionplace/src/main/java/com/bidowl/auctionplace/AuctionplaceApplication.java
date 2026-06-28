@@ -1,3 +1,4 @@
+// Punto de entrada que inicia la aplicacion Spring Boot de BidOwl.
 package com.bidowl.auctionplace;
 
 import org.springframework.boot.SpringApplication;

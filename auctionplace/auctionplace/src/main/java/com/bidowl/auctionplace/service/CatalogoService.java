@@ -1,3 +1,4 @@
+// Construye catalogos y valida precios, comisiones y moneda de sus articulos.
 package com.bidowl.auctionplace.service;
 
 import com.bidowl.auctionplace.dto.*;

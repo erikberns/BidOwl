@@ -1,3 +1,4 @@
+// Implementa registro, aprobacion, autenticacion, perfil y medios de pago de personas.
 package com.bidowl.auctionplace.service;
 
 import com.bidowl.auctionplace.dto.RegistroPaso1Request;

@@ -1,3 +1,4 @@
+// Representa un aviso privado y la accion que puede abrir el frontend.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

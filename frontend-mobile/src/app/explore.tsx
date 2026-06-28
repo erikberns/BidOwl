@@ -1,3 +1,4 @@
+// Permite descubrir y filtrar subastas disponibles.
 import React from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

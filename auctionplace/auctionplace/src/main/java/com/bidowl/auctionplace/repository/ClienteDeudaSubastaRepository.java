@@ -1,3 +1,4 @@
+// Busca deudas activas por cliente, compra o producto adjudicado.
 package com.bidowl.auctionplace.repository;
 
 import java.util.List;

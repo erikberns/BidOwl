@@ -1,3 +1,4 @@
+// Consulta la propuesta comercial asociada a cada producto.
 package com.bidowl.auctionplace.repository;
 
 import com.bidowl.auctionplace.entity.PropuestaComercial;

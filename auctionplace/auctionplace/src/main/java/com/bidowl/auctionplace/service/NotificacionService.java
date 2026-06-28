@@ -1,3 +1,4 @@
+// Persiste notificaciones evitando duplicados para un mismo usuario y evento.
 package com.bidowl.auctionplace.service;
 
 import java.util.List;

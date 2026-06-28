@@ -1,3 +1,4 @@
+// Conserva la adjudicacion, vendedor, comprador, importe, comision y entrega.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

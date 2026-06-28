@@ -1,3 +1,4 @@
+// Gestiona solicitudes de publicacion, inspeccion, envio y propuestas comerciales.
 package com.bidowl.auctionplace.controllers;
 
 import com.bidowl.auctionplace.dto.*;

@@ -1,3 +1,4 @@
+// Conserva los datos y documentos de una persona mientras espera aprobacion.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

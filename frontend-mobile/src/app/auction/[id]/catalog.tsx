@@ -1,3 +1,4 @@
+// Muestra todos los lotes y precios visibles del catalogo de una subasta.
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

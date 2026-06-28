@@ -1,3 +1,4 @@
+// Resuelve sesiones persistidas a partir de su token.
 package com.bidowl.auctionplace.repository;
 
 import java.util.Optional;

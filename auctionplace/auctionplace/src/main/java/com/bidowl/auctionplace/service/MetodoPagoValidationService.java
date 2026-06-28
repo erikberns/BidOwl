@@ -1,3 +1,4 @@
+// Valida propiedad, moneda y disponibilidad del medio de pago elegido para pujar.
 package com.bidowl.auctionplace.service;
 
 import java.math.BigDecimal;

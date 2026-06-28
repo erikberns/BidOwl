@@ -1,3 +1,4 @@
+// Muestra el perfil, metodos de pago, deuda pendiente y cierre de sesion.
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, Pressable, Alert, TouchableOpacity, Platform, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

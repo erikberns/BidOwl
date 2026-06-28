@@ -1,3 +1,4 @@
+// Reune notificaciones, pujas, publicaciones, propuestas, seguros y compras.
 import React from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

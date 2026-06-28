@@ -1,3 +1,4 @@
+// Representa el bien publicado, su duenio, revision, seguro y datos descriptivos.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

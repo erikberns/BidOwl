@@ -1,3 +1,4 @@
+// Consulta registros de adjudicacion por producto, comprador o vendedor.
 package com.bidowl.auctionplace.repository;
 
 import com.bidowl.auctionplace.entity.RegistroDeSubasta;

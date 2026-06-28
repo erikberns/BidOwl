@@ -1,3 +1,4 @@
+// Define el contrato de operaciones de personas utilizado por los controladores.
 package com.bidowl.auctionplace.service;
 
 import com.bidowl.auctionplace.dto.RegistroPaso1Request;

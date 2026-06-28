@@ -1,3 +1,4 @@
+// Registra la subasta activa de cada usuario e impide conexiones simultaneas.
 package com.bidowl.auctionplace.service;
 
 import com.bidowl.auctionplace.entity.Persona;

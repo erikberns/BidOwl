@@ -1,3 +1,4 @@
+// Ofrece la entrada inicial al registro, login o navegacion como invitado.
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

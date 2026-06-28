@@ -1,3 +1,4 @@
+// Expone consulta, revision, fotos y seguros de los productos.
 package com.bidowl.auctionplace.controllers;
 
 import com.bidowl.auctionplace.dto.ProductoDTO;

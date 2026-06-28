@@ -1,3 +1,4 @@
+// Registra precio base, comision, fecha, ubicacion y moneda ofrecidos al vendedor.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

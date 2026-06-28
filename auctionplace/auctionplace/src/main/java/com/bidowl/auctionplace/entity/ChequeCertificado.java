@@ -1,3 +1,4 @@
+// Modela los datos y el monto disponible de un cheque certificado.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

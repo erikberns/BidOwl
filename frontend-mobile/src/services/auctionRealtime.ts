@@ -1,6 +1,7 @@
 import { WS_URL } from '@/constants/api';
 import { getSessionToken } from '@/services/authSession';
 
+// Mantiene la conexion STOMP, suscripciones y envio de pujas en tiempo real.
 export type AuctionRealtimeEvent = {
   tipo: 'NUEVA_PUJA' | 'ERROR' | 'ITEM_FINALIZADO' | 'SUBASTA_CERRADA';
   exito?: boolean;

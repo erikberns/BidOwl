@@ -1,3 +1,4 @@
+// Expone la creacion del rol de duenio para una persona.
 package com.bidowl.auctionplace.controllers;
 
 import com.bidowl.auctionplace.dto.DuenioDTO;

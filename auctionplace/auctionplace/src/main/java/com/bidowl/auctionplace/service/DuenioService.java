@@ -1,3 +1,4 @@
+// Crea y transforma los datos asociados al rol de duenio.
 package com.bidowl.auctionplace.service;
 
 import com.bidowl.auctionplace.dto.DuenioDTO;

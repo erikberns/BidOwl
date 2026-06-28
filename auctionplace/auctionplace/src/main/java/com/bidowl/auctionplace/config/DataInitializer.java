@@ -1,3 +1,4 @@
+// Carga los datos de demostracion y prepara relaciones necesarias para probar el sistema.
 package com.bidowl.auctionplace.config;
 
 import com.bidowl.auctionplace.entity.*;

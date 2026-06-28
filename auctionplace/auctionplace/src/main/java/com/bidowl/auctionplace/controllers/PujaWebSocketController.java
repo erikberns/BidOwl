@@ -1,3 +1,4 @@
+// Recibe pujas por STOMP y publica eventos o errores en los canales de la subasta.
 package com.bidowl.auctionplace.controllers;
 
 import com.bidowl.auctionplace.dto.PujaWebSocketEventDTO;

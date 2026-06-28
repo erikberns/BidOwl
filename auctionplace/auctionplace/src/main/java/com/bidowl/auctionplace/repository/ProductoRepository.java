@@ -1,3 +1,4 @@
+// Consulta productos por disponibilidad, duenio y participacion en catalogos.
 package com.bidowl.auctionplace.repository;
 
 import com.bidowl.auctionplace.entity.Producto;

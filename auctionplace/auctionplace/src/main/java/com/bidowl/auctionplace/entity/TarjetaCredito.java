@@ -1,3 +1,4 @@
+// Modela los datos de una tarjeta utilizada como medio de pago.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

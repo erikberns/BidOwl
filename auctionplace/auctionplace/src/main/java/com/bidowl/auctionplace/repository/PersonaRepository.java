@@ -1,3 +1,4 @@
+// Busca personas y empleados por identificador, correo o documento.
 package com.bidowl.auctionplace.repository;
 
 import com.bidowl.auctionplace.entity.Persona;

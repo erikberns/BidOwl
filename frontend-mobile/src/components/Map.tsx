@@ -1,3 +1,4 @@
+// Muestra el mapa nativo de la ubicacion asociada a una subasta.
 import React, { useState, useEffect, useRef } from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';

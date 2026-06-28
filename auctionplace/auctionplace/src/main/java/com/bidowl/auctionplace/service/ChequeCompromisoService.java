@@ -1,3 +1,4 @@
+// Controla y actualiza el monto de cheque comprometido entre distintas pujas.
 package com.bidowl.auctionplace.service;
 
 import java.math.BigDecimal;

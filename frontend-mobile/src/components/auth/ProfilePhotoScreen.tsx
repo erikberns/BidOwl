@@ -1,3 +1,4 @@
+// Captura o selecciona la foto de perfil y la envia al backend.
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

@@ -1,3 +1,4 @@
+// Adapta la barra de navegacion principal para la version web.
 import { Tabs } from 'expo-router';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { SymbolView } from 'expo-symbols';

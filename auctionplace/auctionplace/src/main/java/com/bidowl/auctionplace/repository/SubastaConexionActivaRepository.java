@@ -1,3 +1,4 @@
+// Consulta y elimina el registro de conexion activa de cada usuario.
 package com.bidowl.auctionplace.repository;
 
 import com.bidowl.auctionplace.entity.SubastaConexionActiva;

@@ -1,3 +1,4 @@
+// Define el campo de entrada visual reutilizado por los formularios.
 import React from 'react';
 import { View, Text, TextInput, StyleSheet, TextInputProps, StyleProp, ViewStyle } from 'react-native';
 

@@ -1,3 +1,4 @@
+// Centraliza validacion, registro concurrente y publicacion en tiempo real de pujas.
 package com.bidowl.auctionplace.service;
 
 import com.bidowl.auctionplace.dto.LimitesPujaDTO;
@@ -98,7 +99,7 @@ public class PujoService {
         }
 
         ItemCatalogo itemCatalogo = itemCatalogoRepository
-                .findByIdentificadorAndCatalogo_Subasta_Identificador(iditem, idSubasta)
+                .findByIdentificadorAndSubastaForUpdate(iditem, idSubasta)
                 .orElseThrow(() -> new java.util.NoSuchElementException(
                         "Item con ID " + iditem + " no encontrado en la subasta " + idSubasta));
 

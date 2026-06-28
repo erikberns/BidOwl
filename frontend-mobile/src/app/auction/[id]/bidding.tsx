@@ -1,3 +1,4 @@
+// Coordina la experiencia de puja, temporizador, WebSocket y respaldo HTTP.
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, useWindowDimensions, Modal, TextInput, ActivityIndicator, Alert, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';

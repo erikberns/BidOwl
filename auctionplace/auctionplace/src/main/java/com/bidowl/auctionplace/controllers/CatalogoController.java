@@ -1,3 +1,4 @@
+// Expone las operaciones HTTP para crear catalogos y administrar sus fotos.
 package com.bidowl.auctionplace.controllers;
 
 import com.bidowl.auctionplace.dto.*;

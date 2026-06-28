@@ -1,3 +1,4 @@
+// Configura la navegacion raiz, el tema y la restauracion de la sesion local.
 import '@/utils/themeHelper'; // Patch Text/TextInput components immediately
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';

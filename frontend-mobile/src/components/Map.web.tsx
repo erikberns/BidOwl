@@ -1,3 +1,4 @@
+// Muestra una alternativa de mapa compatible con navegadores web.
 import React from 'react';
 import { View, Text, Image } from 'react-native';
 

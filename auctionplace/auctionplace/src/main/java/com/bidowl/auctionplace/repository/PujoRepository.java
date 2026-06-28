@@ -1,3 +1,4 @@
+// Consulta pujas, lideres e historiales por lote, cliente y subasta.
 package com.bidowl.auctionplace.repository;
 
 import com.bidowl.auctionplace.entity.Pujo;

@@ -1,3 +1,4 @@
+// Modela una cuenta bancaria y su moneda para pagos o cobros.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

@@ -1,3 +1,4 @@
+// Crea, resuelve y valida tokens de sesion independientes por dispositivo.
 package com.bidowl.auctionplace.service;
 
 import com.bidowl.auctionplace.entity.Persona;

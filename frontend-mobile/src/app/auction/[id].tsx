@@ -1,3 +1,4 @@
+// Muestra el detalle de una subasta, su catalogo y el ingreso del usuario.
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

@@ -1,3 +1,4 @@
+// Registra a que unica subasta se encuentra conectado cada usuario.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.Column;

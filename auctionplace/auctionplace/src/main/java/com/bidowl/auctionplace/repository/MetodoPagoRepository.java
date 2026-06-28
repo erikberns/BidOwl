@@ -1,3 +1,4 @@
+// Busca medios de pago por persona y valida su pertenencia.
 package com.bidowl.auctionplace.repository;
 
 import com.bidowl.auctionplace.entity.MetodoPago;

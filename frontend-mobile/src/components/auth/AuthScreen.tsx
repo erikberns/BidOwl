@@ -1,3 +1,4 @@
+// Coordina los pasos de autenticacion, registro y recuperacion de cuenta.
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Image, Pressable, ActivityIndicator, Platform, KeyboardAvoidingView, Keyboard } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';

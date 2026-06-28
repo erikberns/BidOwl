@@ -1,3 +1,4 @@
+// Presenta la inspeccion del articulo y el acuerdo de envio o devolucion.
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Modal, StyleSheet, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

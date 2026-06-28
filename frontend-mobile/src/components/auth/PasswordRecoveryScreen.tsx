@@ -1,3 +1,4 @@
+// Verifica el correo y permite restablecer una contrasena olvidada.
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Platform, TextInput, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';

@@ -1,3 +1,4 @@
+// Finaliza lotes, adjudica productos y transfiere su propiedad al ganador o a BidOwl.
 package com.bidowl.auctionplace.service;
 
 import com.bidowl.auctionplace.entity.*;

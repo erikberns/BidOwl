@@ -1,3 +1,4 @@
+// Centraliza respuestas de error y resolucion compatible de usuarios y tokens de sesion.
 package com.bidowl.auctionplace.controllers;
 
 import java.time.LocalDate;

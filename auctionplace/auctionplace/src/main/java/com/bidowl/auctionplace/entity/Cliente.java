@@ -1,3 +1,4 @@
+// Representa el rol de postor con categoria, admision y verificador.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

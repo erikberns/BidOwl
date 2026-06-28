@@ -1,3 +1,4 @@
+// Representa el catalogo de articulos asociado a una subasta.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

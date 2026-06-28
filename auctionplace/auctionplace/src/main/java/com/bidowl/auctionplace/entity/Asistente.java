@@ -1,3 +1,4 @@
+// Representa la participacion de un cliente y su numero de postor en una subasta.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

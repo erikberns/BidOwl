@@ -1,3 +1,4 @@
+// Obtiene y guarda las imagenes utilizadas como portada de las subastas.
 package com.bidowl.auctionplace.service;
 
 import java.util.Collections;

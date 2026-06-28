@@ -1,3 +1,4 @@
+// Representa fecha, lugar, categoria, estado, moneda y rematador de una subasta.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;

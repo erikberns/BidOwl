@@ -1,3 +1,4 @@
+// Representa al rematador con matricula y region de actividad.
 package com.bidowl.auctionplace.entity;
 
 import jakarta.persistence.*;
