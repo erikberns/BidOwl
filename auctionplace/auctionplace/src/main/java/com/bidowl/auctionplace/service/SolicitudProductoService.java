@@ -188,7 +188,6 @@ public class SolicitudProductoService {
         notificacion.setPersonaId(creadorId);
         notificacion.setTitulo("Solicitud de artículo recibida");
         notificacion.setCuerpo("Su solicitud del artículo '" + nombre + "' ha sido recibida correctamente y está en proceso de revisión inicial.");
-        notificacion.setAccion("show_inspection_request:" + productoGuardado.getIdentificador());
         notificacion.setLeida(false);
         notificacion.setFecha(java.time.LocalDateTime.now());
         notificacionService.guardarSiNoExiste(notificacion);
@@ -198,6 +197,53 @@ public class SolicitudProductoService {
         respuesta.put("estado", "PENDIENTE_REVISION");
 
         return respuesta;
+    }
+
+    public void aprobarRevisionInicial(String idSolicitud) throws Exception {
+        Integer id = parseId(idSolicitud);
+        Optional<Producto> productoOpt = productoRepository.findById(id);
+        if (productoOpt.isEmpty()) {
+            throw new Exception("Solicitud no encontrada con ID: " + idSolicitud);
+        }
+
+        Producto p = productoOpt.get();
+
+        // Enviar notificación de que fue aceptada y debe ser enviada para inspección
+        if (p.getDuenio() != null) {
+            Notificacion notificacion = new Notificacion();
+            notificacion.setPersonaId(p.getDuenio().getIdentificador());
+            notificacion.setTitulo("Solicitud de artículo aceptada");
+            notificacion.setCuerpo("Su solicitud del artículo '" + p.getNombre() + "' ha sido aceptada, pero debemos inspeccionar el artículo físicamente.");
+            notificacion.setAccion("show_inspection_request:" + p.getIdentificador());
+            notificacion.setLeida(false);
+            notificacion.setFecha(java.time.LocalDateTime.now());
+            notificacionService.guardarSiNoExiste(notificacion);
+        }
+    }
+
+    public void rechazarRevisionInicial(String idSolicitud, String motivo) throws Exception {
+        Integer id = parseId(idSolicitud);
+        Optional<Producto> productoOpt = productoRepository.findById(id);
+        if (productoOpt.isEmpty()) {
+            throw new Exception("Solicitud no encontrada con ID: " + idSolicitud);
+        }
+
+        Producto p = productoOpt.get();
+        p.setDescripcionCatalogo(motivo); // Usamos descripcionCatalogo como motivoRechazo temporalmente
+        productoRepository.save(p);
+
+        // Enviar notificación de rechazo
+        if (p.getDuenio() != null) {
+            Notificacion notificacion = new Notificacion();
+            notificacion.setPersonaId(p.getDuenio().getIdentificador());
+            notificacion.setTitulo("Solicitud de artículo rechazada");
+            notificacion.setCuerpo("Su solicitud del artículo '" + p.getNombre() + "' no ha sido aceptada. Motivo: " + motivo);
+            // La accion de rechazo original es show_inspection_rejected, la reutilizamos para no tener que crear nuevos modales
+            notificacion.setAccion("show_inspection_rejected:" + p.getIdentificador());
+            notificacion.setLeida(false);
+            notificacion.setFecha(java.time.LocalDateTime.now());
+            notificacionService.guardarSiNoExiste(notificacion);
+        }
     }
 
     /**

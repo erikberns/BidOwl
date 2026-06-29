@@ -428,4 +428,34 @@ public class SolicitudItemController {
                     .body(ControllerSupport.errorBodyWithTimestamp("Error interno del servidor: " + e.getMessage(), null));
         }
     }
+
+    @PostMapping("/{idSolicitud}/aprobar-revision")
+    public ResponseEntity<?> aprobarRevision(
+            @PathVariable String idSolicitud,
+            @RequestHeader("Autorizacion") String autorizacion) {
+        try {
+            ControllerSupport.resolvePersonaId(autorizacion, sesionService);
+            solicitudProductoService.aprobarRevisionInicial(idSolicitud);
+            return ResponseEntity.ok(Collections.singletonMap("mensaje", "Revisión aprobada exitosamente"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ControllerSupport.errorBodyWithTimestamp("Error interno del servidor: " + e.getMessage(), null));
+        }
+    }
+
+    @PostMapping("/{idSolicitud}/rechazar-revision")
+    public ResponseEntity<?> rechazarRevision(
+            @PathVariable String idSolicitud,
+            @RequestHeader("Autorizacion") String autorizacion,
+            @RequestBody(required = false) Map<String, String> request) {
+        try {
+            ControllerSupport.resolvePersonaId(autorizacion, sesionService);
+            String motivo = (request != null && request.containsKey("motivo")) ? request.get("motivo") : "No cumple con las políticas de subasta";
+            solicitudProductoService.rechazarRevisionInicial(idSolicitud, motivo);
+            return ResponseEntity.ok(Collections.singletonMap("mensaje", "Revisión rechazada exitosamente"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ControllerSupport.errorBodyWithTimestamp("Error interno del servidor: " + e.getMessage(), null));
+        }
+    }
 }
