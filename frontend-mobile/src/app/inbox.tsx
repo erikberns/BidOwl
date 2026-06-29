@@ -25,12 +25,21 @@ const getImageUrl = (path: string) => {
 };
 
 // Helper to format prices as in reference image (e.g. 9.000.000 ARS)
-const formatPriceRef = (val: string) => {
+const formatPriceRef = (val: string, currency?: string) => {
   if (!val) return '';
-  if (val.includes('ARS')) return val;
-  let clean = val.replace(/[\$\s\u00a0]/g, '');
+  const normalizedCurrency = (currency || '').toLowerCase();
+  const currencyCode = normalizedCurrency === 'dolares' || normalizedCurrency === 'dólares' || normalizedCurrency === 'usd'
+    ? 'USD'
+    : 'ARS';
+  let clean = val
+    .replace(/US\$/gi, '')
+    .replace(/\b(?:ARS|USD)\b/gi, '')
+    .replace(/[\$\s\u00a0]/g, '');
   clean = clean.replace(/[,.]00$/, '');
-  return `${clean} ARS`;
+  if (currencyCode === 'USD' && /^\d{1,3}(,\d{3})+$/.test(clean)) {
+    clean = clean.replace(/,/g, '.');
+  }
+  return `${clean} ${currencyCode}`;
 };
 
 type Tab = 'miSubasta' | 'notificaciones' | 'historial';
@@ -102,21 +111,26 @@ export default function InboxScreen() {
         setLoggedInUserId(personaId);
 
         if (personaId) {
+          const shouldFetchMyArticles = !silent || activeTab === 'miSubasta';
+          const requestVersion = Date.now();
           const fetchPromises: Promise<any>[] = [
             fetch(`${API_URL}/inbox/${personaId}/notificaciones`).catch(() => null),
             fetch(`${API_URL}/inbox/${personaId}/pujas-activas`).catch(() => null)
           ];
 
+          if (shouldFetchMyArticles) {
+            fetchPromises.push(fetch(`${API_URL}/inbox/${personaId}/mis-subastas?_=${requestVersion}`).catch(() => null));
+          }
           if (!silent) {
-            fetchPromises.push(fetch(`${API_URL}/inbox/${personaId}/mis-subastas`).catch(() => null));
             fetchPromises.push(fetch(`${API_URL}/inbox/${personaId}/historial`).catch(() => null));
           }
 
           const results = await Promise.all(fetchPromises);
           const notifRes = results[0];
           const bidsRes = results[1];
-          const auctionsRes = !silent ? results[2] : null;
-          const historyRes = !silent ? results[3] : null;
+          let optionalResultIndex = 2;
+          const auctionsRes = shouldFetchMyArticles ? results[optionalResultIndex++] : null;
+          const historyRes = !silent ? results[optionalResultIndex] : null;
 
           if (notifRes && notifRes.ok) {
             const notifs = await notifRes.json();
@@ -143,7 +157,7 @@ export default function InboxScreen() {
             setActiveBids(Array.from(bidsByAuction.values()));
           }
 
-          if (!silent && auctionsRes && auctionsRes.ok) {
+          if (auctionsRes && auctionsRes.ok) {
             setActiveAuctions(await auctionsRes.json());
           }
 
@@ -190,7 +204,7 @@ export default function InboxScreen() {
     } finally {
       if (!silent) setLoading(false);
     }
-  }, [expandedNotifIds]);
+  }, [activeTab, expandedNotifIds]);
 
   React.useEffect(() => {
     if (!isFocused) return;
@@ -258,7 +272,7 @@ export default function InboxScreen() {
               <Text style={styles.myArticleDetailText}>
                 <Text style={styles.myArticleBoldLabel}>Puja maxima: </Text>
                 <Text style={[styles.myArticleValueText, { fontWeight: '700', color: '#03161A' }]}>
-                  {formatPriceRef(auction.pujaMaxima)}
+                  {formatPriceRef(auction.pujaMaxima, auction.moneda)}
                 </Text>
               </Text>
             </View>

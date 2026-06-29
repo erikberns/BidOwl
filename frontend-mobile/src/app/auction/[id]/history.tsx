@@ -1,8 +1,9 @@
 // Muestra y actualiza el historial de pujas del lote seleccionado.
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, Stack, Tabs } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
@@ -121,11 +122,20 @@ export default function BidsHistoryScreen() {
     }
   }, [isGuest]);
 
-  const fetchBids = async () => {
+  const fallbackMock = useCallback(() => {
+    const mapped = currentItem.bids.map(b => ({
+      name: b.name,
+      time: b.time,
+      amount: b.amount,
+      isLead: b.isLead
+    }));
+    setBids(mapped);
+  }, [currentItem]);
+
+  const fetchBids = useCallback(async () => {
     try {
       const userStr = await AsyncStorage.getItem('user');
       if (!userStr) return;
-      const user = JSON.parse(userStr);
 
       const targetItemId = Array.isArray(itemId) ? itemId[0] : itemId;
       if (!targetItemId) {
@@ -133,8 +143,13 @@ export default function BidsHistoryScreen() {
         return;
       }
 
-      const res = await fetch(`${API_URL}/subastas/${auctionIdStr}/items/${targetItemId}/pujas`, {
-        headers: await authHeaders()
+      const requestVersion = Date.now();
+      const headers = await authHeaders({
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      });
+      const res = await fetch(`${API_URL}/subastas/${auctionIdStr}/items/${targetItemId}/pujas?_=${requestVersion}`, {
+        headers
       });
       if (res.ok) {
         const data = await res.json();
@@ -153,8 +168,8 @@ export default function BidsHistoryScreen() {
       }
 
       // Fetch dynamic item timer and completion status
-      const statusRes = await fetch(`${API_URL}/subastas/${auctionIdStr}/items/${targetItemId}`, {
-        headers: await authHeaders()
+      const statusRes = await fetch(`${API_URL}/subastas/${auctionIdStr}/items/${targetItemId}?_=${requestVersion}`, {
+        headers
       });
       if (statusRes.ok) {
         const statusData = await statusRes.json();
@@ -164,28 +179,27 @@ export default function BidsHistoryScreen() {
       console.error('[BidsHistoryScreen] Error fetching bids:', e);
       fallbackMock();
     }
-  };
+  }, [auctionCurrency, auctionIdStr, fallbackMock, itemId]);
 
-  const fallbackMock = () => {
-    const mapped = currentItem.bids.map(b => ({
-      name: b.name,
-      time: b.time,
-      amount: b.amount,
-      isLead: b.isLead
-    }));
-    setBids(mapped);
-  };
+  useFocusEffect(
+    useCallback(() => {
+      if (isGuest === true) return undefined;
+      let active = true;
 
-  useEffect(() => {
-    if (isGuest === true) return;
+      async function refreshOnFocus() {
+        setLoading(true);
+        await fetchBids();
+        if (active) {
+          setLoading(false);
+        }
+      }
 
-    async function initialLoad() {
-      setLoading(true);
-      await fetchBids();
-      setLoading(false);
-    }
-    initialLoad();
-  }, [itemId, isGuest]);
+      refreshOnFocus();
+      return () => {
+        active = false;
+      };
+    }, [fetchBids, isGuest])
+  );
 
   useEffect(() => {
     if (isGuest === true) return;
@@ -200,7 +214,7 @@ export default function BidsHistoryScreen() {
     );
 
     return () => realtime.disconnect();
-  }, [itemId, isGuest]);
+  }, [auctionIdStr, fetchBids, itemId, isGuest]);
 
   useEffect(() => {
     const timer = setInterval(() => setRelativeTick(prev => prev + 1), 30000);

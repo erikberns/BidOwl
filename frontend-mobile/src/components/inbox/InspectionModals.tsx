@@ -128,8 +128,8 @@ export const InspectionModals: React.FC<InspectionModalsProps> = ({
 
             <View style={styles.modalFooter}>
               <TouchableOpacity style={styles.modalButton} onPress={() => {
-                setShowInspectionResult(false);
                 setShowOfferDetails(true);
+                requestAnimationFrame(() => setShowInspectionResult(false));
               }}>
                 <Text style={styles.modalButtonText}>Continuar</Text>
               </TouchableOpacity>

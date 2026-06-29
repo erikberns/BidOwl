@@ -1,6 +1,6 @@
 // Muestra el inicio con subastas destacadas y acceso al detalle de cada una.
 import React from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, TextInput } from 'react-native';
+import { AppState, View, Text, Image, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { router, Stack, Tabs } from 'expo-router';
@@ -70,6 +70,7 @@ export default function HomeScreen() {
   const [username, setUsername] = React.useState('Invitado');
   const [auctions, setAuctions] = React.useState<any[]>([]);
   const activeAuctionsScrollRef = React.useRef<ScrollView>(null);
+  const auctionsRequestInFlightRef = React.useRef(false);
 
   React.useEffect(() => {
     if (isFocused) {
@@ -91,25 +92,43 @@ export default function HomeScreen() {
     }
   }, [isFocused]);
 
-  React.useEffect(() => {
-    if (isFocused) {
-      async function loadAuctions() {
-        try {
-          const res = await fetch(`${API_URL}/subastas?pagina=1&limite=100`);
-          if (res.ok) {
-            const data = await res.json();
-            setAuctions(data);
-          } else {
-            setAuctions(MOCK_AUCTIONS);
-          }
-        } catch (e) {
-          console.error('[HomeScreen] Error loading auctions:', e);
-          setAuctions(MOCK_AUCTIONS);
-        }
+  const loadAuctions = React.useCallback(async () => {
+    if (auctionsRequestInFlightRef.current) return;
+    auctionsRequestInFlightRef.current = true;
+
+    try {
+      const requestVersion = Date.now();
+      const res = await fetch(`${API_URL}/subastas?pagina=1&limite=100&_=${requestVersion}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAuctions(data);
+      } else {
+        setAuctions(current => current.length > 0 ? current : MOCK_AUCTIONS);
       }
-      loadAuctions();
+    } catch (e) {
+      console.error('[HomeScreen] Error loading auctions:', e);
+      setAuctions(current => current.length > 0 ? current : MOCK_AUCTIONS);
+    } finally {
+      auctionsRequestInFlightRef.current = false;
     }
-  }, [isFocused]);
+  }, []);
+
+  React.useEffect(() => {
+    if (!isFocused) return;
+
+    loadAuctions();
+    const refreshInterval = setInterval(loadAuctions, 10000);
+    const appStateSubscription = AppState.addEventListener('change', nextState => {
+      if (nextState === 'active') {
+        loadAuctions();
+      }
+    });
+
+    return () => {
+      clearInterval(refreshInterval);
+      appStateSubscription.remove();
+    };
+  }, [isFocused, loadAuctions]);
 
   const filteredAuctions = auctions.filter(item => {
     const auctionDate = parseAuctionDateTime(item.fecha || item.date, item.hora || item.time);

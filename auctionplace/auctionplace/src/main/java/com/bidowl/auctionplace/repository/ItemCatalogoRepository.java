@@ -31,5 +31,9 @@ public interface ItemCatalogoRepository extends JpaRepository<ItemCatalogo, Inte
             @Param("identificador") Integer identificador,
             @Param("subastaIdentificador") Integer subastaIdentificador);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT i FROM ItemCatalogo i WHERE i.identificador = :identificador")
+    Optional<ItemCatalogo> findByIdentificadorForUpdate(@Param("identificador") Integer identificador);
+
     boolean existsByIdentificadorAndCatalogo_Subasta_Identificador(Integer identificador, Integer subastaIdentificador);
 }

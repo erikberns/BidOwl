@@ -75,9 +75,11 @@ export const ProposalModals: React.FC<ProposalModalsProps> = ({
 
   const handleBack = () => {
     if (showOfferDetails) {
-      setShowOfferDetails(false);
       if (selectedProposal?.propuesta?.estado !== 'ACEPTADA' && selectedProposal?.propuesta?.estado !== 'RECHAZADA') {
         setShowInspectionResult(true);
+        requestAnimationFrame(() => setShowOfferDetails(false));
+      } else {
+        setShowOfferDetails(false);
       }
     } else if (showPaymentSelection) {
       setShowPaymentSelection(false);

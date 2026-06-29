@@ -10,6 +10,7 @@ public class MiSubastaDTO {
     private String ubicacion;
     private String articuloTitle;
     private String pujaMaxima; // Formatted
+    private String moneda;
 
     public MiSubastaDTO() {}
 
@@ -40,4 +41,7 @@ public class MiSubastaDTO {
 
     public String getPujaMaxima() { return pujaMaxima; }
     public void setPujaMaxima(String pujaMaxima) { this.pujaMaxima = pujaMaxima; }
+
+    public String getMoneda() { return moneda; }
+    public void setMoneda(String moneda) { this.moneda = moneda; }
 }

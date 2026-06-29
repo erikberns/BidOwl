@@ -5,6 +5,7 @@ import com.bidowl.auctionplace.entity.*;
 import com.bidowl.auctionplace.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -76,8 +77,10 @@ public class ItemCatalogoService {
                 .orElseThrow(() -> new Exception("Item de catálogo no encontrado."));
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public ItemCatalogo finalizarSubastaDeItem(Integer itemId) throws Exception {
-        ItemCatalogo item = obtenerPorId(itemId);
+        ItemCatalogo item = itemCatalogoRepository.findByIdentificadorForUpdate(itemId)
+                .orElseThrow(() -> new Exception("Item de catálogo no encontrado."));
         if ("si".equalsIgnoreCase(item.getSubastado())) {
             throw new Exception("Este ítem ya fue subastado y finalizado.");
         }

@@ -173,6 +173,7 @@ public class InboxService {
             dto.setSubastaTitle(item.getCatalogo().getSubasta().getTitulo());
             dto.setUbicacion(item.getCatalogo().getSubasta().getUbicacion());
             String monedaSubasta = monedaService.monedaSubasta(item.getCatalogo().getSubasta());
+            dto.setMoneda(monedaSubasta);
             
             List<ItemCatalogo> allItemsInCatalogo = itemCatalogoRepository.findByCatalogoIdentificador(item.getCatalogo().getIdentificador());
             int idx = allItemsInCatalogo.indexOf(item);

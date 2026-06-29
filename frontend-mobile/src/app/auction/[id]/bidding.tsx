@@ -478,7 +478,18 @@ export default function BiddingScreen() {
   };
 
   const applyRealtimeEvent = (event: AuctionRealtimeEvent) => {
-    if (!event || event.itemId === undefined || String(event.itemId) !== String(currentItem.id)) {
+    if (!event) {
+      return;
+    }
+
+    if (event.tipo === 'SUBASTA_CERRADA') {
+      setAuctionState('ended');
+      setSecondsLeft(0);
+      setIsBiddingFinished(true);
+      return;
+    }
+
+    if (event.itemId === undefined || String(event.itemId) !== String(currentItem.id)) {
       return;
     }
 
@@ -517,13 +528,6 @@ export default function BiddingScreen() {
         }
         return nextItems;
       });
-      return;
-    }
-
-    if (event.tipo === 'SUBASTA_CERRADA') {
-      setAuctionState('ended');
-      setSecondsLeft(0);
-      setIsBiddingFinished(true);
       return;
     }
 

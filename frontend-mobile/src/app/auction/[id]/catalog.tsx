@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { SymbolView } from 'expo-symbols';
 import { router, useLocalSearchParams, Stack, Tabs } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MOCK_AUCTION_ITEMS } from '@/constants/mockData';
@@ -87,12 +86,11 @@ export default function CatalogScreen() {
       <Tabs.Screen options={{ headerShown: false, tabBarStyle: { display: 'none' } }} />
       {/* Header Bar */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.navigate(`/auction/${id}` as any)}>
-          <SymbolView
-            tintColor="#051C2C"
-            // @ts-ignore
-            name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_left' }}
-            size={22}
+        <TouchableOpacity style={styles.backButton} onPress={() => router.navigate(`/auction/${auctionIdStr}` as any)}>
+          <Image
+            source={require('@/assets/images/Chevron-Left.png')}
+            style={styles.backChevron}
+            resizeMode="contain"
           />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Catálogo Entero</Text>
@@ -153,6 +151,10 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+  },
+  backChevron: {
+    width: 24,
+    height: 24,
   },
   headerTitle: {
     fontSize: 16,
