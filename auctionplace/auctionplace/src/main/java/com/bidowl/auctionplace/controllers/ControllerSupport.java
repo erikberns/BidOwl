@@ -5,7 +5,9 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 import com.bidowl.auctionplace.service.SesionService;
@@ -44,6 +46,49 @@ final class ControllerSupport {
 
     static ResponseEntity<?> errorResponseWithStatus(String message, HttpStatus status) {
         return ResponseEntity.status(status).body(errorBodyWithStatus(message, status));
+    }
+
+    static ResponseEntity<byte[]> imageResponse(byte[] bytes) {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-store, no-cache, must-revalidate, max-age=0")
+                .header(HttpHeaders.PRAGMA, "no-cache")
+                .header(HttpHeaders.EXPIRES, "0")
+                .contentType(detectImageMediaType(bytes))
+                .body(bytes);
+    }
+
+    private static MediaType detectImageMediaType(byte[] bytes) {
+        if (bytes != null && bytes.length >= 4
+                && (bytes[0] & 0xFF) == 0x89
+                && bytes[1] == 0x50
+                && bytes[2] == 0x4E
+                && bytes[3] == 0x47) {
+            return MediaType.IMAGE_PNG;
+        }
+        if (bytes != null && bytes.length >= 3
+                && (bytes[0] & 0xFF) == 0xFF
+                && (bytes[1] & 0xFF) == 0xD8
+                && (bytes[2] & 0xFF) == 0xFF) {
+            return MediaType.IMAGE_JPEG;
+        }
+        if (bytes != null && bytes.length >= 6
+                && bytes[0] == 'G'
+                && bytes[1] == 'I'
+                && bytes[2] == 'F') {
+            return MediaType.IMAGE_GIF;
+        }
+        if (bytes != null && bytes.length >= 12
+                && bytes[0] == 'R'
+                && bytes[1] == 'I'
+                && bytes[2] == 'F'
+                && bytes[3] == 'F'
+                && bytes[8] == 'W'
+                && bytes[9] == 'E'
+                && bytes[10] == 'B'
+                && bytes[11] == 'P') {
+            return MediaType.parseMediaType("image/webp");
+        }
+        return MediaType.APPLICATION_OCTET_STREAM;
     }
 
     static Integer extractTokenIdOrDefault(String token, int defaultId) throws Exception {

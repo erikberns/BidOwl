@@ -382,9 +382,7 @@ public class PersonaController {
         try {
             byte[] fotoBytes = personaService.obtenerFotoPerfilBytes(id);
             if (fotoBytes != null && fotoBytes.length > 0) {
-                return ResponseEntity.ok()
-                        .contentType(detectarTipoImagen(fotoBytes))
-                        .body(fotoBytes);
+                return ControllerSupport.imageResponse(fotoBytes);
             }
             return ResponseEntity.notFound().build();
         } catch (Exception e) {
@@ -418,34 +416,6 @@ public class PersonaController {
             response.put("error", e.getMessage());
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
-    }
-
-    private org.springframework.http.MediaType detectarTipoImagen(byte[] bytes) {
-        if (bytes != null && bytes.length >= 8
-                && (bytes[0] & 0xFF) == 0x89
-                && bytes[1] == 0x50
-                && bytes[2] == 0x4E
-                && bytes[3] == 0x47) {
-            return org.springframework.http.MediaType.IMAGE_PNG;
-        }
-        if (bytes != null && bytes.length >= 6
-                && bytes[0] == 'G'
-                && bytes[1] == 'I'
-                && bytes[2] == 'F') {
-            return org.springframework.http.MediaType.IMAGE_GIF;
-        }
-        if (bytes != null && bytes.length >= 12
-                && bytes[0] == 'R'
-                && bytes[1] == 'I'
-                && bytes[2] == 'F'
-                && bytes[3] == 'F'
-                && bytes[8] == 'W'
-                && bytes[9] == 'E'
-                && bytes[10] == 'B'
-                && bytes[11] == 'P') {
-            return org.springframework.http.MediaType.parseMediaType("image/webp");
-        }
-        return org.springframework.http.MediaType.IMAGE_JPEG;
     }
 
 }

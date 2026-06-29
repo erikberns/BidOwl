@@ -95,10 +95,7 @@ const formatRelativeBidTime = (bid: any, _tick: number) => {
 
 const BidderAvatar = ({ idpersona, style }: { idpersona: string | number; style: any }) => {
   const [failedAttempts, setFailedAttempts] = useState(0);
-
-  useEffect(() => {
-    setFailedAttempts(0);
-  }, [idpersona]);
+  const [cacheKey] = useState(() => `${Date.now()}-${Math.random()}`);
 
   if (failedAttempts >= 2 || !idpersona) {
     return (
@@ -111,7 +108,7 @@ const BidderAvatar = ({ idpersona, style }: { idpersona: string | number; style:
 
   return (
     <Image
-      source={{ uri: `${API_URL}/personas/${idpersona}/foto?retry=${failedAttempts}` }}
+      source={{ uri: `${API_URL}/personas/${idpersona}/foto?v=${cacheKey}&retry=${failedAttempts}` }}
       style={style}
       onError={() => setFailedAttempts(attempts => attempts + 1)}
     />
@@ -977,6 +974,7 @@ export default function BiddingScreen() {
             <Text style={styles.ownerName}>{currentItem.owner}</Text>
           </View>
           <BidderAvatar
+            key={`owner-${currentItem.duenioId}`}
             idpersona={currentItem.duenioId}
             style={styles.avatarImage}
           />
@@ -1018,7 +1016,7 @@ export default function BiddingScreen() {
           <View style={styles.bidsList}>
             {currentItem.bids.slice(0, 3).map((bid: any, index: number) => (
               <View
-                key={index}
+                key={`${bid.idpersona}-${bid.fechaHora || bid.time}-${bid.amount}-${index}`}
                 style={[
                   styles.bidRow,
                   bid.isLead ? styles.leadBidRow : styles.normalBidRow

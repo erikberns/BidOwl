@@ -173,9 +173,7 @@ public class ProductoController {
             if (foto == null) {
                 return ResponseEntity.notFound().build();
             }
-            return ResponseEntity.ok()
-                    .contentType(org.springframework.http.MediaType.IMAGE_JPEG)
-                    .body(foto);
+            return ControllerSupport.imageResponse(foto);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
         }
@@ -223,9 +221,7 @@ public class ProductoController {
             if (foto == null) {
                 return ResponseEntity.notFound().build();
             }
-            return ResponseEntity.ok()
-                    .contentType(org.springframework.http.MediaType.IMAGE_JPEG)
-                    .body(foto);
+            return ControllerSupport.imageResponse(foto);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
         }

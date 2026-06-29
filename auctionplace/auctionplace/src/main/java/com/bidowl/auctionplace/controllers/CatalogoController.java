@@ -74,9 +74,7 @@ public class CatalogoController {
             if (foto == null) {
                 return ResponseEntity.notFound().build();
             }
-            return ResponseEntity.ok()
-                    .contentType(MediaType.IMAGE_JPEG)
-                    .body(foto);
+            return ControllerSupport.imageResponse(foto);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
         }
