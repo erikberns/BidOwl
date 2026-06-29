@@ -428,6 +428,11 @@ public class PersonaService implements PersonaServiceInterface {
             throw new Exception("La contraseña debe tener al menos 8 caracteres de longitud.");
         }
         if (persona.getContrasena() != null && persona.getContrasena().equals(contrasenaNueva)) {
+            // Repetir la misma operacion debe ser seguro. Esto permite que el cliente
+            // reintente cuando el servidor guardo el cambio pero se perdio la respuesta.
+            if (Boolean.TRUE.equals(persona.getContrasenaCambiada())) {
+                return;
+            }
             throw new Exception("La nueva contraseña no puede ser la misma que la contraseña temporal otorgada.");
         }
         persona.setContrasena(contrasenaNueva);

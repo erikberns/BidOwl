@@ -33,6 +33,40 @@ export function PasswordScreen({ userId, onBack, onComplete, isEditing = false }
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
 
+  const submitPasswordChange = async (finalUserId: number, newPassword: string) => {
+    const response = await fetch(`${API_URL}/personas/${finalUserId}/cambiar-contrasena`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contrasenaNueva: newPassword,
+      }),
+    });
+
+    const responseText = await response.text();
+    let result: any = {};
+
+    if (responseText) {
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        if (!response.ok) {
+          throw new Error('El servidor devolvió una respuesta inválida.');
+        }
+      }
+    }
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Error al actualizar la contraseña.');
+    }
+  };
+
+  const isNetworkError = (error: unknown) => {
+    const message = error instanceof Error ? error.message.toLowerCase() : '';
+    return message.includes('network request failed') || message.includes('failed to fetch');
+  };
+
   const handleContinue = async () => {
     setPasswordError('');
     setConfirmPasswordError('');
@@ -84,20 +118,17 @@ export function PasswordScreen({ userId, onBack, onComplete, isEditing = false }
       }
 
       console.log(`Enviando cambio de contraseña para el usuario ${finalUserId}...`);
-      const response = await fetch(`${API_URL}/personas/${finalUserId}/cambiar-contrasena`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contrasenaNueva: password,
-        }),
-      });
+      try {
+        await submitPasswordChange(finalUserId, password);
+      } catch (error) {
+        if (!isNetworkError(error)) {
+          throw error;
+        }
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Error al actualizar la contraseña.');
+        // El POST pudo haberse guardado aunque el movil no recibiera la respuesta.
+        // El endpoint es idempotente, por lo que un unico reintento es seguro.
+        console.warn('Se perdió la respuesta del cambio de contraseña. Reintentando una vez...');
+        await submitPasswordChange(finalUserId, password);
       }
 
       console.log('Contraseña actualizada con éxito');
