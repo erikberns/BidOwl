@@ -22,6 +22,10 @@ interface CertifiedChequeFormProps {
   setCheckMonto: (val: string) => void;
   checkMontoError: string;
   setCheckMontoError: (val: string) => void;
+  limiteMaximo: string;
+  setLimiteMaximo: (val: string) => void;
+  limiteMaximoError: string;
+  setLimiteMaximoError: (val: string) => void;
   checkPais: string;
   setCheckPais: (val: string) => void;
   isCheckDropdownOpen: boolean;
@@ -55,6 +59,10 @@ export const CertifiedChequeForm: React.FC<CertifiedChequeFormProps> = ({
   setCheckMonto,
   checkMontoError,
   setCheckMontoError,
+  limiteMaximo,
+  setLimiteMaximo,
+  limiteMaximoError,
+  setLimiteMaximoError,
   checkPais,
   setCheckPais,
   isCheckDropdownOpen,
@@ -113,6 +121,17 @@ export const CertifiedChequeForm: React.FC<CertifiedChequeFormProps> = ({
           }}
           keyboardType="numeric"
           error={checkMontoError}
+        />
+        <InputField
+          label="Limite para gastar en subastas (opcional)"
+          placeholder="Sin limite"
+          value={limiteMaximo}
+          onChangeText={(val: string) => {
+            setLimiteMaximo(val);
+            if (limiteMaximoError) setLimiteMaximoError('');
+          }}
+          keyboardType="numeric"
+          error={limiteMaximoError}
         />
         <View style={[styles.row, { zIndex: isCheckDropdownOpen || isCheckCurrencyDropdownOpen ? 1000 : 1, position: 'relative' }]}>
           <CountryDropdownField label="País" value={checkPais} onSelect={setCheckPais} isOpen={isCheckDropdownOpen} setIsOpen={setIsCheckDropdownOpen} />

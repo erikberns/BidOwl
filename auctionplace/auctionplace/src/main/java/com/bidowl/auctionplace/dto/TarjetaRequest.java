@@ -1,10 +1,13 @@
 package com.bidowl.auctionplace.dto;
 
+import java.math.BigDecimal;
+
 public class TarjetaRequest {
     private String numeroTarjeta;
     private String titularTarjeta;
     private String fechaVencimiento;
     private Integer cvv;
+    private BigDecimal limiteMaximo;
 
     public String getNumeroTarjeta() {
         return numeroTarjeta;
@@ -36,5 +39,13 @@ public class TarjetaRequest {
 
     public void setCvv(Integer cvv) {
         this.cvv = cvv;
+    }
+
+    public BigDecimal getLimiteMaximo() {
+        return limiteMaximo;
+    }
+
+    public void setLimiteMaximo(BigDecimal limiteMaximo) {
+        this.limiteMaximo = limiteMaximo;
     }
 }

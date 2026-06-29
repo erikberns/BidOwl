@@ -24,6 +24,7 @@ interface PaymentMethod {
   type: MethodType;
   title: string;
   subtitle: string;
+  limiteMaximo?: string;
   bankTitular?: string;
   bankBanco?: string;
   bankPais?: string;
@@ -60,6 +61,10 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
   const [selectedType, setSelectedType] = useState<MethodType>('card');
   const [isLoading, setIsLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [limiteMaximo, setLimiteMaximo] = useState('');
+  const [limiteMaximoError, setLimiteMaximoError] = useState('');
+  const [limitDrafts, setLimitDrafts] = useState<Record<string, string>>({});
+  const [savingLimitId, setSavingLimitId] = useState<string | null>(null);
 
   // Bank Form States
   const [bankTitular, setBankTitular] = useState('Jose Claudio Godio');
@@ -121,6 +126,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     setCheckNumeroError('');
     setCheckMontoError('');
     setCheckFileError('');
+    setLimiteMaximoError('');
   }, [currentView]);
 
   const fileInputCheckRef = useRef<any>(null);
@@ -205,6 +211,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
         cardTitular: item.tarjetaCredito.titularTarjeta,
         cardVencimiento: item.tarjetaCredito.fechaVencimiento,
         cardCvv: String(item.tarjetaCredito.cvv),
+        limiteMaximo: String(item.limitePago?.limiteMaximo || ''),
       };
     }
     if (item.cuentaBancaria) {
@@ -221,6 +228,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
         bankMoneda: item.cuentaBancaria.moneda === 'pesos' ? 'Pesos' : 'Dólares',
         bankCbuIban: item.cuentaBancaria.cbuIban,
         bankTab: item.cuentaBancaria.cbuIban?.length === 22 ? 'CBU' : 'IBAN',
+        limiteMaximo: String(item.limitePago?.limiteMaximo || ''),
       };
     }
     if (item.chequeCertificado) {
@@ -235,6 +243,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
         checkMonto: String(item.chequeCertificado.monto),
         checkPais: item.chequeCertificado.pais?.nombre || 'Argentina',
         checkMoneda: item.chequeCertificado.moneda === 'pesos' ? 'Pesos' : 'Dólares',
+        limiteMaximo: String(item.limitePago?.limiteMaximo || item.chequeCertificado.monto || ''),
       };
     }
     return null;
@@ -247,6 +256,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     }
     const mapped = mapExistingMethods(await response.json());
     setMethods(mapped);
+    setLimitDrafts(Object.fromEntries(mapped.map(method => [method.id, method.limiteMaximo || ''])));
     return mapped;
   };
 
@@ -346,10 +356,12 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     setCheckMoneda('Pesos');
     setCheckFile(null);
     setCheckFileUri(null);
+    setLimiteMaximo('');
   };
 
   const handleEditPress = (method: PaymentMethod) => {
     setEditingId(method.id);
+    setLimiteMaximo(method.limiteMaximo || '');
     if (method.type === 'bank') {
       setBankTitular(method.bankTitular || '');
       setBankBanco(method.bankBanco || '');
@@ -390,13 +402,65 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     throw new Error('No se encontró el identificador del usuario para guardar el método de pago.');
   };
 
+  const validarLimiteMaximo = () => {
+    if (!limiteMaximo.trim()) {
+      return true;
+    }
+    const valor = Number(limiteMaximo.replace(/\./g, '').replace(',', '.'));
+    if (!Number.isFinite(valor) || valor <= 0) {
+      setLimiteMaximoError('El limite maximo debe ser un numero mayor a cero.');
+      return false;
+    }
+    return true;
+  };
+
+  const guardarLimiteDelMetodo = async (method: PaymentMethod) => {
+    const rawValue = limitDrafts[method.id] ?? method.limiteMaximo ?? '';
+    const sinLimite = !rawValue.trim();
+    const numericValue = sinLimite ? null : Number(rawValue.replace(/\./g, '').replace(',', '.'));
+    if (!sinLimite && (!Number.isFinite(numericValue) || Number(numericValue) <= 0)) {
+      showAlert('Limite invalido', 'El limite debe ser un numero mayor a cero.');
+      return;
+    }
+
+    setSavingLimitId(method.id);
+    try {
+      const finalUserId = await getFinalUserId();
+      const response = await fetch(`${API_URL}/personas/${finalUserId}/metodo-pago/${method.id}/limite`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limiteMaximo: numericValue == null ? null : Math.floor(numericValue) }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.error || 'No se pudo actualizar el limite.');
+      }
+
+      const savedValue = result.limiteMaximo == null ? '' : String(result.limiteMaximo);
+      setMethods(current => current.map(item =>
+        item.id === method.id ? { ...item, limiteMaximo: savedValue } : item
+      ));
+      setLimitDrafts(current => ({ ...current, [method.id]: savedValue }));
+      showAlert(
+        'Limite actualizado',
+        savedValue ? 'El nuevo limite se usara en las proximas subastas.' : 'El metodo de pago quedo sin limite para subastas.'
+      );
+    } catch (error: any) {
+      showAlert('Error', error.message || 'No se pudo actualizar el limite.');
+    } finally {
+      setSavingLimitId(null);
+    }
+  };
+
   const handleAddBank = async () => {
     setBankTitularError('');
     setBankBancoError('');
     setBankNumeroCuentaError('');
     setBankCbuIbanError('');
+    setLimiteMaximoError('');
 
     let hasErrors = false;
+    if (!validarLimiteMaximo()) hasErrors = true;
     if (!bankTitular || !bankTitular.trim()) {
       setBankTitularError('El titular es obligatorio.');
       hasErrors = true;
@@ -473,6 +537,9 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       formData.append('paisId', paisId.toString());
       formData.append('cbuIban', bankCbuIban);
       formData.append('moneda', bankMoneda.toLowerCase().includes('d') ? 'dolares' : 'pesos');
+      if (limiteMaximo.trim()) {
+        formData.append('limiteMaximo', limiteMaximo.replace(/\./g, '').replace(',', '.'));
+      }
 
       const endpoint = isEditing
         ? `${API_URL}/personas/${finalUserId}/metodo-pago/${editingId}/cuenta`
@@ -530,8 +597,10 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     setCardTitularError('');
     setCardVencimientoError('');
     setCardCvvError('');
+    setLimiteMaximoError('');
 
     let hasErrors = false;
+    if (!validarLimiteMaximo()) hasErrors = true;
 
     if (!cardNumero || !cardNumero.trim()) {
       setCardNumeroError('El número de tarjeta es obligatorio.');
@@ -608,6 +677,9 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
           titularTarjeta: cardTitular,
           fechaVencimiento: cardVencimiento,
           cvv: parseInt(cardCvv) || 0,
+          limiteMaximo: limiteMaximo.trim()
+            ? Number(limiteMaximo.replace(/\./g, '').replace(',', '.'))
+            : null,
         }),
       });
 
@@ -624,6 +696,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
         cardTitular,
         cardVencimiento,
         cardCvv,
+        limiteMaximo,
       }, result.metodoPago ? String(result.metodoPago.identificador) : undefined);
     } catch (error: any) {
       console.error('Error al registrar tarjeta:', error);
@@ -639,8 +712,10 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     setCheckNumeroError('');
     setCheckMontoError('');
     setCheckFileError('');
+    setLimiteMaximoError('');
 
     let hasErrors = false;
+    if (!validarLimiteMaximo()) hasErrors = true;
 
     if (!checkTitular || !checkTitular.trim()) {
       setCheckTitularError('El titular es obligatorio.');
@@ -711,6 +786,9 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       formData.append('monto', checkMonto.replace(/\./g, '').replace(',', '.'));
       formData.append('paisId', paisId.toString());
       formData.append('moneda', checkMoneda.toLowerCase().includes('d') ? 'dolares' : 'pesos');
+      if (limiteMaximo.trim()) {
+        formData.append('limiteMaximo', limiteMaximo.replace(/\./g, '').replace(',', '.'));
+      }
 
       if (checkFile) {
         if (Platform.OS === 'web') {
@@ -747,6 +825,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
         checkMonto,
         checkPais,
         checkMoneda,
+        limiteMaximo,
         checkFile,
         checkFileUri,
       }, result.metodoPago ? String(result.metodoPago.identificador) : undefined);
@@ -837,6 +916,30 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
                 <View style={{ flex: 1 }}>
                   <Text style={styles.methodTitle}>{m.title}</Text>
                   {!!m.subtitle && <Text style={styles.methodSub}>{m.subtitle}</Text>}
+                  <Text style={styles.methodSub}>
+                    {m.limiteMaximo ? `Limite: ${Number(m.limiteMaximo).toLocaleString('es-AR')}` : 'Sin limite para subastas'}
+                  </Text>
+                  <View style={{ marginTop: 10 }}>
+                    <Text style={{ fontSize: 12, color: '#666', marginBottom: 5 }}>Limite para subastas</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <TextInput
+                        style={{ flex: 1, borderWidth: 1, borderColor: '#D8DCE0', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 }}
+                        value={limitDrafts[m.id] ?? m.limiteMaximo ?? ''}
+                        onChangeText={(value) => setLimitDrafts(current => ({ ...current, [m.id]: value }))}
+                        keyboardType="numeric"
+                        placeholder="Sin limite"
+                      />
+                      <TouchableOpacity
+                        style={{ backgroundColor: '#BEE757', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10 }}
+                        onPress={() => guardarLimiteDelMetodo(m)}
+                        disabled={savingLimitId === m.id}
+                      >
+                        <Text style={{ color: '#051C2C', fontWeight: '700' }}>
+                          {savingLimitId === m.id ? 'Guardando...' : 'Guardar'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 </View>
 
                 <TouchableOpacity onPress={() => removeMethod(m.id)} style={styles.removeButton} disabled={isLoading}>
@@ -1007,6 +1110,10 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       setBankCbuIbanError={setBankCbuIbanError}
       bankTab={bankTab}
       setBankTab={setBankTab}
+      limiteMaximo={limiteMaximo}
+      setLimiteMaximo={setLimiteMaximo}
+      limiteMaximoError={limiteMaximoError}
+      setLimiteMaximoError={setLimiteMaximoError}
       currencyOptions={currencyOptions}
       handleAddBank={handleAddBank}
       isLoading={isLoading}
@@ -1033,6 +1140,10 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       setCardCvv={setCardCvv}
       cardCvvError={cardCvvError}
       setCardCvvError={setCardCvvError}
+      limiteMaximo={limiteMaximo}
+      setLimiteMaximo={setLimiteMaximo}
+      limiteMaximoError={limiteMaximoError}
+      setLimiteMaximoError={setLimiteMaximoError}
       handleAddCard={handleAddCard}
       isLoading={isLoading}
     />
@@ -1058,6 +1169,10 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       setCheckMonto={setCheckMonto}
       checkMontoError={checkMontoError}
       setCheckMontoError={setCheckMontoError}
+      limiteMaximo={limiteMaximo}
+      setLimiteMaximo={setLimiteMaximo}
+      limiteMaximoError={limiteMaximoError}
+      setLimiteMaximoError={setLimiteMaximoError}
       checkPais={checkPais}
       setCheckPais={setCheckPais}
       isCheckDropdownOpen={isCheckDropdownOpen}

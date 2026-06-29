@@ -1,11 +1,14 @@
 package com.bidowl.auctionplace.dto;
 
+import java.math.BigDecimal;
+
 public class CuentaRequest {
     private String titularCuenta;
     private String nombreBanco;
     private Integer paisId;
     private String cbuIban;
     private String moneda;
+    private BigDecimal limiteMaximo;
 
     public String getTitularCuenta() {
         return titularCuenta;
@@ -45,5 +48,13 @@ public class CuentaRequest {
 
     public void setMoneda(String moneda) {
         this.moneda = moneda;
+    }
+
+    public BigDecimal getLimiteMaximo() {
+        return limiteMaximo;
+    }
+
+    public void setLimiteMaximo(BigDecimal limiteMaximo) {
+        this.limiteMaximo = limiteMaximo;
     }
 }

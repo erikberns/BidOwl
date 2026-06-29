@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "registroDeSubasta")
@@ -45,6 +46,15 @@ public class RegistroDeSubasta {
 
     @Column(table = "registro_de_subasta_datos_adicionales", name = "costoEnvio", precision = 18, scale = 2)
     private BigDecimal costoEnvio;
+
+    @Column(table = "registro_de_subasta_datos_adicionales", name = "estadoPago", length = 20)
+    private String estadoPago;
+
+    @Column(table = "registro_de_subasta_datos_adicionales", name = "montoPagado", precision = 18, scale = 0)
+    private BigDecimal montoPagado;
+
+    @Column(table = "registro_de_subasta_datos_adicionales", name = "fechaIntentoPago")
+    private LocalDateTime fechaIntentoPago;
 
     /**
      * El precio final de adjudicación/compra (monto de la puja ganadora) que el cliente debe pagar por el producto.

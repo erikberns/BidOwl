@@ -21,7 +21,7 @@ public class MetodoPagoValidationService {
     private MonedaService monedaService;
 
     @Autowired
-    private ChequeCompromisoService chequeCompromisoService;
+    private LimiteMetodoPagoService limiteMetodoPagoService;
 
     @Transactional
     public MetodoPago obtenerCompatibleParaPuja(Integer clienteId, String idMetodoPago, Subasta subasta, BigDecimal monto, Integer itemId) {
@@ -45,7 +45,13 @@ public class MetodoPagoValidationService {
 
         String monedaSubasta = monedaService.monedaSubasta(subasta);
         monedaService.validarMetodoPagoCompatible(monedaSubasta, metodoPago);
-        chequeCompromisoService.validarDisponibleParaPuja(metodoPago, monto, itemId, monedaSubasta);
+
+        BigDecimal limiteEfectivo = limiteMetodoPagoService.obtenerLimiteEfectivo(metodoPago);
+        if (limiteEfectivo != null && monto != null && monto.compareTo(limiteEfectivo) > 0) {
+            throw new IllegalArgumentException("La puja supera el limite de "
+                    + limiteEfectivo.toPlainString() + " " + monedaSubasta
+                    + " asignado al metodo de pago.");
+        }
 
         return metodoPago;
     }

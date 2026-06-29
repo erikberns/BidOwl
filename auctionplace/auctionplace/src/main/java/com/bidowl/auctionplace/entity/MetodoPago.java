@@ -33,4 +33,7 @@ public class MetodoPago {
     @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "tarjetaCredito")
     private TarjetaCredito tarjetaCredito;
+
+    @OneToOne(mappedBy = "metodoPago", fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
+    private LimiteMetodoPago limitePago;
 }

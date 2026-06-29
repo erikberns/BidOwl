@@ -256,7 +256,8 @@ public class PersonaController {
                     request.getNumeroTarjeta(),
                     request.getTitularTarjeta(),
                     request.getFechaVencimiento(),
-                    request.getCvv());
+                    request.getCvv(),
+                    request.getLimiteMaximo());
             response.put("mensaje", "Tarjeta de crédito registrada con éxito.");
             response.put("metodoPago", mp);
             return ResponseEntity.ok(response);
@@ -278,7 +279,8 @@ public class PersonaController {
                     request.getNombreBanco(),
                     request.getPaisId(),
                     request.getCbuIban(),
-                    request.getMoneda());
+                    request.getMoneda(),
+                    request.getLimiteMaximo());
             response.put("mensaje", "Cuenta bancaria registrada con éxito.");
             response.put("metodoPagoId", mp.getIdentificador());
             return ResponseEntity.ok(response);
@@ -302,7 +304,8 @@ public class PersonaController {
                     request.getNombreBanco(),
                     request.getPaisId(),
                     request.getCbuIban(),
-                    request.getMoneda());
+                    request.getMoneda(),
+                    request.getLimiteMaximo());
             response.put("mensaje", "Cuenta bancaria actualizada con exito.");
             response.put("metodoPagoId", mp.getIdentificador());
             return ResponseEntity.ok(response);
@@ -327,6 +330,7 @@ public class PersonaController {
                     request.getMonto(),
                     request.getPaisId(),
                     request.getMoneda(),
+                    request.getLimiteMaximo(),
                     comprobante);
             response.put("mensaje", "Cheque certificado registrado con éxito.");
             response.put("metodoPago", mp);
@@ -343,6 +347,28 @@ public class PersonaController {
         try {
             List<MetodoPago> metodos = personaService.obtenerMetodosPago(id);
             return ResponseEntity.ok(metodos);
+        } catch (Exception e) {
+            response.put("error", e.getMessage());
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    @PutMapping("/{id}/metodo-pago/{metodoPagoId}/limite")
+    public ResponseEntity<?> actualizarLimiteMetodoPago(
+            @PathVariable Integer id,
+            @PathVariable Integer metodoPagoId,
+            @RequestBody Map<String, Object> body) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            Object valor = body.get("limiteMaximo");
+            java.math.BigDecimal limite = valor == null || valor.toString().trim().isEmpty()
+                    ? null
+                    : new java.math.BigDecimal(valor.toString());
+            com.bidowl.auctionplace.entity.LimiteMetodoPago guardado =
+                    personaService.actualizarLimiteMetodoPago(id, metodoPagoId, limite);
+            response.put("mensaje", "Limite actualizado correctamente.");
+            response.put("limiteMaximo", guardado != null ? guardado.getLimiteMaximo() : null);
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("error", e.getMessage());
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);

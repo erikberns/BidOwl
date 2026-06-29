@@ -16,6 +16,10 @@ public class WonItemDetailDTO {
     private String domicilio;
     private BigDecimal costoEnvio;
     private String tipoEntrega;
+    private String estadoPago;
+    private BigDecimal montoPagado;
+    private BigDecimal limiteMetodoPago;
+    private String fechaIntentoPago;
     private Boolean bloqueadoPorDeuda;
     private String deudaEstado;
     private BigDecimal montoMulta;

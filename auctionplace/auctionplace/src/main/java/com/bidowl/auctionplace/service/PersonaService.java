@@ -54,6 +54,9 @@ public class PersonaService implements PersonaServiceInterface {
     @Autowired
     private MonedaService monedaService;
 
+    @Autowired
+    private LimiteMetodoPagoService limiteMetodoPagoService;
+
     @Override
     public Persona registrarPaso1(RegistroPaso1Request request, MultipartFile fotoDniFrente, MultipartFile fotoDniDorso) throws Exception {
         
@@ -280,7 +283,7 @@ public class PersonaService implements PersonaServiceInterface {
     }
 
     @Override
-    public MetodoPago registrarTarjeta(Integer personaId, String numero, String titular, String vencimiento, Integer cvv) throws Exception {
+    public MetodoPago registrarTarjeta(Integer personaId, String numero, String titular, String vencimiento, Integer cvv, BigDecimal limiteMaximo) throws Exception {
         Persona persona = obtenerPorId(personaId);
 
         // Verificar si la tarjeta ya existe para este usuario
@@ -306,11 +309,13 @@ public class PersonaService implements PersonaServiceInterface {
         mp.setPersona(persona);
         mp.setTarjetaCredito(tcGuardada);
 
-        return metodoPagoRepository.save(mp);
+        MetodoPago guardado = metodoPagoRepository.save(mp);
+        limiteMetodoPagoService.guardar(guardado, limiteMaximo);
+        return guardado;
     }
 
     @Override
-    public MetodoPago registrarCuenta(Integer personaId, String titular, String banco, Integer paisId, String cbu, String moneda) throws Exception {
+    public MetodoPago registrarCuenta(Integer personaId, String titular, String banco, Integer paisId, String cbu, String moneda, BigDecimal limiteMaximo) throws Exception {
         Persona persona = obtenerPorId(personaId);
         Pais pais = paisRepository.findById(paisId)
                 .orElseThrow(() -> new Exception("País no encontrado"));
@@ -339,12 +344,14 @@ public class PersonaService implements PersonaServiceInterface {
         mp.setPersona(persona);
         mp.setCuentaBancaria(cbGuardada);
 
-        return metodoPagoRepository.save(mp);
+        MetodoPago guardado = metodoPagoRepository.save(mp);
+        limiteMetodoPagoService.guardar(guardado, limiteMaximo);
+        return guardado;
     }
 
     @Override
     public MetodoPago actualizarCuenta(Integer personaId, Integer metodoPagoId, String titular, String banco,
-            Integer paisId, String cbu, String moneda) throws Exception {
+            Integer paisId, String cbu, String moneda, BigDecimal limiteMaximo) throws Exception {
         Pais pais = paisRepository.findById(paisId)
                 .orElseThrow(() -> new Exception("Pais no encontrado"));
         MetodoPago metodoPago = metodoPagoRepository.findById(metodoPagoId)
@@ -374,11 +381,12 @@ public class PersonaService implements PersonaServiceInterface {
         cuenta.setCbuIban(cbu);
         cuenta.setMoneda(monedaService.normalizar(moneda));
         cuentaBancariaRepository.save(cuenta);
+        limiteMetodoPagoService.guardar(metodoPago, limiteMaximo);
         return metodoPago;
     }
 
     @Override
-    public MetodoPago registrarCheque(Integer personaId, String titular, String banco, String numeroCheque, BigDecimal monto, Integer paisId, String moneda, org.springframework.web.multipart.MultipartFile comprobante) throws Exception {
+    public MetodoPago registrarCheque(Integer personaId, String titular, String banco, String numeroCheque, BigDecimal monto, Integer paisId, String moneda, BigDecimal limiteMaximo, org.springframework.web.multipart.MultipartFile comprobante) throws Exception {
         Persona persona = obtenerPorId(personaId);
         Pais pais = paisRepository.findById(paisId)
                 .orElseThrow(() -> new Exception("País no encontrado"));
@@ -412,7 +420,9 @@ public class PersonaService implements PersonaServiceInterface {
         mp.setPersona(persona);
         mp.setChequeCertificado(ccGuardado);
 
-        return metodoPagoRepository.save(mp);
+        MetodoPago guardado = metodoPagoRepository.save(mp);
+        limiteMetodoPagoService.guardar(guardado, limiteMaximo);
+        return guardado;
     }
 
     @Override
@@ -504,7 +514,20 @@ public class PersonaService implements PersonaServiceInterface {
 
     @Override
     public List<MetodoPago> obtenerMetodosPago(Integer personaId) throws Exception {
-        return metodoPagoRepository.findByPersonaIdentificador(personaId);
+        List<MetodoPago> metodos = metodoPagoRepository.findByPersonaIdentificador(personaId);
+        metodos.forEach(limiteMetodoPagoService::obtener);
+        return metodos;
+    }
+
+    @Override
+    public LimiteMetodoPago actualizarLimiteMetodoPago(Integer personaId, Integer metodoPagoId, BigDecimal limiteMaximo) throws Exception {
+        MetodoPago metodoPago = metodoPagoRepository.findById(metodoPagoId)
+                .orElseThrow(() -> new Exception("Metodo de pago no encontrado."));
+        if (metodoPago.getPersona() == null
+                || !metodoPago.getPersona().getIdentificador().equals(personaId)) {
+            throw new Exception("El metodo de pago no pertenece a este usuario.");
+        }
+        return limiteMetodoPagoService.guardar(metodoPago, limiteMaximo);
     }
 
     @Override

@@ -9,6 +9,7 @@ public class ChequeRequest {
     private BigDecimal monto;
     private Integer paisId;
     private String moneda;
+    private BigDecimal limiteMaximo;
 
     public String getTitular() {
         return titular;
@@ -56,5 +57,13 @@ public class ChequeRequest {
 
     public void setMoneda(String moneda) {
         this.moneda = moneda;
+    }
+
+    public BigDecimal getLimiteMaximo() {
+        return limiteMaximo;
+    }
+
+    public void setLimiteMaximo(BigDecimal limiteMaximo) {
+        this.limiteMaximo = limiteMaximo;
     }
 }

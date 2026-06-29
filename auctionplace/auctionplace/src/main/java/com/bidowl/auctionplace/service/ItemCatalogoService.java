@@ -63,6 +63,9 @@ public class ItemCatalogoService {
     private ChequeCompromisoService chequeCompromisoService;
 
     @Autowired
+    private PagoAutomaticoService pagoAutomaticoService;
+
+    @Autowired
     private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     @jakarta.persistence.PersistenceContext
@@ -159,13 +162,18 @@ public class ItemCatalogoService {
                     .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
             registro.setComision(comisionCalculada);
 
-            registroDeSubastaRepository.save(registro);
+            registro = registroDeSubastaRepository.save(registro);
+            boolean pagoCompleto = pagoAutomaticoService.procesar(registro);
 
-            // Generar notificación para el usuario ganador
+            // Informar el resultado del cobro automatico junto con la adjudicacion.
             Notificacion notificacion = new Notificacion();
             notificacion.setPersonaId(clienteGanador.getIdentificador());
-            notificacion.setTitulo("¡Ha obtenido un nuevo objeto!");
-            notificacion.setCuerpo("Has ganado la subasta para '" + item.getProducto().getNombre() + "'. Te entregaremos la factura correspondiente para formalizar la operación. A continuación, podrás confirmar la modalidad de entrega.");
+            notificacion.setTitulo(pagoCompleto ? "Pago realizado" : "Pago incompleto y multa aplicada");
+            notificacion.setCuerpo(pagoCompleto
+                    ? "Ganaste '" + item.getProducto().getNombre() + "' y el pago de "
+                            + registro.getMontoPagado().toPlainString() + " se realizo correctamente."
+                    : "Ganaste '" + item.getProducto().getNombre()
+                            + "', pero el importe supero el limite del medio de pago. Se genero la multa correspondiente y tu participacion quedo suspendida hasta regularizar la deuda.");
             notificacion.setAccion("show_bid_won:" + item.getIdentificador());
             notificacion.setLeida(false);
             notificacion.setFecha(LocalDateTime.now());

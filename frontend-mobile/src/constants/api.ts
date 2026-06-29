@@ -26,7 +26,7 @@ const LOCAL_IP = getLocalIp();
 const CLOUD_API_URL = 'https://bidowl-production.up.railway.app/api';
 
 // Cambia esto a "true" cuando quieras que tu app apunte a Railway, y "false" para usar tu PC local
-const USE_CLOUD = true;
+const USE_CLOUD = false;
 
 export const API_URL = USE_CLOUD
   ? CLOUD_API_URL

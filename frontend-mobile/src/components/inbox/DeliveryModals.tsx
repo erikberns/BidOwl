@@ -1,4 +1,4 @@
-// Gestiona factura, modalidad de entrega y declaracion de falta de pago.
+// Muestra el resultado del pago automatico y permite coordinar la entrega.
 import React from 'react';
 import { Alert, View, Text, TouchableOpacity, ScrollView, Modal, Image, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -41,6 +41,8 @@ export const DeliveryModals: React.FC<DeliveryModalsProps> = ({
   alreadyConfirmed = false,
 }) => {
   const isVisible = showBidWon || showDeliverySelection || showWonInvoice || showDeliverySuccess;
+  const pagoCompleto = wonItemDetails?.estadoPago === 'COMPLETO';
+  const pagoIncompleto = wonItemDetails?.estadoPago === 'INCOMPLETO';
   const wonItemImageSource = wonItemDetails?.image
     ? {
       uri: wonItemDetails.image.startsWith('http')
@@ -56,7 +58,7 @@ export const DeliveryModals: React.FC<DeliveryModalsProps> = ({
       setShowDeliverySelection(false);
       setShowBidWon(true);
     } else if (showWonInvoice) {
-      if (alreadyConfirmed) {
+      if (alreadyConfirmed || pagoIncompleto) {
         setShowWonInvoice(false);
       } else {
         setShowWonInvoice(false);
@@ -76,35 +78,26 @@ export const DeliveryModals: React.FC<DeliveryModalsProps> = ({
     return '';
   };
 
-  const submitDeliveryDecision = async (noPuedePagar = false) => {
+  const submitDeliveryDecision = async () => {
     if (!wonItemDetails?.itemId) {
       setShowWonInvoice(false);
       return;
     }
 
     try {
-      const base = wonItemDetails.importe ? Number(wonItemDetails.importe) : 0;
       const shipping = (deliveryType === 'envio' && wonItemDetails.costoEnvio) ? Number(wonItemDetails.costoEnvio) : 0;
       const response = await fetch(`${API_URL}/inbox/won-item/${wonItemDetails.itemId}/confirmar-entrega`, {
         method: 'POST',
         headers: await authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify(noPuedePagar
-          ? { noPuedePagar: true }
-          : {
-            tipoEntrega: deliveryType,
-            costoEnvio: shipping,
-            total: base + shipping
-          }),
+        body: JSON.stringify({
+          tipoEntrega: deliveryType,
+          costoEnvio: shipping,
+        }),
       });
 
       if (response.ok) {
         setShowWonInvoice(false);
-        if (noPuedePagar) {
-          Alert.alert('Multa registrada', 'Se registro la multa y tu participacion queda suspendida hasta regularizar.');
-          checkUserStatusAndFetch();
-        } else {
-          setShowDeliverySuccess(true);
-        }
+        setShowDeliverySuccess(true);
       } else {
         let message = 'No se pudo registrar la decision de pago.';
         try {
@@ -172,16 +165,22 @@ export const DeliveryModals: React.FC<DeliveryModalsProps> = ({
               </View>
 
               <Text style={[styles.modalSubtitle, { textAlign: 'left', marginHorizontal: 20, marginTop: 24, color: '#555', lineHeight: 22 }]}>
-                Te entregaremos la factura correspondiente para formalizar la operación. A continuación, podrás confirmar la modalidad de entrega.
+                {pagoCompleto
+                  ? 'El pago se realizo automaticamente. A continuacion, podras confirmar la modalidad de entrega.'
+                  : 'El pago automatico no pudo completarse porque el importe supero el limite del medio de pago. Se genero la multa correspondiente.'}
               </Text>
             </ScrollView>
             
             <View style={styles.modalFooter}>
               <TouchableOpacity style={styles.modalButton} onPress={() => {
                 setShowBidWon(false);
-                setShowDeliverySelection(true);
+                if (pagoCompleto) {
+                  setShowDeliverySelection(true);
+                } else {
+                  setShowWonInvoice(true);
+                }
               }}>
-                <Text style={styles.modalButtonText}>Ver Factura y Envio</Text>
+                <Text style={styles.modalButtonText}>{pagoCompleto ? 'Ver Factura y Envio' : 'Ver Factura'}</Text>
               </TouchableOpacity>
             </View>
           </>
@@ -271,10 +270,12 @@ export const DeliveryModals: React.FC<DeliveryModalsProps> = ({
                 Factura de Puja Realizada.
               </Text>
 
-              {alreadyConfirmed && (
-                <View style={[styles.warningCard, { backgroundColor: '#EBFBEE', borderColor: '#2E9F64', marginHorizontal: 20, marginTop: 16, padding: 12 }]}>
-                  <Text style={[styles.warningText, { color: '#2E9F64' }]}>
-                    ✓ Esta factura ya ha sido formalizada y pagada.
+              {(pagoCompleto || pagoIncompleto) && (
+                <View style={[styles.warningCard, pagoCompleto && { backgroundColor: '#EBFBEE', borderColor: '#2E9F64' }, { marginHorizontal: 20, marginTop: 16, padding: 12 }]}>
+                  <Text style={[styles.warningText, pagoCompleto && { color: '#2E9F64' }]}>
+                    {pagoCompleto
+                      ? 'Pago automatico completado.'
+                      : 'Pago incompleto: el importe supero el limite y se aplico una multa.'}
                   </Text>
                 </View>
               )}
@@ -288,9 +289,18 @@ export const DeliveryModals: React.FC<DeliveryModalsProps> = ({
                 </View>
 
                 <View style={{ marginBottom: 16 }}>
-                  <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Valor Base Propuesto</Text>
+                  <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Importe de la Puja Ganadora</Text>
                   <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C' }}>
                     {wonItemDetails?.importe ? (Number(wonItemDetails.importe).toLocaleString('es-AR') + ' AR$') : ''}
+                  </Text>
+                </View>
+
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Limite del Metodo de Pago</Text>
+                  <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#051C2C' }}>
+                    {wonItemDetails?.limiteMetodoPago != null
+                      ? Number(wonItemDetails.limiteMetodoPago).toLocaleString('es-AR') + ' AR$'
+                      : 'No disponible'}
                   </Text>
                 </View>
 
@@ -307,20 +317,16 @@ export const DeliveryModals: React.FC<DeliveryModalsProps> = ({
                 <View style={{ height: 1, backgroundColor: '#E0E0E0', marginVertical: 8 }} />
 
                 <View style={{ marginTop: 8 }}>
-                  <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Total</Text>
+                  <Text style={{ fontSize: 12, color: '#8A8A8A', marginBottom: 4 }}>Monto Pagado Automaticamente</Text>
                   <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#051C2C' }}>
-                    {(() => {
-                      const base = wonItemDetails?.importe ? Number(wonItemDetails.importe) : 0;
-                      const shipping = (deliveryType === 'envio' && wonItemDetails?.costoEnvio) ? Number(wonItemDetails.costoEnvio) : 0;
-                      return (base + shipping).toLocaleString('es-AR') + ' AR$';
-                    })()}
+                    {Number(wonItemDetails?.montoPagado || 0).toLocaleString('es-AR') + ' AR$'}
                   </Text>
                 </View>
               </View>
             </ScrollView>
             
             <View style={styles.modalFooter}>
-              {alreadyConfirmed ? (
+              {alreadyConfirmed || pagoIncompleto ? (
                 <TouchableOpacity 
                   style={[styles.modalButton, { backgroundColor: '#051C2C', borderColor: '#051C2C' }]} 
                   onPress={() => setShowWonInvoice(false)}
@@ -331,15 +337,9 @@ export const DeliveryModals: React.FC<DeliveryModalsProps> = ({
                 <>
                   <TouchableOpacity
                     style={[styles.modalButton, { backgroundColor: '#ADFF2F', borderColor: '#ADFF2F' }]}
-                    onPress={() => submitDeliveryDecision(false)}
+                    onPress={submitDeliveryDecision}
                   >
                     <Text style={[styles.modalButtonText, { color: '#051C2C', fontWeight: 'bold' }]}>Finalizar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.paymentIssueButton}
-                    onPress={() => submitDeliveryDecision(true)}
-                  >
-                    <Text style={styles.paymentIssueButtonText}>No puedo pagar</Text>
                   </TouchableOpacity>
                 </>
               )}

@@ -32,6 +32,10 @@ interface BankAccountFormProps {
   setBankCbuIbanError: (val: string) => void;
   bankTab: 'CBU' | 'IBAN';
   setBankTab: (val: 'CBU' | 'IBAN') => void;
+  limiteMaximo: string;
+  setLimiteMaximo: (val: string) => void;
+  limiteMaximoError: string;
+  setLimiteMaximoError: (val: string) => void;
   currencyOptions: any[];
   handleAddBank: () => void;
   isLoading: boolean;
@@ -66,6 +70,10 @@ export const BankAccountForm: React.FC<BankAccountFormProps> = ({
   setBankCbuIbanError,
   bankTab,
   setBankTab,
+  limiteMaximo,
+  setLimiteMaximo,
+  limiteMaximoError,
+  setLimiteMaximoError,
   currencyOptions,
   handleAddBank,
   isLoading,
@@ -135,6 +143,17 @@ export const BankAccountForm: React.FC<BankAccountFormProps> = ({
             if (bankCbuIbanError) setBankCbuIbanError('');
           }}
           error={bankCbuIbanError}
+        />
+        <InputField
+          label="Limite maximo de pago (opcional)"
+          placeholder="Sin limite"
+          value={limiteMaximo}
+          onChangeText={(val: string) => {
+            setLimiteMaximo(val);
+            if (limiteMaximoError) setLimiteMaximoError('');
+          }}
+          keyboardType="numeric"
+          error={limiteMaximoError}
         />
       </ScrollView>
       <View style={styles.footer}>

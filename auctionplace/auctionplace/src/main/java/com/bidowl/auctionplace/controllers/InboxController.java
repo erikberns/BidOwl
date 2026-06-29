@@ -95,21 +95,6 @@ public class InboxController {
                 costoEnvio = new java.math.BigDecimal(body.get("costoEnvio").toString());
             }
             Integer clienteId = ControllerSupport.resolvePersonaId(autorizacion, sesionService);
-
-            boolean noPuedePagar = esVerdadero(body.get("noPuedePagar"))
-                    || esFalso(body.get("puedePagar"));
-            if (noPuedePagar) {
-                com.bidowl.auctionplace.entity.ClienteDeudaSubasta deuda = inboxService.registrarFaltaDePago(itemId, clienteId);
-
-                Map<String, Object> response = new HashMap<>();
-                response.put("status", "deuda_pendiente");
-                response.put("mensaje", "Se registro una multa del 10% y la participacion queda suspendida hasta regularizar.");
-                response.put("deudaId", deuda.getIdentificador());
-                response.put("montoMulta", deuda.getMontoMulta());
-                response.put("montoTotal", deuda.getMontoTotal());
-                response.put("fechaVencimiento", deuda.getFechaVencimiento());
-                return ResponseEntity.ok(response);
-            }
             
             inboxService.registrarConfirmacionEntrega(itemId, tipoEntrega, costoEnvio, clienteId);
             
@@ -140,11 +125,4 @@ public class InboxController {
         }
     }
 
-    private boolean esVerdadero(Object valor) {
-        return Boolean.TRUE.equals(valor) || "true".equalsIgnoreCase(String.valueOf(valor));
-    }
-
-    private boolean esFalso(Object valor) {
-        return Boolean.FALSE.equals(valor) || "false".equalsIgnoreCase(String.valueOf(valor));
-    }
 }

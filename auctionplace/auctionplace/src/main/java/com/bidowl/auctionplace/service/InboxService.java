@@ -61,6 +61,9 @@ public class InboxService {
     @Autowired
     private ClientePenalizacionService clientePenalizacionService;
 
+    @Autowired
+    private LimiteMetodoPagoService limiteMetodoPagoService;
+
     public List<NotificacionDTO> obtenerNotificaciones(Integer personaId) {
         List<Notificacion> notificaciones = notificacionRepository.findByPersonaIdOrderByFechaDesc(personaId);
         return notificaciones.stream().map(n -> {
@@ -257,6 +260,12 @@ public class InboxService {
             if (reg.getTipoEntrega() != null) {
                 dto.setTipoEntrega(reg.getTipoEntrega());
             }
+            dto.setEstadoPago(reg.getEstadoPago());
+            dto.setMontoPagado(reg.getMontoPagado());
+            dto.setFechaIntentoPago(reg.getFechaIntentoPago() != null ? reg.getFechaIntentoPago().toString() : null);
+            if (reg.getMetodoPago() != null) {
+                dto.setLimiteMetodoPago(limiteMetodoPagoService.obtenerLimiteEfectivo(reg.getMetodoPago()));
+            }
             clientePenalizacionService.obtenerDeudaPendientePorProducto(item.getProducto().getIdentificador())
                     .ifPresent(deuda -> {
                         dto.setBloqueadoPorDeuda(true);
@@ -277,6 +286,10 @@ public class InboxService {
         
         com.bidowl.auctionplace.entity.RegistroDeSubasta registro = registroDeSubastaRepository.findFirstByProductoIdentificadorOrderByIdentificadorDesc(item.getProducto().getIdentificador())
                 .orElseThrow(() -> new Exception("No se encontró el registro de subasta para el producto."));
+
+        if (!PagoAutomaticoService.COMPLETO.equalsIgnoreCase(registro.getEstadoPago())) {
+            throw new IllegalStateException("No se puede coordinar la entrega porque el pago automatico quedo incompleto.");
+        }
         
         registro.setTipoEntrega(tipoEntrega);
         registro.setCostoEnvio(costoEnvio);
@@ -291,31 +304,6 @@ public class InboxService {
                 notificacionRepository.save(n);
             }
         }
-    }
-
-    @org.springframework.transaction.annotation.Transactional
-    public com.bidowl.auctionplace.entity.ClienteDeudaSubasta registrarFaltaDePago(Integer itemId, Integer clienteId) throws Exception {
-        ItemCatalogo item = itemCatalogoRepository.findById(itemId)
-                .orElseThrow(() -> new java.util.NoSuchElementException("Item de catalogo con ID " + itemId + " no encontrado"));
-
-        com.bidowl.auctionplace.entity.RegistroDeSubasta registro = registroDeSubastaRepository.findFirstByProductoIdentificadorOrderByIdentificadorDesc(item.getProducto().getIdentificador())
-                .orElseThrow(() -> new Exception("No se encontro el registro de subasta para el producto."));
-
-        if (!registro.getCliente().getIdentificador().equals(clienteId)) {
-            throw new IllegalArgumentException("El item ganado no pertenece al cliente autenticado.");
-        }
-
-        com.bidowl.auctionplace.entity.ClienteDeudaSubasta deuda = clientePenalizacionService.generarMultaPorFaltaDePago(registro);
-
-        String accion = "show_bid_won:" + itemId;
-        List<Notificacion> notifs = notificacionRepository.findByPersonaIdOrderByFechaDesc(clienteId);
-        for (Notificacion n : notifs) {
-            if (accion.equals(n.getAccion())) {
-                n.setLeida(true);
-                notificacionRepository.save(n);
-            }
-        }
-        return deuda;
     }
 
     public com.bidowl.auctionplace.entity.ClienteDeudaSubasta regularizarDeuda(Integer deudaId, Integer clienteId) {

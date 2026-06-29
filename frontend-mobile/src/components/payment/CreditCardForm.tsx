@@ -22,6 +22,10 @@ interface CreditCardFormProps {
   setCardCvv: (val: string) => void;
   cardCvvError: string;
   setCardCvvError: (val: string) => void;
+  limiteMaximo: string;
+  setLimiteMaximo: (val: string) => void;
+  limiteMaximoError: string;
+  setLimiteMaximoError: (val: string) => void;
   handleAddCard: () => void;
   isLoading: boolean;
 }
@@ -45,6 +49,10 @@ export const CreditCardForm: React.FC<CreditCardFormProps> = ({
   setCardCvv,
   cardCvvError,
   setCardCvvError,
+  limiteMaximo,
+  setLimiteMaximo,
+  limiteMaximoError,
+  setLimiteMaximoError,
   handleAddCard,
   isLoading,
 }) => {
@@ -120,6 +128,17 @@ export const CreditCardForm: React.FC<CreditCardFormProps> = ({
             error={cardCvvError}
           />
         </View>
+        <InputField
+          label="Limite maximo de pago (opcional)"
+          placeholder="Sin limite"
+          value={limiteMaximo}
+          onChangeText={(val: string) => {
+            setLimiteMaximo(val);
+            if (limiteMaximoError) setLimiteMaximoError('');
+          }}
+          keyboardType="numeric"
+          error={limiteMaximoError}
+        />
       </ScrollView>
       <View style={styles.footer}>
         <TouchableOpacity style={styles.acceptButton} onPress={handleAddCard} disabled={isLoading}>
