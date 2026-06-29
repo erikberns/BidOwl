@@ -280,7 +280,7 @@ public class PersonaController {
                     request.getCbuIban(),
                     request.getMoneda());
             response.put("mensaje", "Cuenta bancaria registrada con éxito.");
-            response.put("metodoPago", mp);
+            response.put("metodoPagoId", mp.getIdentificador());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("error", e.getMessage());
@@ -304,7 +304,7 @@ public class PersonaController {
                     request.getCbuIban(),
                     request.getMoneda());
             response.put("mensaje", "Cuenta bancaria actualizada con exito.");
-            response.put("metodoPago", mp);
+            response.put("metodoPagoId", mp.getIdentificador());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             response.put("error", e.getMessage());

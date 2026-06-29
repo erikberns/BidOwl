@@ -193,6 +193,63 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
     { value: 'Dólares', label: 'Dólares' }
   ];
 
+  const mapExistingMethods = (data: any[]): PaymentMethod[] => data.map((item: any) => {
+    if (item.tarjetaCredito) {
+      const last4 = item.tarjetaCredito.numeroTarjeta?.slice(-4) || '';
+      return {
+        id: String(item.identificador),
+        type: 'card',
+        title: `VISA **** **** **** ${last4}`,
+        subtitle: `Vence: ${item.tarjetaCredito.fechaVencimiento || ''}`,
+        cardNumero: item.tarjetaCredito.numeroTarjeta,
+        cardTitular: item.tarjetaCredito.titularTarjeta,
+        cardVencimiento: item.tarjetaCredito.fechaVencimiento,
+        cardCvv: String(item.tarjetaCredito.cvv),
+      };
+    }
+    if (item.cuentaBancaria) {
+      const cbu = item.cuentaBancaria.cbuIban || '';
+      const last4 = cbu.length >= 4 ? cbu.slice(-4) : cbu;
+      return {
+        id: String(item.identificador),
+        type: 'bank',
+        title: `Cuenta Bancaria ${item.cuentaBancaria.nombreBanco || ''}`,
+        subtitle: `CBU/IBAN: ****${last4}`,
+        bankTitular: item.cuentaBancaria.titularCuenta,
+        bankBanco: item.cuentaBancaria.nombreBanco,
+        bankPais: item.cuentaBancaria.pais?.nombre || 'Argentina',
+        bankMoneda: item.cuentaBancaria.moneda === 'pesos' ? 'Pesos' : 'Dólares',
+        bankCbuIban: item.cuentaBancaria.cbuIban,
+        bankTab: item.cuentaBancaria.cbuIban?.length === 22 ? 'CBU' : 'IBAN',
+      };
+    }
+    if (item.chequeCertificado) {
+      return {
+        id: String(item.identificador),
+        type: 'check',
+        title: `Cheque Certificado ${item.chequeCertificado.numeroCheque || ''}`,
+        subtitle: `${item.chequeCertificado.bancoEmisor || ''} - Monto: ${item.chequeCertificado.monto || ''}`,
+        checkTitular: item.chequeCertificado.titular,
+        checkBanco: item.chequeCertificado.bancoEmisor,
+        checkNumero: item.chequeCertificado.numeroCheque,
+        checkMonto: String(item.chequeCertificado.monto),
+        checkPais: item.chequeCertificado.pais?.nombre || 'Argentina',
+        checkMoneda: item.chequeCertificado.moneda === 'pesos' ? 'Pesos' : 'Dólares',
+      };
+    }
+    return null;
+  }).filter(Boolean) as PaymentMethod[];
+
+  const refreshExistingMethods = async (finalUserId: number) => {
+    const response = await fetch(`${API_URL}/personas/${finalUserId}/metodos-pago?_=${Date.now()}`);
+    if (!response.ok) {
+      throw new Error('No se pudieron actualizar los métodos de pago.');
+    }
+    const mapped = mapExistingMethods(await response.json());
+    setMethods(mapped);
+    return mapped;
+  };
+
   useEffect(() => {
     async function loadPaises() {
       try {
@@ -217,56 +274,7 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
         const finalUserId = await getFinalUserId();
         setIsLoading(true);
         console.log(`Cargando métodos de pago existentes para el usuario ${finalUserId} en la pantalla...`);
-        const response = await fetch(`${API_URL}/personas/${finalUserId}/metodos-pago`);
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Métodos cargados para la pantalla:', data);
-          const mapped: PaymentMethod[] = data.map((item: any) => {
-            if (item.tarjetaCredito) {
-              const last4 = item.tarjetaCredito.numeroTarjeta?.slice(-4) || '';
-              return {
-                id: String(item.identificador),
-                type: 'card',
-                title: `VISA **** **** **** ${last4}`,
-                subtitle: `Vence: ${item.tarjetaCredito.fechaVencimiento || ''}`,
-                cardNumero: item.tarjetaCredito.numeroTarjeta,
-                cardTitular: item.tarjetaCredito.titularTarjeta,
-                cardVencimiento: item.tarjetaCredito.fechaVencimiento,
-                cardCvv: String(item.tarjetaCredito.cvv),
-              };
-            } else if (item.cuentaBancaria) {
-              const cbu = item.cuentaBancaria.cbuIban || '';
-              const last4 = cbu.length >= 4 ? cbu.slice(-4) : cbu;
-              return {
-                id: String(item.identificador),
-                type: 'bank',
-                title: `Cuenta Bancaria ${item.cuentaBancaria.nombreBanco || ''}`,
-                subtitle: `CBU/IBAN: ****${last4}`,
-                bankTitular: item.cuentaBancaria.titularCuenta,
-                bankBanco: item.cuentaBancaria.nombreBanco,
-                bankPais: item.cuentaBancaria.pais?.nombre || 'Argentina',
-                bankMoneda: item.cuentaBancaria.moneda === 'pesos' ? 'Pesos' : 'Dólares',
-                bankCbuIban: item.cuentaBancaria.cbuIban,
-                bankTab: item.cuentaBancaria.cbuIban?.length === 22 ? 'CBU' : 'IBAN',
-              };
-            } else if (item.chequeCertificado) {
-              return {
-                id: String(item.identificador),
-                type: 'check',
-                title: `Cheque Certificado ${item.chequeCertificado.numeroCheque || ''}`,
-                subtitle: `${item.chequeCertificado.bancoEmisor || ''} - Monto: ${item.chequeCertificado.monto || ''}`,
-                checkTitular: item.chequeCertificado.titular,
-                checkBanco: item.chequeCertificado.bancoEmisor,
-                checkNumero: item.chequeCertificado.numeroCheque,
-                checkMonto: String(item.chequeCertificado.monto),
-                checkPais: item.chequeCertificado.pais?.nombre || 'Argentina',
-                checkMoneda: item.chequeCertificado.moneda === 'pesos' ? 'Pesos' : 'Dólares',
-              };
-            }
-            return null;
-          }).filter(Boolean) as PaymentMethod[];
-          setMethods(mapped);
-        }
+        await refreshExistingMethods(finalUserId);
       } catch (error) {
         console.error('Error loading existing methods in PaymentMethodsScreen:', error);
       } finally {
@@ -450,8 +458,12 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       return;
     }
     setIsLoading(true);
+    let finalUserId: number | null = null;
+    let shouldReconcileAfterError = true;
+    const isEditing = editingId !== null;
+    const normalizedCbu = bankCbuIban.trim().replace(/[\s-]/g, '').toLowerCase();
     try {
-      const finalUserId = await getFinalUserId();
+      finalUserId = await getFinalUserId();
       const selectedPaisObj = availablePaises.find(p => p.nombre.toLowerCase() === bankPais.toLowerCase());
       const paisId = selectedPaisObj ? selectedPaisObj.numero : 54;
 
@@ -462,7 +474,6 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
       formData.append('cbuIban', bankCbuIban);
       formData.append('moneda', bankMoneda.toLowerCase().includes('d') ? 'dolares' : 'pesos');
 
-      const isEditing = editingId !== null;
       const endpoint = isEditing
         ? `${API_URL}/personas/${finalUserId}/metodo-pago/${editingId}/cuenta`
         : `${API_URL}/personas/${finalUserId}/metodo-pago/cuenta`;
@@ -473,27 +484,41 @@ export const PaymentMethodsScreen: React.FC<PaymentMethodsScreenProps> = ({ user
         headers: {},
       });
 
-      const result = await response.json();
+      const responseText = await response.text();
+      let result: any = {};
+      if (responseText) {
+        try {
+          result = JSON.parse(responseText);
+        } catch {}
+      }
       if (!response.ok) {
+        shouldReconcileAfterError = false;
         throw new Error(result.error || 'Error al registrar la cuenta bancaria.');
       }
 
+      await refreshExistingMethods(finalUserId);
+      setEditingId(null);
+      setCurrentView('list');
       showAlert('Éxito', `Cuenta bancaria ${isEditing ? 'actualizada' : 'registrada'} con éxito.`);
-      const cbu = bankCbuIban || '';
-      const last4 = cbu.length >= 4 ? cbu.slice(-4) : cbu;
-      addMethod({
-        type: 'bank',
-        title: `Cuenta Bancaria ${bankBanco}`,
-        subtitle: `CBU/IBAN: ****${last4}`,
-        bankTitular,
-        bankBanco,
-        bankPais,
-        bankMoneda,
-        bankCbuIban,
-        bankTab,
-      }, result.metodoPago ? String(result.metodoPago.identificador) : undefined);
     } catch (error: any) {
       console.error('Error al guardar cuenta bancaria:', error);
+      if (shouldReconcileAfterError && finalUserId !== null) {
+        try {
+          const refreshed = await refreshExistingMethods(finalUserId);
+          const wasSaved = refreshed.some(method =>
+            method.type === 'bank'
+            && method.bankCbuIban?.replace(/[\s-]/g, '').toLowerCase() === normalizedCbu
+          );
+          if (wasSaved) {
+            setEditingId(null);
+            setCurrentView('list');
+            showAlert('Éxito', `La cuenta bancaria fue ${isEditing ? 'actualizada' : 'registrada'} correctamente.`);
+            return;
+          }
+        } catch (refreshError) {
+          console.error('Error verificando el alta bancaria:', refreshError);
+        }
+      }
       showAlert('Error', error.message || 'Error al conectar con el servidor.');
     } finally {
       setIsLoading(false);
