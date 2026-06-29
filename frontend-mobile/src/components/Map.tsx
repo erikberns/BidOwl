@@ -37,8 +37,8 @@ export default function MapComponent({ selectedLocation, addressText, onAddressC
           latitudeDelta: 0.02,
           longitudeDelta: 0.02,
         }}
-        scrollEnabled={false}
-        zoomEnabled={false}
+        scrollEnabled
+        zoomEnabled
         rotateEnabled={false}
         pitchEnabled={false}
       >

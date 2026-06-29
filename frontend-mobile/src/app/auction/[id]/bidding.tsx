@@ -94,9 +94,13 @@ const formatRelativeBidTime = (bid: any, _tick: number) => {
 };
 
 const BidderAvatar = ({ idpersona, style }: { idpersona: string | number; style: any }) => {
-  const [error, setError] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
 
-  if (error || !idpersona) {
+  useEffect(() => {
+    setFailedAttempts(0);
+  }, [idpersona]);
+
+  if (failedAttempts >= 2 || !idpersona) {
     return (
       <Image
         source={require('@/assets/images/auctioneer_avatar.png')}
@@ -107,9 +111,9 @@ const BidderAvatar = ({ idpersona, style }: { idpersona: string | number; style:
 
   return (
     <Image
-      source={{ uri: `${API_URL}/personas/${idpersona}/foto` }}
+      source={{ uri: `${API_URL}/personas/${idpersona}/foto?retry=${failedAttempts}` }}
       style={style}
-      onError={() => setError(true)}
+      onError={() => setFailedAttempts(attempts => attempts + 1)}
     />
   );
 };
