@@ -215,11 +215,11 @@ class AuctionplaceApplicationTests {
 
         // --- 2. CONFIGURAR MÉTODOS DE PAGO ---
         // Vendedor registra una cuenta bancaria (para recibir transferencias)
-        MetodoPago mpVendedor = personaService.registrarCuenta(logVendedor.getIdentificador(), "Vendedor De Arte", "Banco de la Nación", 54, "0110222-333333333333333", "pesos");
+        MetodoPago mpVendedor = personaService.registrarCuenta(logVendedor.getIdentificador(), "Vendedor De Arte", "Banco de la Nación", 54, "0110222-333333333333333", "pesos", null);
         assertNotNull(mpVendedor);
 
         // Comprador registra un cheque certificado de $5,000,000 para pujar
-        MetodoPago mpCompradorCheque = personaService.registrarCheque(logComprador.getIdentificador(), "Comprador De Arte", "Banco de Galicia", "CHQ-98765", BigDecimal.valueOf(5000000), 54, "pesos", null);
+        MetodoPago mpCompradorCheque = personaService.registrarCheque(logComprador.getIdentificador(), "Comprador De Arte", "Banco de Galicia", "CHQ-98765", BigDecimal.valueOf(5000000), 54, "pesos", null, null);
         assertNotNull(mpCompradorCheque);
 
         // --- 3. PUBLICACIÓN Y TASACIÓN DE PRODUCTO ---
